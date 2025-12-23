@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  TRAINER
+  STUDENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role
+  createdAt DateTime @default(now())
+
+  trainersWhere     TrainerStudent[] @relation("TrainerRelation")
+  studentsWhere     TrainerStudent[] @relation("StudentRelation")
+  templatesCreated  RoutineTemplate[]
+  assignmentsAsTrainer RoutineAssignment[] @relation("TrainerAssignments")
+  assignmentsAsStudent RoutineAssignment[] @relation("StudentAssignments")
+
+  @@index([email])
+  @@index([role])
+}
+
+model TrainerStudent {
+  trainerId String
+  studentId String
+  createdAt DateTime @default(now())
+
+  trainer User @relation("TrainerRelation", fields: [trainerId], references: [id], onDelete: Cascade)
+  student User @relation("StudentRelation", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([trainerId, studentId])
+  @@index([trainerId])
+  @@index([studentId])
+}
+
+model RoutineTemplate {
+  id        String   @id @default(cuid())
+  trainerId String
+  name      String
+  routine   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainer User @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
+}
+
+model RoutineAssignment {
+  id        String   @id @default(cuid())
+  studentId String
+  trainerId String
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
+  routine   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  trainer User @relation("TrainerAssignments", fields: [trainerId], references: [id], onDelete: Cascade)
+  workoutLogs WorkoutLog[]
+
+  @@index([studentId])
+  @@index([trainerId])
+  @@index([studentId, isActive])
+}
+
+model WorkoutLog {
+  id           String   @id @default(cuid())
+  assignmentId String
+  dayName      String
+  completedAt  DateTime @default(now())
+  rpe          Int?
+  soreness     Int?
+  comment      String?
+
+  assignment RoutineAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([assignmentId, dayName])
+}

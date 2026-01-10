@@ -35,17 +35,38 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Rutas protegidas: /app/*
-  if (pathname.startsWith('/app')) {
+  // Rutas protegidas: /app/* y /onboarding
+  if (pathname.startsWith('/app') || pathname === '/onboarding') {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
+
+    // Verificar si tiene perfil
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    // Si va a /app/* pero no tiene perfil, redirigir a onboarding
+    if (pathname.startsWith('/app') && !profile?.role) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/onboarding';
+      return NextResponse.redirect(url);
+    }
+
+    // Si va a /onboarding pero ya tiene perfil, redirigir a /app
+    if (pathname === '/onboarding' && profile?.role) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/app';
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Si está logueado y va a /login, redirigir a /app
-  if (pathname === '/login' && user) {
+  // Si está logueado y va a /login o /registro, redirigir a /app
+  if ((pathname === '/login' || pathname === '/registro') && user) {
     const url = request.nextUrl.clone();
     url.pathname = '/app';
     return NextResponse.redirect(url);
@@ -55,5 +76,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app/:path*', '/login'],
+  matcher: ['/app/:path*', '/login', '/registro', '/onboarding'],
 };

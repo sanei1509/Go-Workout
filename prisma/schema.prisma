@@ -89,3 +89,13 @@ model WorkoutLog {
   @@index([assignmentId])
   @@index([assignmentId, dayName])
 }
+
+// Tabla vinculada a Supabase Auth (auth.users)
+model Profile {
+  id        String   @id @db.Uuid // Mismo id que auth.users.id
+  role      Role?
+  fullName  String?  @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("profiles")
+}

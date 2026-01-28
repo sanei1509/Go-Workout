@@ -38,6 +38,12 @@ export class UserRepository {
     });
   }
 
+  async getUserByEmail(email: string) {
+    return prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
   async getAllUsers() {
     return prisma.user.findMany({
       orderBy: { createdAt: 'desc' },

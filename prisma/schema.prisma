@@ -13,6 +13,12 @@ enum Role {
   STUDENT
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -25,6 +31,8 @@ model User {
   templatesCreated  RoutineTemplate[]
   assignmentsAsTrainer RoutineAssignment[] @relation("TrainerAssignments")
   assignmentsAsStudent RoutineAssignment[] @relation("StudentAssignments")
+  invitationsSent     Invitation[] @relation("InvitationsSent")
+  invitationsReceived Invitation[] @relation("InvitationsReceived")
 
   @@index([email])
   @@index([role])
@@ -88,6 +96,25 @@ model WorkoutLog {
 
   @@index([assignmentId])
   @@index([assignmentId, dayName])
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  trainerId   String
+  studentId   String
+  status      InvitationStatus @default(PENDING)
+  discipline  String
+  planType    String
+  frequency   Int
+  message     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  trainer User @relation("InvitationsSent", fields: [trainerId], references: [id], onDelete: Cascade)
+  student User @relation("InvitationsReceived", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([trainerId, studentId, status])
+  @@index([studentId, status])
 }
 
 // Tabla vinculada a Supabase Auth (auth.users)

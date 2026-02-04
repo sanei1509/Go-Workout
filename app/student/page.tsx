@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -54,7 +54,7 @@ type WorkoutLog = {
   comment?: string;
 };
 
-export default function StudentPage() {
+function StudentPageContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
 
@@ -383,5 +383,19 @@ export default function StudentPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StudentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl text-gray-600">Cargando...</div>
+        </div>
+      }
+    >
+      <StudentPageContent />
+    </Suspense>
   );
 }

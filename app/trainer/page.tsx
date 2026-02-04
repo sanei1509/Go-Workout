@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -21,7 +21,7 @@ type GenerateFormData = {
   preferences: string;
 };
 
-export default function TrainerPage() {
+function TrainerPageContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
 
@@ -369,5 +369,19 @@ export default function TrainerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TrainerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl text-gray-600">Cargando...</div>
+        </div>
+      }
+    >
+      <TrainerPageContent />
+    </Suspense>
   );
 }

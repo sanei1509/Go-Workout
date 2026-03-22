@@ -15,6 +15,7 @@ export async function upsertProfile(profile: { id: string; email: string; role: 
     .from('profiles')
     .upsert({
       id: profile.id,
+      email: profile.email,
       role: profile.role,
       full_name: profile.email.split('@')[0],
     }, { onConflict: 'id' });

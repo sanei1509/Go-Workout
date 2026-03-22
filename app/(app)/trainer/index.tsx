@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TrainerPanel() {
@@ -8,6 +9,10 @@ export default function TrainerPanel() {
   const handleLogout = async () => {
     await signOut();
     router.replace('/login');
+  };
+
+  const handleNewInvitation = () => {
+    router.push('/trainer/create-invitation');
   };
 
   return (
@@ -31,22 +36,44 @@ export default function TrainerPanel() {
           </TouchableOpacity>
         </View>
 
+        {/* Quick Actions */}
+        <View className="mb-6">
+          <Text className="text-gray-600 font-semibold mb-3">Acciones rápidas</Text>
+          <TouchableOpacity
+            onPress={handleNewInvitation}
+            className="bg-blue-500 p-4 rounded-xl flex-row items-center"
+          >
+            <View className="w-10 h-10 bg-blue-400 rounded-lg items-center justify-center mr-3">
+              <Ionicons name="person-add" size={24} color="white" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-white font-semibold text-lg">
+                Invitar alumno
+              </Text>
+              <Text className="text-blue-100 text-sm">
+                Enviar invitación a un nuevo alumno
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
         {/* Content placeholder */}
         <View className="flex-1 items-center justify-center">
           <View className="bg-blue-50 p-8 rounded-2xl items-center">
             <Text className="text-6xl mb-4">💪</Text>
             <Text className="text-xl font-bold text-gray-900 text-center">
-              Panel del Entrenador
+              Bienvenido
             </Text>
             <Text className="text-gray-500 text-center mt-2">
-              Aquí podrás gestionar tus alumnos y rutinas
+              Gestioná tus alumnos desde la pestaña Invitaciones
             </Text>
           </View>
 
           {/* Future features placeholder */}
           <View className="mt-8 w-full">
             <Text className="text-gray-400 text-center text-sm">
-              Próximamente: Gestión de alumnos y rutinas
+              Próximamente: Gestión de rutinas y seguimiento
             </Text>
           </View>
         </View>

@@ -67,10 +67,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Actualizar email en el perfil si no está guardado
+    if (!error && data.user) {
+      await supabase
+        .from('profiles')
+        .update({ email: email.toLowerCase() })
+        .eq('id', data.user.id)
+        .is('email', null);
+    }
+
     return { error: error ? new Error(error.message) : null };
   };
 

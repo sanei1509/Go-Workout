@@ -8,6 +8,7 @@ import '../global.css';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { TrainingProvider } from '@/contexts/TrainingContext';
 
 export {
   ErrorBoundary,
@@ -40,7 +41,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <TrainingProvider>
+        <RootLayoutNav />
+      </TrainingProvider>
     </AuthProvider>
   );
 }

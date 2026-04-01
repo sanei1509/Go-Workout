@@ -46,6 +46,36 @@ export default function StudentTabsLayout() {
           href: null, // Ocultar de los tabs
         }}
       />
+      <Tabs.Screen
+        name="plan/create"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="plan/[id]"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="routine/create"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="routine/[id]"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="workout/[routineId]"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
     </Tabs>
   );
 }

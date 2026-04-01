@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,15 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTraining } from '@/contexts/TrainingContext';
 import { ActiveTrainer } from '@/lib/services/trainerService';
+import { getUserPlans, getFrequencyLabel, Plan } from '@/lib/services/planService';
 
 export default function StudentHome() {
   const { profile, signOut, user } = useAuth();
@@ -27,6 +29,33 @@ export default function StudentHome() {
   } = useTraining();
 
   const [showContextSelector, setShowContextSelector] = useState(false);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Cargar planes cuando el componente se enfoca
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id && mode === 'personal') {
+        loadPlans();
+      }
+    }, [user?.id, mode])
+  );
+
+  const loadPlans = async () => {
+    if (!user?.id) return;
+
+    setIsLoadingPlans(true);
+    const { plans: data } = await getUserPlans(user.id);
+    setPlans(data);
+    setIsLoadingPlans(false);
+  };
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await loadPlans();
+    setIsRefreshing(false);
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -109,7 +138,7 @@ export default function StudentHome() {
                     Plan personal
                   </Text>
                   <Text className="text-gray-500 text-sm">
-                    Armá tus propias rutinas con asistencia de IA
+                    Armá tus propias rutinas
                   </Text>
                 </View>
                 {mode === 'personal' && (
@@ -161,9 +190,6 @@ export default function StudentHome() {
                             {trainer.discipline} • {trainer.plan_type}
                           </Text>
                         </View>
-                        <Text className="text-gray-400 text-xs mt-1">
-                          {trainer.frequency}
-                        </Text>
                       </View>
                       {mode === 'trainer' && selectedTrainer?.id === trainer.id && (
                         <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
@@ -221,12 +247,20 @@ export default function StudentHome() {
       </View>
 
       {/* Content */}
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+      >
         {mode === 'personal' ? (
-          // Vista Plan Personal
-          <PersonalPlanView hasTrainers={hasTrainers} />
+          <PersonalPlanView
+            plans={plans}
+            isLoading={isLoadingPlans}
+            hasTrainers={hasTrainers}
+          />
         ) : (
-          // Vista Entrenador
           <TrainerView trainer={selectedTrainer!} />
         )}
       </ScrollView>
@@ -235,59 +269,111 @@ export default function StudentHome() {
 }
 
 // Componente para vista de Plan Personal
-function PersonalPlanView({ hasTrainers }: { hasTrainers: boolean }) {
+function PersonalPlanView({
+  plans,
+  isLoading,
+  hasTrainers,
+}: {
+  plans: Plan[];
+  isLoading: boolean;
+  hasTrainers: boolean;
+}) {
+  const handleCreatePlan = () => {
+    router.push('/student/plan/create');
+  };
+
+  const handleOpenPlan = (planId: string) => {
+    router.push(`/student/plan/${planId}`);
+  };
+
   return (
     <View>
-      {/* Bienvenida */}
-      <View className="bg-gradient-to-r from-blue-500 to-blue-600 bg-blue-500 rounded-2xl p-6 mb-4">
-        <Text className="text-white text-2xl font-bold mb-2">
-          Tu plan personal
-        </Text>
-        <Text className="text-blue-100">
-          Armá tus propias rutinas y alcanzá tus objetivos
-        </Text>
+      {/* Header con botón crear */}
+      <View className="flex-row items-center justify-between mb-4">
+        <Text className="text-xl font-bold text-gray-900">Mis planes</Text>
+        <TouchableOpacity
+          onPress={handleCreatePlan}
+          className="bg-blue-500 px-4 py-2 rounded-lg flex-row items-center"
+        >
+          <Ionicons name="add" size={20} color="white" />
+          <Text className="text-white font-semibold ml-1">Nuevo</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Acciones rápidas */}
-      <Text className="text-gray-700 font-semibold mb-3">Empezá a entrenar</Text>
-
-      <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
-        <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="sparkles" size={24} color="#9333EA" />
+      {isLoading ? (
+        <View className="py-8 items-center">
+          <ActivityIndicator size="large" color="#3B82F6" />
         </View>
-        <View className="flex-1">
-          <View className="flex-row items-center">
-            <Text className="text-gray-900 font-semibold">Crear rutina con IA</Text>
-            <View className="bg-amber-400 px-2 py-0.5 rounded ml-2">
-              <Text className="text-amber-900 text-xs font-bold">PRO</Text>
-            </View>
+      ) : plans.length === 0 ? (
+        // Estado vacío
+        <View className="bg-white rounded-2xl p-8 shadow-sm items-center">
+          <View className="w-20 h-20 bg-blue-100 rounded-full items-center justify-center mb-4">
+            <Ionicons name="barbell-outline" size={40} color="#3B82F6" />
           </View>
-          <Text className="text-gray-500 text-sm">Generá una rutina personalizada</Text>
+          <Text className="text-xl font-bold text-gray-900 text-center mb-2">
+            Creá tu primer plan
+          </Text>
+          <Text className="text-gray-500 text-center mb-6">
+            Un plan agrupa tus rutinas de entrenamiento. Empezá creando uno.
+          </Text>
+          <TouchableOpacity
+            onPress={handleCreatePlan}
+            className="bg-blue-500 px-6 py-3 rounded-xl flex-row items-center"
+          >
+            <Ionicons name="add" size={20} color="white" />
+            <Text className="text-white font-semibold ml-2">Crear plan</Text>
+          </TouchableOpacity>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-      </TouchableOpacity>
+      ) : (
+        // Lista de planes
+        <View>
+          {plans.map((plan) => (
+            <TouchableOpacity
+              key={plan.id}
+              onPress={() => handleOpenPlan(plan.id)}
+              className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+            >
+              <View className="flex-row items-center">
+                <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center mr-4">
+                  <Ionicons name="barbell" size={24} color="#3B82F6" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-gray-900 font-semibold text-lg">
+                    {plan.name}
+                  </Text>
+                  <Text className="text-gray-500 text-sm">
+                    {plan.discipline} • {getFrequencyLabel(plan.weekly_frequency)}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
-      <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
-        <View className="w-12 h-12 bg-green-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="add-circle" size={24} color="#16A34A" />
-        </View>
-        <View className="flex-1">
-          <Text className="text-gray-900 font-semibold">Crear rutina manual</Text>
-          <Text className="text-gray-500 text-sm">Armá tu rutina paso a paso</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-      </TouchableOpacity>
+      {/* Acciones adicionales */}
+      {plans.length > 0 && (
+        <View className="mt-6">
+          <Text className="text-gray-700 font-semibold mb-3">Más opciones</Text>
 
-      <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
-        <View className="w-12 h-12 bg-orange-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="library" size={24} color="#EA580C" />
+          <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
+            <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mr-4">
+              <Ionicons name="sparkles" size={24} color="#9333EA" />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center">
+                <Text className="text-gray-900 font-semibold">Crear con IA</Text>
+                <View className="bg-amber-400 px-2 py-0.5 rounded ml-2">
+                  <Text className="text-amber-900 text-xs font-bold">PRO</Text>
+                </View>
+              </View>
+              <Text className="text-gray-500 text-sm">Generá un plan personalizado</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
-        <View className="flex-1">
-          <Text className="text-gray-900 font-semibold">Explorar ejercicios</Text>
-          <Text className="text-gray-500 text-sm">Biblioteca de ejercicios</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-      </TouchableOpacity>
+      )}
 
       {/* Info si no tiene entrenadores */}
       {!hasTrainers && (
@@ -297,19 +383,12 @@ function PersonalPlanView({ hasTrainers }: { hasTrainers: boolean }) {
             <View className="ml-3 flex-1">
               <Text className="text-blue-800 font-semibold">¿Querés un entrenador?</Text>
               <Text className="text-blue-700 mt-1">
-                Revisá tus invitaciones en la pestaña "Invitaciones" para conectar con un entrenador.
+                Revisá tus invitaciones en la pestaña "Invitaciones".
               </Text>
             </View>
           </View>
         </View>
       )}
-
-      {/* Próximamente */}
-      <View className="mt-6 items-center">
-        <Text className="text-gray-400 text-sm">
-          Próximamente: Historial de entrenamientos y estadísticas
-        </Text>
-      </View>
     </View>
   );
 }
@@ -319,7 +398,7 @@ function TrainerView({ trainer }: { trainer: ActiveTrainer }) {
   return (
     <View>
       {/* Info del entrenador */}
-      <View className="bg-gradient-to-r from-green-500 to-green-600 bg-green-500 rounded-2xl p-6 mb-4">
+      <View className="bg-green-500 rounded-2xl p-6 mb-4">
         <View className="flex-row items-center mb-3">
           <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
             <Text className="text-white font-bold text-2xl">
@@ -368,13 +447,6 @@ function TrainerView({ trainer }: { trainer: ActiveTrainer }) {
         </View>
         <Text className="text-gray-500 text-center">
           Todavía no tenés entrenamientos registrados
-        </Text>
-      </View>
-
-      {/* Próximamente */}
-      <View className="mt-6 items-center">
-        <Text className="text-gray-400 text-sm">
-          Próximamente: Rutinas y seguimiento de progreso
         </Text>
       </View>
     </View>

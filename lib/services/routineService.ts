@@ -426,3 +426,72 @@ export async function deleteExercise(exerciseId: string): Promise<{
     return { success: false, error: new Error('Error al eliminar ejercicio') };
   }
 }
+
+// Duplicar rutina completa (bloques + ejercicios)
+export async function duplicateRoutine(routineId: string): Promise<{
+  routine: Routine | null;
+  error: Error | null;
+}> {
+  try {
+    // 1. Obtener rutina completa con bloques y ejercicios
+    const { routine: source, error: fetchError } = await getRoutineById(routineId);
+    if (fetchError || !source) {
+      return { routine: null, error: fetchError || new Error('Rutina no encontrada') };
+    }
+
+    // 2. Crear nueva rutina con nombre prefijado
+    const { data: newRoutine, error: routineError } = await supabase
+      .from('routines')
+      .insert({
+        plan_id: source.plan_id,
+        name: `Copia de ${source.name}`,
+        day_number: source.day_number,
+        notes: source.notes || null,
+      })
+      .select()
+      .single();
+
+    if (routineError || !newRoutine) {
+      return { routine: null, error: new Error(routineError?.message || 'Error al duplicar rutina') };
+    }
+
+    // 3. Duplicar bloques y ejercicios
+    const newBlocks: Block[] = [];
+    for (const block of source.blocks || []) {
+      const { data: newBlock, error: blockError } = await supabase
+        .from('routine_blocks')
+        .insert({
+          routine_id: newRoutine.id,
+          block_type: block.block_type,
+          position: block.position,
+        })
+        .select()
+        .single();
+
+      if (blockError || !newBlock) continue;
+
+      const exercises = block.exercises || [];
+      if (exercises.length > 0) {
+        await supabase.from('block_exercises').insert(
+          exercises.map(ex => ({
+            block_id: newBlock.id,
+            name: ex.name,
+            exercise_type: ex.exercise_type,
+            sets: ex.sets,
+            value: ex.value,
+            rest_seconds: ex.rest_seconds,
+            notes: ex.notes || null,
+            position: ex.position,
+          }))
+        );
+      }
+
+      newBlocks.push({ ...newBlock, exercises });
+    }
+
+    return { routine: { ...newRoutine, blocks: newBlocks }, error: null };
+  } catch (e) {
+    console.log('Exception duplicating routine:', e);
+    return { routine: null, error: new Error('Error al duplicar la rutina') };
+  }
+}

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   getRoutineById,
   deleteRoutine,
+  duplicateRoutine,
   addBlock,
   deleteBlock,
   addExercise,
@@ -89,6 +90,28 @@ export default function RoutineDetailScreen() {
       return;
     }
     router.push(`/student/workout/${id}`);
+  };
+
+  const handleDuplicate = () => {
+    Alert.alert(
+      'Duplicar rutina',
+      `Se creará una copia de "${routine?.name}". Podrás editarla desde el plan.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Duplicar',
+          onPress: async () => {
+            if (!id) return;
+            const { routine: copy, error: err } = await duplicateRoutine(id);
+            if (err || !copy) {
+              Alert.alert('Error', err?.message || 'No se pudo duplicar');
+            } else {
+              Alert.alert('Listo', `Se creó "${copy.name}"`);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDelete = () => {
@@ -478,9 +501,14 @@ export default function RoutineDetailScreen() {
         <Text className="text-lg font-semibold text-gray-900 flex-1 text-center" numberOfLines={1}>
           {routine.name}
         </Text>
-        <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
-          <Ionicons name="trash-outline" size={24} color="#EF4444" />
-        </TouchableOpacity>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={handleDuplicate} className="p-2">
+            <Ionicons name="copy-outline" size={24} color="#6B7280" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
+            <Ionicons name="trash-outline" size={24} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>

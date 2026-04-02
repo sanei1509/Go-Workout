@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTraining } from '@/contexts/TrainingContext';
 import { ActiveTrainer } from '@/lib/services/trainerService';
 import { getUserPlans, getFrequencyLabel, Plan } from '@/lib/services/planService';
+import {
+  getTodayRoutine,
+  getWeeklyStats,
+  TodayRoutineResult,
+  WeeklyStats,
+  getDayLabel,
+  getCurrentDayOfWeek,
+} from '@/lib/services/todayService';
 
 export default function StudentHome() {
   const { profile, signOut, user } = useAuth();
@@ -30,6 +38,8 @@ export default function StudentHome() {
 
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [todayData, setTodayData] = useState<TodayRoutineResult | null>(null);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -37,23 +47,31 @@ export default function StudentHome() {
   useFocusEffect(
     useCallback(() => {
       if (user?.id && mode === 'personal') {
-        loadPlans();
+        loadData();
       }
     }, [user?.id, mode])
   );
 
-  const loadPlans = async () => {
+  const loadData = async () => {
     if (!user?.id) return;
 
     setIsLoadingPlans(true);
-    const { plans: data } = await getUserPlans(user.id);
-    setPlans(data);
+
+    const [plansResult, todayResult, statsResult] = await Promise.all([
+      getUserPlans(user.id),
+      getTodayRoutine(user.id),
+      getWeeklyStats(user.id),
+    ]);
+
+    setPlans(plansResult.plans);
+    setTodayData(todayResult.result);
+    setWeeklyStats(statsResult.stats);
     setIsLoadingPlans(false);
   };
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await loadPlans();
+    await loadData();
     setIsRefreshing(false);
   };
 
@@ -259,6 +277,8 @@ export default function StudentHome() {
             plans={plans}
             isLoading={isLoadingPlans}
             hasTrainers={hasTrainers}
+            todayData={todayData}
+            weeklyStats={weeklyStats}
           />
         ) : (
           <TrainerView trainer={selectedTrainer!} />
@@ -273,10 +293,14 @@ function PersonalPlanView({
   plans,
   isLoading,
   hasTrainers,
+  todayData,
+  weeklyStats,
 }: {
   plans: Plan[];
   isLoading: boolean;
   hasTrainers: boolean;
+  todayData: TodayRoutineResult | null;
+  weeklyStats: WeeklyStats | null;
 }) {
   const handleCreatePlan = () => {
     router.push('/student/plan/create');
@@ -286,9 +310,134 @@ function PersonalPlanView({
     router.push(`/student/plan/${planId}`);
   };
 
+  const handleStartWorkout = () => {
+    if (todayData?.routine) {
+      router.push(`/student/workout/${todayData.routine.id}`);
+    }
+  };
+
+  const handleViewHistory = () => {
+    router.push('/student/history');
+  };
+
+  const currentDay = getCurrentDayOfWeek();
+  const dayLabel = getDayLabel(currentDay);
+
   return (
     <View>
-      {/* Header con botón crear */}
+      {/* Card Rutina del Día - Solo si tiene planes */}
+      {plans.length > 0 && (
+        <View className="mb-6">
+          {todayData?.alreadyTrainedToday ? (
+            // Ya entrenó hoy
+            <View className="bg-green-500 rounded-2xl p-6 shadow-lg">
+              <View className="flex-row items-center mb-3">
+                <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
+                  <Ionicons name="checkmark-circle" size={32} color="white" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-green-100 text-sm">{dayLabel}</Text>
+                  <Text className="text-white text-xl font-bold">
+                    ¡Ya entrenaste hoy!
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={handleViewHistory}
+                className="bg-white/20 py-3 rounded-xl flex-row items-center justify-center"
+              >
+                <Ionicons name="time-outline" size={20} color="white" />
+                <Text className="text-white font-semibold ml-2">Ver historial</Text>
+              </TouchableOpacity>
+            </View>
+          ) : todayData?.isRestDay ? (
+            // Día de descanso
+            <View className="bg-gray-800 rounded-2xl p-6 shadow-lg">
+              <View className="flex-row items-center mb-3">
+                <View className="w-14 h-14 bg-white/10 rounded-full items-center justify-center mr-4">
+                  <Ionicons name="moon" size={28} color="white" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-gray-400 text-sm">{dayLabel}</Text>
+                  <Text className="text-white text-xl font-bold">Día de descanso</Text>
+                </View>
+              </View>
+              <Text className="text-gray-400 text-sm">
+                No tenés rutina programada para hoy. ¡Descansá y recuperate!
+              </Text>
+            </View>
+          ) : todayData?.routine ? (
+            // Tiene rutina para hoy
+            <View className="bg-blue-500 rounded-2xl p-6 shadow-lg">
+              <View className="flex-row items-center mb-4">
+                <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
+                  <Ionicons name="barbell" size={28} color="white" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-blue-100 text-sm">{dayLabel}</Text>
+                  <Text className="text-white text-xl font-bold">
+                    {todayData.routine.name}
+                  </Text>
+                  {todayData.plan && (
+                    <Text className="text-blue-200 text-sm">{todayData.plan.name}</Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={handleStartWorkout}
+                className="bg-white py-4 rounded-xl flex-row items-center justify-center"
+              >
+                <Ionicons name="play" size={24} color="#3B82F6" />
+                <Text className="text-blue-500 font-bold text-lg ml-2">
+                  Entrenar ahora
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Stats rápidos */}
+          {weeklyStats && (
+            <View className="flex-row mt-4">
+              {/* Entrenamientos esta semana */}
+              <View className="flex-1 bg-white rounded-xl p-4 mr-2 shadow-sm">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 bg-blue-100 rounded-lg items-center justify-center mr-3">
+                    <Ionicons name="calendar" size={20} color="#3B82F6" />
+                  </View>
+                  <View>
+                    <Text className="text-gray-500 text-xs">Esta semana</Text>
+                    <Text className="text-gray-900 font-bold text-lg">
+                      {weeklyStats.workoutsCompleted}
+                      {weeklyStats.workoutsPlanned > 0 && (
+                        <Text className="text-gray-400 font-normal">
+                          /{weeklyStats.workoutsPlanned}
+                        </Text>
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Racha */}
+              <View className="flex-1 bg-white rounded-xl p-4 ml-2 shadow-sm">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 bg-orange-100 rounded-lg items-center justify-center mr-3">
+                    <Ionicons name="flame" size={20} color="#F97316" />
+                  </View>
+                  <View>
+                    <Text className="text-gray-500 text-xs">Racha</Text>
+                    <Text className="text-gray-900 font-bold text-lg">
+                      {weeklyStats.streak} día{weeklyStats.streak !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Header Mis planes */}
       <View className="flex-row items-center justify-between mb-4">
         <Text className="text-xl font-bold text-gray-900">Mis planes</Text>
         <TouchableOpacity
@@ -356,6 +505,20 @@ function PersonalPlanView({
       {plans.length > 0 && (
         <View className="mt-6">
           <Text className="text-gray-700 font-semibold mb-3">Más opciones</Text>
+
+          <TouchableOpacity
+            onPress={handleViewHistory}
+            className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center"
+          >
+            <View className="w-12 h-12 bg-green-100 rounded-xl items-center justify-center mr-4">
+              <Ionicons name="time" size={24} color="#16A34A" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-gray-900 font-semibold">Historial</Text>
+              <Text className="text-gray-500 text-sm">Ver entrenamientos anteriores</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
 
           <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
             <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mr-4">

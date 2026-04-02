@@ -76,6 +76,12 @@ export default function StudentTabsLayout() {
           href: null, // Ocultar de los tabs
         }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
     </Tabs>
   );
 }

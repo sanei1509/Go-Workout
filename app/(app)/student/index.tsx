@@ -476,6 +476,20 @@ function PersonalPlanView({
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            onPress={() => router.push('/student/notifications')}
+            className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center"
+          >
+            <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center mr-4">
+              <Ionicons name="notifications-outline" size={24} color="#3B82F6" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-gray-900 font-semibold">Recordatorios</Text>
+              <Text className="text-gray-500 text-sm">Configurá tus notificaciones</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
           <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center">
             <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mr-4">
               <Ionicons name="sparkles" size={24} color="#9333EA" />

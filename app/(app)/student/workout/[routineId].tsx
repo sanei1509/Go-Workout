@@ -30,6 +30,7 @@ import {
   WorkoutSession,
   formatDuration,
 } from '@/lib/services/workoutService';
+import { setupWorkoutReminder, hasActiveReminder } from '@/lib/services/notificationService';
 
 interface ExerciseProgress {
   exerciseId: string;
@@ -225,6 +226,11 @@ export default function WorkoutScreen() {
           onPress: async () => {
             if (session) {
               await finishWorkoutSession(session.id);
+              // Recalcular recordatorio basado en el historial actualizado
+              if (user?.id) {
+                const active = await hasActiveReminder();
+                if (active) setupWorkoutReminder(user.id);
+              }
             }
             router.back();
           },

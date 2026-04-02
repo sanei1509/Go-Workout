@@ -82,6 +82,12 @@ export default function StudentTabsLayout() {
           href: null, // Ocultar de los tabs
         }}
       />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
     </Tabs>
   );
 }

@@ -14,12 +14,16 @@ export const WEEKDAYS = [
   { value: 7, short: 'Dom', label: 'Domingo' },
 ];
 
-export interface TodayRoutineResult {
-  routine: Routine | null;
-  plan: Plan | null;
-  isRestDay: boolean;
+export interface TodayRoutineItem {
+  routine: Routine;
+  plan: Plan;
   alreadyTrainedToday: boolean;
   todaySession: WorkoutSession | null;
+}
+
+export interface TodayRoutineResult {
+  items: TodayRoutineItem[];
+  isRestDay: boolean;
 }
 
 export interface WeeklyStats {
@@ -70,111 +74,84 @@ function getWeekStart(): Date {
   return monday;
 }
 
-// Obtener la rutina del día para un usuario
+// Obtener las rutinas del día para un usuario (todos sus planes activos)
 export async function getTodayRoutine(userId: string): Promise<{
   result: TodayRoutineResult;
   error: Error | null;
 }> {
+  const empty: TodayRoutineResult = { items: [], isRestDay: true };
+
   try {
     const currentDay = getCurrentDayOfWeek();
     const { start: todayStart, end: todayEnd } = getTodayRange();
 
-    // 1. Obtener el plan activo más reciente del usuario
+    // 1. Obtener todos los planes activos del usuario
     const { data: plans, error: plansError } = await supabase
       .from('plans')
       .select('*')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .order('updated_at', { ascending: false });
 
     if (plansError) {
-      return {
-        result: {
-          routine: null,
-          plan: null,
-          isRestDay: true,
-          alreadyTrainedToday: false,
-          todaySession: null,
-        },
-        error: new Error(plansError.message),
-      };
+      return { result: empty, error: new Error(plansError.message) };
     }
 
-    const activePlan = plans?.[0] || null;
-
-    if (!activePlan) {
-      return {
-        result: {
-          routine: null,
-          plan: null,
-          isRestDay: true,
-          alreadyTrainedToday: false,
-          todaySession: null,
-        },
-        error: null,
-      };
+    if (!plans || plans.length === 0) {
+      return { result: empty, error: null };
     }
 
-    // 2. Buscar rutina para el día actual
+    // 2. Buscar rutinas del día actual para todos los planes (1 query)
+    const planIds = plans.map(p => p.id);
     const { data: routines, error: routinesError } = await supabase
       .from('routines')
       .select('*')
-      .eq('plan_id', activePlan.id)
-      .eq('day_number', currentDay)
-      .limit(1);
+      .in('plan_id', planIds)
+      .eq('day_number', currentDay);
 
     if (routinesError) {
-      return {
-        result: {
-          routine: null,
-          plan: activePlan,
-          isRestDay: true,
-          alreadyTrainedToday: false,
-          todaySession: null,
-        },
-        error: new Error(routinesError.message),
-      };
+      return { result: empty, error: new Error(routinesError.message) };
     }
 
-    const todayRoutine = routines?.[0] || null;
+    if (!routines || routines.length === 0) {
+      return { result: empty, error: null };
+    }
 
-    // 3. Verificar si ya entrenó hoy
+    // 3. Verificar sesiones completadas hoy para esas rutinas (1 query)
+    const routineIds = routines.map(r => r.id);
     const { data: todaySessions } = await supabase
       .from('workout_sessions')
       .select('*')
       .eq('user_id', userId)
+      .in('routine_id', routineIds)
       .gte('started_at', todayStart)
       .lt('started_at', todayEnd)
-      .not('finished_at', 'is', null)
-      .order('started_at', { ascending: false })
-      .limit(1);
+      .not('finished_at', 'is', null);
 
-    const todaySession = todaySessions?.[0] || null;
-    const alreadyTrainedToday = !!todaySession;
+    // 4. Construir items: una entry por rutina con su plan y estado
+    const planMap = new Map(plans.map(p => [p.id, p]));
+    const sessionByRoutine = new Map(
+      (todaySessions || []).map(s => [s.routine_id, s])
+    );
+
+    const items: TodayRoutineItem[] = routines.map(routine => {
+      const plan = planMap.get(routine.plan_id)!;
+      const todaySession = sessionByRoutine.get(routine.id) || null;
+      return {
+        routine,
+        plan,
+        alreadyTrainedToday: !!todaySession,
+        todaySession,
+      };
+    });
 
     return {
-      result: {
-        routine: todayRoutine,
-        plan: activePlan,
-        isRestDay: !todayRoutine,
-        alreadyTrainedToday,
-        todaySession,
-      },
+      result: { items, isRestDay: false },
       error: null,
     };
   } catch (e) {
     console.log('Exception getting today routine:', e);
-    return {
-      result: {
-        routine: null,
-        plan: null,
-        isRestDay: true,
-        alreadyTrainedToday: false,
-        todaySession: null,
-      },
-      error: new Error('Error al obtener la rutina del día'),
-    };
+    return { result: empty, error: new Error('Error al obtener la rutina del día') };
   }
 }
 
@@ -210,15 +187,14 @@ export async function getWeeklyStats(userId: string): Promise<{
 
     const workoutsCompleted = sessions?.length || 0;
 
-    // Obtener plan activo para saber cuántos entrenamientos planificados
+    // Sumar frecuencias de todos los planes activos
     const { data: plans } = await supabase
       .from('plans')
       .select('weekly_frequency')
       .eq('user_id', userId)
-      .eq('is_active', true)
-      .limit(1);
+      .eq('is_active', true);
 
-    const workoutsPlanned = plans?.[0]?.weekly_frequency || 0;
+    const workoutsPlanned = (plans || []).reduce((sum, p) => sum + (p.weekly_frequency || 0), 0);
 
     // Calcular racha (días consecutivos)
     const streak = await calculateStreak(userId);

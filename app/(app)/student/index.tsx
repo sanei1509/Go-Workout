@@ -19,6 +19,7 @@ import {
   getTodayRoutine,
   getWeeklyStats,
   TodayRoutineResult,
+  TodayRoutineItem,
   WeeklyStats,
   getDayLabel,
   getCurrentDayOfWeek,
@@ -310,12 +311,6 @@ function PersonalPlanView({
     router.push(`/student/plan/${planId}`);
   };
 
-  const handleStartWorkout = () => {
-    if (todayData?.routine) {
-      router.push(`/student/workout/${todayData.routine.id}`);
-    }
-  };
-
   const handleViewHistory = () => {
     router.push('/student/history');
   };
@@ -325,32 +320,10 @@ function PersonalPlanView({
 
   return (
     <View>
-      {/* Card Rutina del Día - Solo si tiene planes */}
+      {/* Cards Rutina del Día - Solo si tiene planes */}
       {plans.length > 0 && (
         <View className="mb-6">
-          {todayData?.alreadyTrainedToday ? (
-            // Ya entrenó hoy
-            <View className="bg-green-500 rounded-2xl p-6 shadow-lg">
-              <View className="flex-row items-center mb-3">
-                <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
-                  <Ionicons name="checkmark-circle" size={32} color="white" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-green-100 text-sm">{dayLabel}</Text>
-                  <Text className="text-white text-xl font-bold">
-                    ¡Ya entrenaste hoy!
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={handleViewHistory}
-                className="bg-white/20 py-3 rounded-xl flex-row items-center justify-center"
-              >
-                <Ionicons name="time-outline" size={20} color="white" />
-                <Text className="text-white font-semibold ml-2">Ver historial</Text>
-              </TouchableOpacity>
-            </View>
-          ) : todayData?.isRestDay ? (
+          {todayData?.isRestDay ? (
             // Día de descanso
             <View className="bg-gray-800 rounded-2xl p-6 shadow-lg">
               <View className="flex-row items-center mb-3">
@@ -366,34 +339,17 @@ function PersonalPlanView({
                 No tenés rutina programada para hoy. ¡Descansá y recuperate!
               </Text>
             </View>
-          ) : todayData?.routine ? (
-            // Tiene rutina para hoy
-            <View className="bg-blue-500 rounded-2xl p-6 shadow-lg">
-              <View className="flex-row items-center mb-4">
-                <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
-                  <Ionicons name="barbell" size={28} color="white" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-blue-100 text-sm">{dayLabel}</Text>
-                  <Text className="text-white text-xl font-bold">
-                    {todayData.routine.name}
-                  </Text>
-                  {todayData.plan && (
-                    <Text className="text-blue-200 text-sm">{todayData.plan.name}</Text>
-                  )}
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={handleStartWorkout}
-                className="bg-white py-4 rounded-xl flex-row items-center justify-center"
-              >
-                <Ionicons name="play" size={24} color="#3B82F6" />
-                <Text className="text-blue-500 font-bold text-lg ml-2">
-                  Entrenar ahora
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
+          ) : (
+            // Una card por cada plan con rutina hoy
+            todayData?.items.map(item => (
+              <TodayRoutineCard
+                key={item.routine.id}
+                item={item}
+                dayLabel={dayLabel}
+                onViewHistory={handleViewHistory}
+              />
+            ))
+          )}
 
           {/* Stats rápidos */}
           {weeklyStats && (
@@ -552,6 +508,67 @@ function PersonalPlanView({
           </View>
         </View>
       )}
+    </View>
+  );
+}
+
+// Card individual para una rutina del día
+function TodayRoutineCard({
+  item,
+  dayLabel,
+  onViewHistory,
+}: {
+  item: TodayRoutineItem;
+  dayLabel: string;
+  onViewHistory: () => void;
+}) {
+  const handleStartWorkout = () => {
+    router.push(`/student/workout/${item.routine.id}`);
+  };
+
+  if (item.alreadyTrainedToday) {
+    return (
+      <View className="bg-green-500 rounded-2xl p-6 shadow-lg mb-3">
+        <View className="flex-row items-center mb-3">
+          <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
+            <Ionicons name="checkmark-circle" size={32} color="white" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-green-100 text-sm">{dayLabel}</Text>
+            <Text className="text-white text-xl font-bold">¡Ya entrenaste!</Text>
+            <Text className="text-green-200 text-sm">{item.routine.name}</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          onPress={onViewHistory}
+          className="bg-white/20 py-3 rounded-xl flex-row items-center justify-center"
+        >
+          <Ionicons name="time-outline" size={20} color="white" />
+          <Text className="text-white font-semibold ml-2">Ver historial</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View className="bg-blue-500 rounded-2xl p-6 shadow-lg mb-3">
+      <View className="flex-row items-center mb-4">
+        <View className="w-14 h-14 bg-white/20 rounded-full items-center justify-center mr-4">
+          <Ionicons name="barbell" size={28} color="white" />
+        </View>
+        <View className="flex-1">
+          <Text className="text-blue-100 text-sm">{dayLabel}</Text>
+          <Text className="text-white text-xl font-bold">{item.routine.name}</Text>
+          <Text className="text-blue-200 text-sm">{item.plan.name}</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={handleStartWorkout}
+        className="bg-white py-4 rounded-xl flex-row items-center justify-center"
+      >
+        <Ionicons name="play" size={24} color="#3B82F6" />
+        <Text className="text-blue-500 font-bold text-lg ml-2">Entrenar ahora</Text>
+      </TouchableOpacity>
     </View>
   );
 }

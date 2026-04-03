@@ -3,15 +3,20 @@ import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications no está disponible en Expo Go desde SDK 53 — falla silenciosamente
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log('expo-notifications no disponible en Expo Go:', e);
+}
 
 const NOTIFICATION_ID = 'workout-reminder';
 export const MIN_SESSIONS_FOR_HISTORY = 3;

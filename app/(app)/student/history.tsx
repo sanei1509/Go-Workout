@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BarChart } from 'react-native-chart-kit';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getWorkoutHistory,
@@ -18,6 +20,14 @@ import {
   WeeklyStats,
 } from '@/lib/services/todayService';
 import { WorkoutSession } from '@/lib/services/workoutService';
+import {
+  getGeneralStats,
+  getWeeklySessionsBars,
+  GeneralStats,
+  WeeklySessionsBar,
+} from '@/lib/services/progressService';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 interface SessionWithDetails extends WorkoutSession {
   routine_name?: string;
@@ -28,6 +38,8 @@ export default function HistoryScreen() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<SessionWithDetails[]>([]);
   const [stats, setStats] = useState<WeeklyStats | null>(null);
+  const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
+  const [weeklyBars, setWeeklyBars] = useState<WeeklySessionsBar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -41,13 +53,17 @@ export default function HistoryScreen() {
     if (!user?.id) return;
 
     setIsLoading(true);
-    const [historyResult, statsResult] = await Promise.all([
+    const [historyResult, statsResult, generalStatsResult, barsResult] = await Promise.all([
       getWorkoutHistory(user.id, 30),
       getWeeklyStats(user.id),
+      getGeneralStats(user.id),
+      getWeeklySessionsBars(user.id, 8),
     ]);
 
     setSessions(historyResult.sessions);
     setStats(statsResult.stats);
+    setGeneralStats(generalStatsResult.stats);
+    setWeeklyBars(barsResult.bars);
     setIsLoading(false);
   };
 
@@ -112,7 +128,12 @@ export default function HistoryScreen() {
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
         <Text className="text-lg font-semibold text-gray-900">Historial</Text>
-        <View className="w-10" />
+        <TouchableOpacity
+          onPress={() => router.push('/student/analytics' as any)}
+          className="p-2 -mr-2"
+        >
+          <Ionicons name="stats-chart-outline" size={22} color="#3B82F6" />
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -160,6 +181,73 @@ export default function HistoryScreen() {
             </View>
           )}
 
+          {/* Sección de volumen y estadísticas generales (GOW-48) */}
+          {generalStats && (
+            <View className="mb-6">
+              {/* Volumen semanal */}
+              <Text className="text-gray-700 font-semibold mb-3">Volumen semanal</Text>
+              <View className="flex-row mb-3">
+                <View className="flex-1 bg-white rounded-xl p-4 mr-2 shadow-sm">
+                  <Text className="text-gray-500 text-xs mb-1">Esta semana</Text>
+                  <Text className="text-gray-900 font-bold text-xl">
+                    {generalStats.volumeThisWeek.toLocaleString()}
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Ionicons
+                      name={generalStats.volumeChange >= 0 ? 'trending-up' : 'trending-down'}
+                      size={14}
+                      color={generalStats.volumeChange >= 0 ? '#16A34A' : '#EF4444'}
+                    />
+                    <Text
+                      className="text-xs ml-1 font-medium"
+                      style={{ color: generalStats.volumeChange >= 0 ? '#16A34A' : '#EF4444' }}
+                    >
+                      {generalStats.volumeChange >= 0 ? '+' : ''}{generalStats.volumeChange}% vs semana ant.
+                    </Text>
+                  </View>
+                </View>
+                <View className="flex-1 bg-white rounded-xl p-4 ml-2 shadow-sm">
+                  <Text className="text-gray-500 text-xs mb-1">Ejercicios distintos</Text>
+                  <Text className="text-gray-900 font-bold text-xl">
+                    {generalStats.distinctExercises}
+                  </Text>
+                  <Text className="text-gray-400 text-xs mt-1">en total histórico</Text>
+                </View>
+              </View>
+
+              {/* Gráfico de barras semanal */}
+              {weeklyBars.length > 0 && weeklyBars.some(b => b.count > 0) && (
+                <View className="bg-white rounded-xl p-4 shadow-sm">
+                  <Text className="text-gray-700 font-semibold mb-3">Sesiones por semana</Text>
+                  <BarChart
+                    data={{
+                      labels: weeklyBars.map(b => b.label),
+                      datasets: [{ data: weeklyBars.map(b => b.count) }],
+                    }}
+                    width={SCREEN_WIDTH - 64}
+                    height={160}
+                    yAxisLabel=""
+                    yAxisSuffix=""
+                    chartConfig={{
+                      backgroundColor: '#ffffff',
+                      backgroundGradientFrom: '#ffffff',
+                      backgroundGradientTo: '#ffffff',
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                      labelColor: () => '#9CA3AF',
+                      barPercentage: 0.6,
+                      propsForBackgroundLines: { stroke: '#F3F4F6' },
+                    }}
+                    style={{ borderRadius: 8, marginLeft: -16 }}
+                    withInnerLines
+                    showValuesOnTopOfBars
+                    fromZero
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Lista de entrenamientos */}
           {sessions.length === 0 ? (
             <View className="bg-white rounded-xl p-8 shadow-sm items-center">
@@ -181,9 +269,11 @@ export default function HistoryScreen() {
                 </Text>
 
                 {groupedSessions[dateKey].map((session) => (
-                  <View
+                  <TouchableOpacity
                     key={session.id}
                     className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                    onPress={() => router.push(`/student/session/${session.id}` as any)}
+                    activeOpacity={0.7}
                   >
                     <View className="flex-row items-center">
                       <View className="w-12 h-12 bg-green-100 rounded-xl items-center justify-center mr-4">
@@ -217,8 +307,9 @@ export default function HistoryScreen() {
                           )}
                         </View>
                       </View>
+                      <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             ))

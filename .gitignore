@@ -26,6 +26,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# Claude Code (contexto local, no subir al repo)
+CLAUDE.md
+
 # macOS
 .DS_Store
 *.pem

@@ -76,11 +76,6 @@ export default function StudentHome() {
     setIsRefreshing(false);
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    router.replace('/login');
-  };
-
   const handleSelectTrainer = (trainer: ActiveTrainer) => {
     selectTrainer(trainer);
     setShowContextSelector(false);
@@ -232,10 +227,12 @@ export default function StudentHome() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={handleLogout}
-            className="p-2"
+            onPress={() => router.push('/student/profile' as any)}
+            className="w-10 h-10 bg-blue-500 rounded-full items-center justify-center"
           >
-            <Ionicons name="log-out-outline" size={24} color="#6B7280" />
+            <Text className="text-white font-bold text-base">
+              {(profile?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -472,6 +469,20 @@ function PersonalPlanView({
             <View className="flex-1">
               <Text className="text-gray-900 font-semibold">Historial</Text>
               <Text className="text-gray-500 text-sm">Ver entrenamientos anteriores</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/student/analytics' as any)}
+            className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center"
+          >
+            <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center mr-4">
+              <Ionicons name="stats-chart" size={24} color="#3B82F6" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-gray-900 font-semibold">Análisis de progreso</Text>
+              <Text className="text-gray-500 text-sm">PRs, volumen y evolución</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>

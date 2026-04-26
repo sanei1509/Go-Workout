@@ -88,6 +88,30 @@ export default function StudentTabsLayout() {
           href: null, // Ocultar de los tabs
         }}
       />
+      <Tabs.Screen
+        name="session/[id]"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          href: null, // Ocultar de los tabs
+        }}
+      />
     </Tabs>
   );
 }

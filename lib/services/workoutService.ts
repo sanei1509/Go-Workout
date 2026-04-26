@@ -241,6 +241,119 @@ export async function deleteSession(sessionId: string): Promise<{
   }
 }
 
+// ---- GOW-49: Detalle completo de una sesión ----
+
+export interface SessionExerciseLog {
+  log_id: string;
+  exercise_id: string;
+  exercise_name: string;
+  exercise_type: 'reps' | 'time' | 'distance';
+  block_type: string;
+  sets_completed: number;
+  target_sets: number;
+  actual_value: number | null;
+  target_value: number;
+  rest_seconds: number;
+  notes?: string;
+  completed_at: string;
+}
+
+export interface SessionDetail {
+  session: {
+    id: string;
+    started_at: string;
+    finished_at: string | null;
+    notes?: string;
+    duration: string;
+    routine_name: string;
+    plan_name: string;
+    plan_discipline: string;
+  };
+  exercises: SessionExerciseLog[];
+}
+
+export async function getSessionDetail(sessionId: string): Promise<{
+  detail: SessionDetail | null;
+  error: Error | null;
+}> {
+  try {
+    const [sessionResult, logsResult] = await Promise.all([
+      supabase
+        .from('workout_sessions')
+        .select(`
+          id, started_at, finished_at, notes,
+          routines (
+            name,
+            plans ( name, discipline )
+          )
+        `)
+        .eq('id', sessionId)
+        .single(),
+
+      supabase
+        .from('exercise_logs')
+        .select(`
+          id, sets_completed, actual_value, notes, completed_at, exercise_id,
+          block_exercises (
+            name, exercise_type, sets, value, rest_seconds,
+            routine_blocks ( block_type )
+          )
+        `)
+        .eq('session_id', sessionId)
+        .order('completed_at', { ascending: true }),
+    ]);
+
+    if (sessionResult.error) {
+      return { detail: null, error: new Error(sessionResult.error.message) };
+    }
+    if (logsResult.error) {
+      return { detail: null, error: new Error(logsResult.error.message) };
+    }
+
+    const s = sessionResult.data as any;
+    const routine = s.routines;
+    const plan = routine?.plans;
+
+    const exercises: SessionExerciseLog[] = (logsResult.data || []).map((log: any) => {
+      const ex = log.block_exercises;
+      const block = ex?.routine_blocks;
+      return {
+        log_id: log.id,
+        exercise_id: log.exercise_id,
+        exercise_name: ex?.name ?? 'Ejercicio',
+        exercise_type: ex?.exercise_type ?? 'reps',
+        block_type: block?.block_type ?? 'main',
+        sets_completed: log.sets_completed,
+        target_sets: ex?.sets ?? 0,
+        actual_value: log.actual_value ?? null,
+        target_value: ex?.value ?? 0,
+        rest_seconds: ex?.rest_seconds ?? 60,
+        notes: log.notes ?? undefined,
+        completed_at: log.completed_at,
+      };
+    });
+
+    const detail: SessionDetail = {
+      session: {
+        id: s.id,
+        started_at: s.started_at,
+        finished_at: s.finished_at ?? null,
+        notes: s.notes ?? undefined,
+        duration: formatDuration(s.started_at, s.finished_at),
+        routine_name: routine?.name ?? 'Rutina',
+        plan_name: plan?.name ?? 'Plan',
+        plan_discipline: plan?.discipline ?? '',
+      },
+      exercises,
+    };
+
+    return { detail, error: null };
+  } catch (e) {
+    console.log('Exception fetching session detail:', e);
+    return { detail: null, error: new Error('Error al obtener detalle de sesión') };
+  }
+}
+
 // Helper: Formatear duración
 export function formatDuration(startedAt: string, finishedAt?: string | null): string {
   const start = new Date(startedAt);

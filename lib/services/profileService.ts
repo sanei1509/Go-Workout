@@ -64,8 +64,7 @@ export async function uploadAvatar(
     // Bust cache con timestamp
     const url = `${data.publicUrl}?t=${Date.now()}`;
     return { url, error: null };
-  } catch (e) {
-    console.log('Exception uploading avatar:', e);
+  } catch {
     return { url: null, error: new Error('Error al subir la imagen') };
   }
 }

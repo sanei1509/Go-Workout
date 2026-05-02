@@ -64,8 +64,7 @@ export async function getExerciseHistory(
     }));
 
     return { history, error: null };
-  } catch (e) {
-    console.log('Exception getExerciseHistory:', e);
+  } catch {
     return { history: [], error: new Error('Error al obtener historial del ejercicio') };
   }
 }
@@ -106,8 +105,7 @@ export async function getPersonalRecord(
     };
 
     return { pr, error: null };
-  } catch (e) {
-    console.log('Exception getPersonalRecord:', e);
+  } catch {
     return { pr: null, error: new Error('Error al obtener récord personal') };
   }
 }
@@ -150,8 +148,7 @@ export async function getAllPersonalRecords(
     }
 
     return { records: Array.from(best.values()), error: null };
-  } catch (e) {
-    console.log('Exception getAllPersonalRecords:', e);
+  } catch {
     return { records: [], error: new Error('Error al obtener récords personales') };
   }
 }
@@ -216,8 +213,7 @@ export async function getVolumeStats(
     );
 
     return { volume, error: null };
-  } catch (e) {
-    console.log('Exception getVolumeStats:', e);
+  } catch {
     return { volume: [], error: new Error('Error al calcular volumen') };
   }
 }
@@ -302,8 +298,7 @@ export async function getGeneralStats(
       stats: { volumeThisWeek, volumeLastWeek, volumeChange, distinctExercises, totalSets },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception getGeneralStats:', e);
+  } catch {
     return { stats: null, error: new Error('Error al obtener estadísticas') };
   }
 }
@@ -350,8 +345,7 @@ export async function getWeeklySessionsBars(
     }
 
     return { bars, error: null };
-  } catch (e) {
-    console.log('Exception getWeeklySessionsBars:', e);
+  } catch {
     return { bars: [], error: new Error('Error al obtener barras semanales') };
   }
 }

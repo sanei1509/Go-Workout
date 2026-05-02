@@ -27,14 +27,16 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
   const [trainers, setTrainers] = useState<ActiveTrainer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar entrenadores cuando el usuario está autenticado y es estudiante
+  // Cargar entrenadores cuando el usuario está autenticado y es estudiante.
+  // Usar user?.id y profile?.role como deps (no objetos completos) para evitar
+  // re-disparos por cambios de referencia cuando el contenido es el mismo.
   useEffect(() => {
-    if (user && profile?.role === 'STUDENT') {
+    if (user?.id && profile?.role === 'STUDENT') {
       loadTrainersAndContext();
-    } else {
+    } else if (!user?.id) {
       setIsLoading(false);
     }
-  }, [user, profile]);
+  }, [user?.id, profile?.role]);
 
   const loadTrainersAndContext = async () => {
     if (!user) return;
@@ -67,8 +69,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
           setSelectedTrainer(null);
         }
       }
-    } catch (e) {
-      console.log('Error loading training context:', e);
+    } catch {
     }
 
     setIsLoading(false);
@@ -80,8 +81,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
         STORAGE_KEY,
         JSON.stringify({ mode: newMode, trainerId })
       );
-    } catch (e) {
-      console.log('Error saving training context:', e);
+    } catch {
     }
   };
 

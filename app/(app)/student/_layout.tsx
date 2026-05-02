@@ -1,7 +1,22 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRootNavigationState } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, View } from 'react-native';
 
 export default function StudentTabsLayout() {
+  const rootNavigationState = useRootNavigationState();
+  const isNavigationReady = Boolean(rootNavigationState?.key);
+
+  // Defensive guard: avoid mounting Tabs before the root navigation context
+  // is ready, which can trigger intermittent "Couldn't find a navigation context"
+  // on fresh accounts/initial app load.
+  if (!isNavigationReady) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{

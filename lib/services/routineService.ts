@@ -124,8 +124,7 @@ export async function getRoutinesByPlan(planId: string): Promise<{
     }
 
     return { routines: data || [], error: null };
-  } catch (e) {
-    console.log('Exception fetching routines:', e);
+  } catch {
     return { routines: [], error: new Error('Error al obtener rutinas') };
   }
 }
@@ -184,8 +183,7 @@ export async function getRoutineById(routineId: string): Promise<{
       },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching routine:', e);
+  } catch {
     return { routine: null, error: new Error('Error al obtener la rutina') };
   }
 }
@@ -211,8 +209,7 @@ export async function createRoutine(data: CreateRoutineData): Promise<{
     }
 
     return { routine: newRoutine, error: null };
-  } catch (e) {
-    console.log('Exception creating routine:', e);
+  } catch {
     return { routine: null, error: new Error('Error al crear la rutina') };
   }
 }
@@ -240,8 +237,7 @@ export async function updateRoutine(
     }
 
     return { routine: updated, error: null };
-  } catch (e) {
-    console.log('Exception updating routine:', e);
+  } catch {
     return { routine: null, error: new Error('Error al actualizar la rutina') };
   }
 }
@@ -261,8 +257,7 @@ export async function deleteRoutine(routineId: string): Promise<{
     }
 
     return { success: true, error: null };
-  } catch (e) {
-    console.log('Exception deleting routine:', e);
+  } catch {
     return { success: false, error: new Error('Error al eliminar la rutina') };
   }
 }
@@ -306,8 +301,7 @@ export async function addBlock(
       block: { ...newBlock, exercises: [] },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception adding block:', e);
+  } catch {
     return { block: null, error: new Error('Error al agregar bloque') };
   }
 }
@@ -327,8 +321,7 @@ export async function deleteBlock(blockId: string): Promise<{
     }
 
     return { success: true, error: null };
-  } catch (e) {
-    console.log('Exception deleting block:', e);
+  } catch {
     return { success: false, error: new Error('Error al eliminar bloque') };
   }
 }
@@ -374,8 +367,7 @@ export async function addExercise(
     }
 
     return { exercise: newExercise, error: null };
-  } catch (e) {
-    console.log('Exception adding exercise:', e);
+  } catch {
     return { exercise: null, error: new Error('Error al agregar ejercicio') };
   }
 }
@@ -400,8 +392,7 @@ export async function updateExercise(
     }
 
     return { exercise: updated, error: null };
-  } catch (e) {
-    console.log('Exception updating exercise:', e);
+  } catch {
     return { exercise: null, error: new Error('Error al actualizar ejercicio') };
   }
 }
@@ -421,8 +412,7 @@ export async function deleteExercise(exerciseId: string): Promise<{
     }
 
     return { success: true, error: null };
-  } catch (e) {
-    console.log('Exception deleting exercise:', e);
+  } catch {
     return { success: false, error: new Error('Error al eliminar ejercicio') };
   }
 }
@@ -490,8 +480,7 @@ export async function duplicateRoutine(routineId: string): Promise<{
     }
 
     return { routine: { ...newRoutine, blocks: newBlocks }, error: null };
-  } catch (e) {
-    console.log('Exception duplicating routine:', e);
+  } catch {
     return { routine: null, error: new Error('Error al duplicar la rutina') };
   }
 }

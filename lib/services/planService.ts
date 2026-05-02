@@ -67,7 +67,6 @@ export async function getUserPlans(userId: string): Promise<{
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.log('Error fetching plans:', error.message);
       return {
         plans: [],
         error: new Error(error.message),
@@ -78,8 +77,7 @@ export async function getUserPlans(userId: string): Promise<{
       plans: data || [],
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching plans:', e);
+  } catch {
     return {
       plans: [],
       error: new Error('Error al obtener planes'),
@@ -109,8 +107,7 @@ export async function getPlanById(planId: string): Promise<{
       plan: data,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching plan:', e);
+  } catch {
     return {
       plan: null,
       error: new Error('Error al obtener el plan'),
@@ -148,8 +145,7 @@ export async function createPlan(
       plan: newPlan,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception creating plan:', e);
+  } catch {
     return {
       plan: null,
       error: new Error('Error al crear el plan'),
@@ -186,8 +182,7 @@ export async function updatePlan(
       plan: updatedPlan,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception updating plan:', e);
+  } catch {
     return {
       plan: null,
       error: new Error('Error al actualizar el plan'),
@@ -220,8 +215,7 @@ export async function deletePlan(planId: string): Promise<{
       success: true,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception deleting plan:', e);
+  } catch {
     return {
       success: false,
       error: new Error('Error al eliminar el plan'),

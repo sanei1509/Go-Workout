@@ -14,8 +14,7 @@ try {
       shouldShowList: true,
     }),
   });
-} catch (e) {
-  console.log('expo-notifications no disponible en Expo Go:', e);
+} catch {
 }
 
 const NOTIFICATION_ID = 'workout-reminder';

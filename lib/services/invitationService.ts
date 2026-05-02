@@ -74,7 +74,6 @@ export async function getStudentPendingInvitations(studentId: string): Promise<{
 
     // Si la tabla no existe o hay error, retornar vacío
     if (error) {
-      console.log('Error fetching invitations:', error.message);
       return {
         invitations: [],
         error: null, // No mostrar error al usuario si la tabla no existe
@@ -108,8 +107,7 @@ export async function getStudentPendingInvitations(studentId: string): Promise<{
       invitations: invitationsWithTrainer,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching invitations:', e);
+  } catch {
     return {
       invitations: [],
       error: null,
@@ -156,8 +154,7 @@ export async function getInvitationById(invitationId: string): Promise<{
       },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching invitation:', e);
+  } catch {
     return {
       invitation: null,
       error: new Error('Error al obtener la invitación'),
@@ -196,8 +193,7 @@ export async function submitStudentForm(formData: StudentFormData): Promise<{
       success: true,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception submitting form:', e);
+  } catch {
     return {
       success: false,
       error: new Error('Error al enviar el formulario'),
@@ -265,8 +261,7 @@ export async function acceptInvitation(
       success: true,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception accepting invitation:', e);
+  } catch {
     return {
       success: false,
       error: new Error('Error al aceptar la invitación'),
@@ -299,8 +294,7 @@ export async function rejectInvitation(invitationId: string): Promise<{
       success: true,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception rejecting invitation:', e);
+  } catch {
     return {
       success: false,
       error: new Error('Error al rechazar la invitación'),
@@ -340,8 +334,7 @@ export async function findStudentByEmail(email: string): Promise<{
       student: data,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception finding student:', e);
+  } catch {
     return {
       student: null,
       error: new Error('Error al buscar estudiante'),
@@ -371,8 +364,7 @@ export async function getStudentsList(): Promise<{
       students: data || [],
       error: null,
     };
-  } catch (e) {
-    console.log('Exception getting students:', e);
+  } catch {
     return {
       students: [],
       error: new Error('Error al obtener estudiantes'),
@@ -407,8 +399,7 @@ export async function checkDuplicateInvitation(
       exists: data && data.length > 0,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception checking duplicate:', e);
+  } catch {
     return {
       exists: false,
       error: new Error('Error al verificar invitación existente'),
@@ -468,8 +459,7 @@ export async function createInvitation(data: CreateInvitationData): Promise<{
       invitation: newInvitation,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception creating invitation:', e);
+  } catch {
     return {
       invitation: null,
       error: new Error('Error al crear la invitación'),
@@ -498,7 +488,6 @@ export async function getTrainerInvitations(
     const { data, error } = await query;
 
     if (error) {
-      console.log('Error fetching trainer invitations:', error.message);
       return {
         invitations: [],
         error: null,
@@ -532,8 +521,7 @@ export async function getTrainerInvitations(
       invitations: invitationsWithStudent,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching trainer invitations:', e);
+  } catch {
     return {
       invitations: [],
       error: null,

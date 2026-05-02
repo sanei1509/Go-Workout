@@ -149,8 +149,7 @@ export async function getTodayRoutine(userId: string): Promise<{
       result: { items, isRestDay: false },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception getting today routine:', e);
+  } catch {
     return { result: empty, error: new Error('Error al obtener la rutina del día') };
   }
 }
@@ -211,8 +210,7 @@ export async function getWeeklyStats(userId: string): Promise<{
       },
       error: null,
     };
-  } catch (e) {
-    console.log('Exception getting weekly stats:', e);
+  } catch {
     return {
       stats: {
         workoutsCompleted: 0,
@@ -287,8 +285,7 @@ async function calculateStreak(userId: string): Promise<number> {
     }
 
     return streak;
-  } catch (e) {
-    console.log('Exception calculating streak:', e);
+  } catch {
     return 0;
   }
 }
@@ -331,8 +328,7 @@ export async function getWorkoutHistory(
     }));
 
     return { sessions: formattedSessions, error: null };
-  } catch (e) {
-    console.log('Exception getting workout history:', e);
+  } catch {
     return { sessions: [], error: new Error('Error al obtener historial') };
   }
 }

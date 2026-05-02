@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTraining } from '@/contexts/TrainingContext';
@@ -26,7 +26,7 @@ import {
 } from '@/lib/services/todayService';
 
 export default function StudentHome() {
-  const { profile, signOut, user } = useAuth();
+  const { profile, user } = useAuth();
   const {
     mode,
     selectedTrainer,
@@ -36,6 +36,8 @@ export default function StudentHome() {
     selectPersonalPlan,
     selectTrainer,
   } = useTraining();
+  const rootNavigationState = useRootNavigationState();
+  const isNavigationReady = Boolean(rootNavigationState?.key);
 
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -44,30 +46,32 @@ export default function StudentHome() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Cargar planes cuando el componente se enfoca
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.id && mode === 'personal') {
-        loadData();
-      }
-    }, [user?.id, mode])
-  );
+  // Cargar datos cuando cambia el usuario o el modo
+  useEffect(() => {
+    if (user?.id && mode === 'personal') {
+      loadData();
+    }
+  }, [user?.id, mode]);
 
   const loadData = async () => {
     if (!user?.id) return;
 
     setIsLoadingPlans(true);
 
-    const [plansResult, todayResult, statsResult] = await Promise.all([
-      getUserPlans(user.id),
-      getTodayRoutine(user.id),
-      getWeeklyStats(user.id),
-    ]);
+    try {
+      const [plansResult, todayResult, statsResult] = await Promise.all([
+        getUserPlans(user.id),
+        getTodayRoutine(user.id),
+        getWeeklyStats(user.id),
+      ]);
 
-    setPlans(plansResult.plans);
-    setTodayData(todayResult.result);
-    setWeeklyStats(statsResult.stats);
-    setIsLoadingPlans(false);
+      setPlans(plansResult.plans);
+      setTodayData(todayResult.result);
+      setWeeklyStats(statsResult.stats);
+    } catch {
+    } finally {
+      setIsLoadingPlans(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -93,7 +97,7 @@ export default function StudentHome() {
     return 'Plan personal';
   };
 
-  if (isLoading) {
+  if (!isNavigationReady || isLoading || !user) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-1 items-center justify-center">
@@ -338,7 +342,7 @@ function PersonalPlanView({
             </View>
           ) : (
             // Una card por cada plan con rutina hoy
-            todayData?.items.map(item => (
+            (todayData?.items ?? []).map(item => (
               <TodayRoutineCard
                 key={item.routine.id}
                 item={item}
@@ -402,8 +406,9 @@ function PersonalPlanView({
         </TouchableOpacity>
       </View>
 
+      {/* style instead of className: avoids a race condition where NativeWind's extra hooks expose a NavigationStateContext timing issue on initial load */}
       {isLoading ? (
-        <View className="py-8 items-center">
+        <View style={{ paddingVertical: 32, alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#3B82F6" />
         </View>
       ) : plans.length === 0 ? (

@@ -5,6 +5,8 @@ import { View, ActivityIndicator } from 'react-native';
 export default function AppLayout() {
   const { session, profile, isLoading } = useAuth();
 
+  // Keep this loading gate: rendering nested navigators before auth/profile
+  // resolution can race navigation context initialization on cold starts.
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
@@ -13,16 +15,16 @@ export default function AppLayout() {
     );
   }
 
-  // Redirect to login if not authenticated
   if (!session) {
     return <Redirect href="/login" />;
   }
 
-  // Redirect to onboarding if no profile
   if (!profile) {
     return <Redirect href="/onboarding" />;
   }
 
+  // Always render the Stack so nested navigators (Tabs inside student/_layout)
+  // always have a parent navigation context available.
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="trainer" />

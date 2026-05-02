@@ -54,8 +54,7 @@ export async function startWorkoutSession(data: CreateSessionData): Promise<{
     }
 
     return { session, error: null };
-  } catch (e) {
-    console.log('Exception starting workout session:', e);
+  } catch {
     return { session: null, error: new Error('Error al iniciar entrenamiento') };
   }
 }
@@ -84,8 +83,7 @@ export async function finishWorkoutSession(
     }
 
     return { session, error: null };
-  } catch (e) {
-    console.log('Exception finishing workout session:', e);
+  } catch {
     return { session: null, error: new Error('Error al finalizar entrenamiento') };
   }
 }
@@ -113,8 +111,7 @@ export async function logExercise(data: CreateExerciseLogData): Promise<{
     }
 
     return { log, error: null };
-  } catch (e) {
-    console.log('Exception logging exercise:', e);
+  } catch {
     return { log: null, error: new Error('Error al registrar ejercicio') };
   }
 }
@@ -140,8 +137,7 @@ export async function updateExerciseLog(
     }
 
     return { log, error: null };
-  } catch (e) {
-    console.log('Exception updating exercise log:', e);
+  } catch {
     return { log: null, error: new Error('Error al actualizar registro') };
   }
 }
@@ -164,8 +160,7 @@ export async function getUserSessions(userId: string, limit = 10): Promise<{
     }
 
     return { sessions: data || [], error: null };
-  } catch (e) {
-    console.log('Exception fetching user sessions:', e);
+  } catch {
     return { sessions: [], error: new Error('Error al obtener historial') };
   }
 }
@@ -190,8 +185,7 @@ export async function getActiveSession(userId: string): Promise<{
     }
 
     return { session: data, error: null };
-  } catch (e) {
-    console.log('Exception fetching active session:', e);
+  } catch {
     return { session: null, error: new Error('Error al obtener sesión activa') };
   }
 }
@@ -213,8 +207,7 @@ export async function getSessionLogs(sessionId: string): Promise<{
     }
 
     return { logs: data || [], error: null };
-  } catch (e) {
-    console.log('Exception fetching session logs:', e);
+  } catch {
     return { logs: [], error: new Error('Error al obtener registros') };
   }
 }
@@ -235,8 +228,7 @@ export async function deleteSession(sessionId: string): Promise<{
     }
 
     return { success: true, error: null };
-  } catch (e) {
-    console.log('Exception deleting session:', e);
+  } catch {
     return { success: false, error: new Error('Error al eliminar sesión') };
   }
 }
@@ -348,8 +340,7 @@ export async function getSessionDetail(sessionId: string): Promise<{
     };
 
     return { detail, error: null };
-  } catch (e) {
-    console.log('Exception fetching session detail:', e);
+  } catch {
     return { detail: null, error: new Error('Error al obtener detalle de sesión') };
   }
 }

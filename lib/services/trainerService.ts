@@ -24,7 +24,6 @@ export async function getStudentActiveTrainers(studentId: string): Promise<{
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.log('Error fetching active trainers:', error.message);
       return {
         trainers: [],
         error: new Error(error.message),
@@ -62,8 +61,7 @@ export async function getStudentActiveTrainers(studentId: string): Promise<{
       trainers: activeTrainers,
       error: null,
     };
-  } catch (e) {
-    console.log('Exception fetching active trainers:', e);
+  } catch {
     return {
       trainers: [],
       error: new Error('Error al obtener entrenadores'),

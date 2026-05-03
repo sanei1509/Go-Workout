@@ -44,7 +44,7 @@ export async function getExerciseHistory(
         session_id,
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, exercise_type ),
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -55,13 +55,15 @@ export async function getExerciseHistory(
 
     if (error) return { history: [], error: new Error(error.message) };
 
-    const history: ExerciseHistoryEntry[] = (data || []).map((row: any) => ({
-      session_id: row.session_id,
-      date: row.workout_sessions.started_at,
-      sets_completed: row.sets_completed,
-      actual_value: row.actual_value,
-      exercise_type: row.block_exercises.exercise_type,
-    }));
+    const history: ExerciseHistoryEntry[] = (data || [])
+      .filter((row: any) => row.block_exercises.routine_blocks.block_type !== 'warmup')
+      .map((row: any) => ({
+        session_id: row.session_id,
+        date: row.workout_sessions.started_at,
+        sets_completed: row.sets_completed,
+        actual_value: row.actual_value,
+        exercise_type: row.block_exercises.exercise_type,
+      }));
 
     return { history, error: null };
   } catch {
@@ -83,25 +85,28 @@ export async function getPersonalRecord(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, exercise_type ),
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
       .eq('block_exercises.name', exerciseName)
       .not('actual_value', 'is', null)
-      .order('actual_value', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('actual_value', { ascending: false });
 
     if (error) return { pr: null, error: new Error(error.message) };
-    if (!data) return { pr: null, error: null };
+
+    const best = (data || []).find(
+      (row: any) => row.block_exercises.routine_blocks.block_type !== 'warmup'
+    ) as any;
+
+    if (!best) return { pr: null, error: null };
 
     const pr: PersonalRecord = {
       exercise_name: exerciseName,
-      exercise_type: (data as any).block_exercises.exercise_type,
-      best_value: (data as any).actual_value,
-      best_sets: (data as any).sets_completed,
-      achieved_at: (data as any).workout_sessions.started_at,
+      exercise_type: best.block_exercises.exercise_type,
+      best_value: best.actual_value,
+      best_sets: best.sets_completed,
+      achieved_at: best.workout_sessions.started_at,
     };
 
     return { pr, error: null };
@@ -123,7 +128,7 @@ export async function getAllPersonalRecords(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, exercise_type ),
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -132,9 +137,10 @@ export async function getAllPersonalRecords(
 
     if (error) return { records: [], error: new Error(error.message) };
 
-    // Quedarse con el mejor por nombre de ejercicio
+    // Quedarse con el mejor por nombre de ejercicio, excluyendo calentamiento
     const best = new Map<string, PersonalRecord>();
     for (const row of (data || []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const name: string = row.block_exercises.name;
       if (!best.has(name)) {
         best.set(name, {
@@ -171,7 +177,7 @@ export async function getVolumeStats(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, exercise_type ),
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -184,6 +190,7 @@ export async function getVolumeStats(
     const map = new Map<string, VolumeEntry>();
 
     for (const row of (data || []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const date = new Date(row.workout_sessions.started_at);
       const periodKey =
         period === 'week'
@@ -253,7 +260,7 @@ export async function getGeneralStats(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name ),
+        block_exercises!inner ( name, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -262,16 +269,18 @@ export async function getGeneralStats(
 
     if (error) return { stats: null, error: new Error(error.message) };
 
-    // También contar ejercicios distintos de toda la historia
+    // También contar ejercicios distintos de toda la historia (sin calentamiento)
     const { data: allLogs, error: allError } = await supabase
       .from('exercise_logs')
-      .select(`block_exercises!inner ( name ), workout_sessions!inner ( user_id )`)
+      .select(`block_exercises!inner ( name, routine_blocks!inner ( block_type ) ), workout_sessions!inner ( user_id )`)
       .eq('workout_sessions.user_id', userId);
 
     if (allError) return { stats: null, error: new Error(allError.message) };
 
     const distinctExercises = new Set(
-      (allLogs || []).map((r: any) => r.block_exercises.name)
+      (allLogs || [])
+        .filter((r: any) => r.block_exercises.routine_blocks.block_type !== 'warmup')
+        .map((r: any) => r.block_exercises.name)
     ).size;
 
     let volumeThisWeek = 0;
@@ -279,6 +288,7 @@ export async function getGeneralStats(
     let totalSets = 0;
 
     for (const row of (data || []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const date = new Date(row.workout_sessions.started_at);
       const vol = row.sets_completed * (row.actual_value ?? 0);
       if (date >= thisMonday) {

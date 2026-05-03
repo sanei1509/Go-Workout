@@ -8,28 +8,43 @@ import {
   ActivityIndicator,
   TextInput,
   Image,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
 import { getWeeklyStats, WeeklyStats } from '@/lib/services/todayService';
 import { getUserSessions } from '@/lib/services/workoutService';
 import { updateProfile, uploadAvatar } from '@/lib/services/profileService';
+import { getStudentPendingInvitations } from '@/lib/services/invitationService';
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+};
 
 export default function ProfileScreen() {
   const { profile, user, signOut, refreshProfile } = useAuth();
   const [stats, setStats] = useState<WeeklyStats | null>(null);
-  const [totalSessions, setTotalSessions] = useState<number>(0);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [pendingInvitations, setPendingInvitations] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Edición de nombre
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
-
-  // Upload de foto
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useFocusEffect(
@@ -41,18 +56,15 @@ export default function ProfileScreen() {
   const loadStats = async () => {
     if (!user?.id) return;
     setIsLoading(true);
-    const [statsResult, sessionsResult] = await Promise.all([
+    const [statsResult, sessionsResult, invResult] = await Promise.all([
       getWeeklyStats(user.id),
       getUserSessions(user.id, 100),
+      getStudentPendingInvitations(user.id),
     ]);
     setStats(statsResult.stats);
     setTotalSessions(sessionsResult.sessions.length);
+    setPendingInvitations(invResult.invitations.length);
     setIsLoading(false);
-  };
-
-  const handleEditName = () => {
-    setNameInput(profile?.full_name ?? '');
-    setIsEditingName(true);
   };
 
   const handleSaveName = async () => {
@@ -75,200 +87,239 @@ export default function ProfileScreen() {
       Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para cambiar la foto.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (result.canceled || !result.assets[0]) return;
-
     const asset = result.assets[0];
-    const mimeType = asset.mimeType ?? 'image/jpeg';
-
     setIsUploadingPhoto(true);
-    const { url, error: uploadError } = await uploadAvatar(user!.id, asset.uri, mimeType);
-
+    const { url, error: uploadError } = await uploadAvatar(user!.id, asset.uri, asset.mimeType ?? 'image/jpeg');
     if (uploadError || !url) {
       Alert.alert('Error', uploadError?.message ?? 'No se pudo subir la imagen');
-      setIsUploadingPhoto(false);
-      return;
-    }
-
-    const { error: updateError } = await updateProfile(user!.id, { avatar_url: url });
-    if (updateError) {
-      Alert.alert('Error', 'No se pudo guardar la foto');
     } else {
-      await refreshProfile();
+      const { error: updateError } = await updateProfile(user!.id, { avatar_url: url });
+      if (updateError) Alert.alert('Error', 'No se pudo guardar la foto');
+      else await refreshProfile();
     }
     setIsUploadingPhoto(false);
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro que querés salir?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Salir',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
+    Alert.alert('Cerrar sesión', '¿Estás seguro que querés salir?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Salir', style: 'destructive',
+        onPress: async () => { await signOut(); router.replace('/login'); },
+      },
+    ]);
   };
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900">Perfil</Text>
-        <View className="w-10" />
-      </View>
+    <SafeAreaView style={s.safe}>
+      <LinearGradient
+        colors={['transparent', C.primary, 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={s.topLine}
+      />
+      <ScrollView contentContainerStyle={s.scroll}>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-        {/* Avatar + nombre */}
-        <View className="bg-white rounded-2xl p-6 mb-4 shadow-sm items-center">
-          {/* Foto de perfil */}
+        {/* ── Avatar + nombre ───────────────────────────────────────── */}
+        <View style={s.heroCard}>
           <TouchableOpacity
             onPress={handlePickPhoto}
             disabled={isUploadingPhoto}
-            className="relative mb-4"
+            style={s.avatarWrap}
+            activeOpacity={0.85}
           >
             {profile?.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                className="w-24 h-24 rounded-full"
-              />
+              <Image source={{ uri: profile.avatar_url }} style={s.avatar} />
             ) : (
-              <View className="w-24 h-24 bg-blue-500 rounded-full items-center justify-center">
-                <Text className="text-white font-bold text-4xl">{initial}</Text>
-              </View>
+              <LinearGradient
+                colors={[C.primaryDim, '#002d3d']}
+                style={s.avatarPlaceholder}
+              >
+                <Text style={s.avatarInitial}>{initial}</Text>
+              </LinearGradient>
             )}
-            <View className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full border border-gray-200 items-center justify-center shadow-sm">
-              {isUploadingPhoto ? (
-                <ActivityIndicator size="small" color="#3B82F6" />
-              ) : (
-                <Ionicons name="camera" size={16} color="#3B82F6" />
-              )}
+            <View style={s.cameraBtn}>
+              {isUploadingPhoto
+                ? <ActivityIndicator size="small" color={C.primary} />
+                : <Ionicons name="camera" size={14} color={C.primary} />
+              }
             </View>
           </TouchableOpacity>
 
-          {/* Nombre editable */}
           {isEditingName ? (
-            <View className="w-full">
+            <View style={s.editNameWrap}>
               <TextInput
+                style={s.nameInput}
                 value={nameInput}
                 onChangeText={setNameInput}
-                className="border border-blue-300 rounded-xl px-4 py-3 text-gray-900 text-center text-lg font-semibold bg-blue-50 mb-3"
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={handleSaveName}
+                placeholderTextColor={C.neutral}
               />
-              <View className="flex-row justify-center gap-3">
-                <TouchableOpacity
-                  onPress={() => setIsEditingName(false)}
-                  className="px-5 py-2 rounded-xl border border-gray-300"
-                >
-                  <Text className="text-gray-600 font-medium">Cancelar</Text>
+              <View style={s.editNameBtns}>
+                <TouchableOpacity onPress={() => setIsEditingName(false)} style={s.cancelBtn}>
+                  <Text style={s.cancelBtnText}>CANCELAR</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSaveName}
                   disabled={isSavingName || !nameInput.trim()}
-                  className="px-5 py-2 rounded-xl bg-blue-500"
+                  style={s.saveBtn}
                 >
-                  {isSavingName ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Text className="text-white font-medium">Guardar</Text>
-                  )}
+                  {isSavingName
+                    ? <ActivityIndicator size="small" color={C.primaryDim} />
+                    : <Text style={s.saveBtnText}>GUARDAR</Text>
+                  }
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
-            <TouchableOpacity onPress={handleEditName} className="flex-row items-center">
-              <Text className="text-gray-900 font-bold text-xl mr-2">{displayName}</Text>
-              <Ionicons name="pencil-outline" size={16} color="#9CA3AF" />
+            <TouchableOpacity
+              onPress={() => { setNameInput(displayName); setIsEditingName(true); }}
+              style={s.nameRow}
+              activeOpacity={0.8}
+            >
+              <Text style={s.displayName}>{displayName}</Text>
+              <Ionicons name="pencil-outline" size={15} color={C.neutral} style={{ marginLeft: 8 }} />
             </TouchableOpacity>
           )}
 
-          <Text className="text-gray-500 text-sm mt-1">{user?.email}</Text>
+          <Text style={s.emailText}>{user?.email}</Text>
         </View>
 
-        {/* Stats */}
+        {/* ── Stats ─────────────────────────────────────────────────── */}
         {isLoading ? (
-          <View className="py-4 items-center">
-            <ActivityIndicator size="small" color="#3B82F6" />
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={C.primary} />
           </View>
         ) : (
-          <View className="flex-row mb-4">
-            <View className="flex-1 bg-white rounded-xl p-4 mr-2 shadow-sm items-center">
-              <Text className="text-gray-900 font-bold text-2xl">{totalSessions}</Text>
-              <Text className="text-gray-500 text-xs mt-1">Sesiones totales</Text>
+          <View style={s.statsRow}>
+            <View style={s.statItem}>
+              <Text style={s.statValue}>{totalSessions}</Text>
+              <Text style={s.statLabel}>SESIONES</Text>
             </View>
-            <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm items-center">
-              <Text className="text-gray-900 font-bold text-2xl">
-                {stats?.workoutsCompleted ?? 0}
-              </Text>
-              <Text className="text-gray-500 text-xs mt-1">Esta semana</Text>
+            <View style={s.statDivider} />
+            <View style={s.statItem}>
+              <Text style={s.statValue}>{stats?.workoutsCompleted ?? 0}</Text>
+              <Text style={s.statLabel}>ESTA SEM.</Text>
             </View>
-            <View className="flex-1 bg-white rounded-xl p-4 ml-2 shadow-sm items-center">
-              <Text className="text-gray-900 font-bold text-2xl">
-                {stats?.streak ?? 0}
-              </Text>
-              <Text className="text-gray-500 text-xs mt-1">Racha actual</Text>
+            <View style={s.statDivider} />
+            <View style={s.statItem}>
+              <Text style={[s.statValue, { color: C.tertiary }]}>{stats?.streak ?? 0}</Text>
+              <Text style={s.statLabel}>RACHA</Text>
             </View>
           </View>
         )}
 
-        {/* Opciones */}
-        <View className="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
-          <TouchableOpacity
+        {/* ── Menú ─────────────────────────────────────────────────── */}
+        <Text style={s.sectionTitle}>OPCIONES</Text>
+        <View style={s.menuCard}>
+          <MenuItem
+            icon="mail-outline"
+            label="INVITACIONES"
+            onPress={() => router.push('/student/invitations' as any)}
+            badge={pendingInvitations > 0 ? pendingInvitations : undefined}
+            badgeColor={C.tertiary}
+          />
+          <View style={s.menuDivider} />
+          <MenuItem
+            icon="notifications-outline"
+            label="RECORDATORIOS"
             onPress={() => router.push('/student/notifications' as any)}
-            className="flex-row items-center px-4 py-4 border-b border-gray-100"
-          >
-            <View className="w-9 h-9 bg-blue-100 rounded-lg items-center justify-center mr-3">
-              <Ionicons name="notifications-outline" size={20} color="#3B82F6" />
-            </View>
-            <Text className="text-gray-900 flex-1">Recordatorios</Text>
-            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/student/history' as any)}
-            className="flex-row items-center px-4 py-4"
-          >
-            <View className="w-9 h-9 bg-green-100 rounded-lg items-center justify-center mr-3">
-              <Ionicons name="time-outline" size={20} color="#16A34A" />
-            </View>
-            <Text className="text-gray-900 flex-1">Historial de entrenamientos</Text>
-            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-          </TouchableOpacity>
+          />
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          className="bg-white rounded-xl px-4 py-4 shadow-sm flex-row items-center"
-        >
-          <View className="w-9 h-9 bg-red-100 rounded-lg items-center justify-center mr-3">
-            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+        {/* ── Logout ───────────────────────────────────────────────── */}
+        <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={s.logoutBtn}>
+          <View style={s.logoutIcon}>
+            <Ionicons name="log-out-outline" size={20} color="#f87171" />
           </View>
-          <Text className="text-red-500 font-medium flex-1">Cerrar sesión</Text>
+          <Text style={s.logoutText}>CERRAR SESIÓN</Text>
         </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+// ─── MenuItem ────────────────────────────────────────────────────────────────
+
+function MenuItem({ icon, label, onPress, badge, badgeColor }: {
+  icon: string; label: string; onPress: () => void;
+  badge?: number; badgeColor?: string;
+}) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={s.menuRow}>
+      <View style={s.menuIcon}>
+        <Ionicons name={icon as any} size={20} color={C.primary} />
+      </View>
+      <Text style={s.menuLabel}>{label}</Text>
+      {badge !== undefined && (
+        <View style={[s.menuBadge, { backgroundColor: badgeColor ?? C.primary }]}>
+          <Text style={s.menuBadgeText}>{badge}</Text>
+        </View>
+      )}
+      <Ionicons name="chevron-forward" size={16} color={C.border} style={{ marginLeft: 6 }} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  safe:     { flex: 1, backgroundColor: C.bg },
+  topLine:  { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+  scroll:   { padding: 20, paddingBottom: 48 },
+
+  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
+
+  // Hero card
+  heroCard:         { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', marginBottom: 12 },
+  avatarWrap:       { marginBottom: 16, position: 'relative' },
+  avatar:           { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: C.primary },
+  avatarPlaceholder:{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.primary },
+  avatarInitial:    { color: C.primary, fontSize: 36, fontFamily: 'SpaceGrotesk_700Bold' },
+  cameraBtn:        { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1.5, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  nameRow:          { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  displayName:      { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.3 },
+  emailText:        { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Edit name
+  editNameWrap: { width: '100%', marginBottom: 8 },
+  nameInput:    { backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
+  editNameBtns: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  cancelBtn:    { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.border },
+  cancelBtnText:{ color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  saveBtn:      { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: C.primary },
+  saveBtnText:  { color: C.primaryDim, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+  // Stats
+  statsRow:    { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 24, overflow: 'hidden' },
+  statItem:    { flex: 1, alignItems: 'center', paddingVertical: 16 },
+  statDivider: { width: 1, backgroundColor: C.border },
+  statValue:   { color: C.textHi, fontSize: 24, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+  statLabel:   { color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+
+  // Menu
+  menuCard:     { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 24 },
+  menuDivider:  { height: 1, backgroundColor: C.border },
+  menuRow:      { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  menuIcon:     { width: 38, height: 38, borderRadius: 8, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  menuLabel:    { flex: 1, color: C.textHi, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  menuBadge:    { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  menuBadgeText:{ color: '#7a5500', fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  // Logout
+  logoutBtn:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: '#3d1515', padding: 14 },
+  logoutIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: '#1a0808', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  logoutText: { color: '#f87171', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+});

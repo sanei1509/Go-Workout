@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Switch, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet } from 'react-native';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   setupWorkoutReminder,
@@ -12,63 +12,67 @@ import {
   MIN_SESSIONS_FOR_HISTORY,
 } from '@/lib/services/notificationService';
 
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+};
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function NotificationsScreen() {
   const { user } = useAuth();
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [reminderHour, setReminderHour] = useState(8);
+  const [isEnabled, setIsEnabled]         = useState(false);
+  const [isLoading, setIsLoading]         = useState(true);
+  const [isSaving, setIsSaving]           = useState(false);
+  const [reminderHour, setReminderHour]   = useState(8);
   const [reminderMinute, setReminderMinute] = useState(0);
-  const [fromHistory, setFromHistory] = useState(false);
+  const [fromHistory, setFromHistory]     = useState(false);
   const [hasEnoughHistory, setHasEnoughHistory] = useState(false);
-  // Hora manual: minutos desde medianoche (por defecto 8:00)
-  const [manualHour, setManualHour] = useState(8);
-  const [manualMinute, setManualMinute] = useState(0);
+  const [manualHour, setManualHour]       = useState(8);
+  const [manualMinute, setManualMinute]   = useState(0);
 
-  useEffect(() => {
-    loadState();
-  }, []);
+  useEffect(() => { loadState(); }, []);
 
   const loadState = async () => {
     if (!user?.id) return;
     setIsLoading(true);
-
     const [active, avgMinutes] = await Promise.all([
       hasActiveReminder(),
       getAverageWorkoutHour(user.id),
     ]);
-
     setIsEnabled(active);
     setHasEnoughHistory(avgMinutes !== null);
-
     if (avgMinutes !== null) {
-      const reminderMinutes = avgMinutes - 15;
-      const h = Math.max(0, Math.floor(reminderMinutes / 60));
-      const m = Math.max(0, reminderMinutes % 60);
-      setReminderHour(h);
-      setReminderMinute(m);
+      const rem = avgMinutes - 15;
+      const h = Math.max(0, Math.floor(rem / 60));
+      const m = Math.max(0, rem % 60);
+      setReminderHour(h); setReminderMinute(m);
       setFromHistory(true);
-      setManualHour(h);
-      setManualMinute(m);
+      setManualHour(h); setManualMinute(m);
     }
-
     setIsLoading(false);
   };
 
   const handleToggle = async (value: boolean) => {
     if (!user?.id) return;
     setIsSaving(true);
-
     if (!value) {
       await cancelWorkoutReminder();
       setIsEnabled(false);
     } else {
-      // Si tiene historial, setupWorkoutReminder lo calcula solo
-      // Si no, usamos la hora manual + 15min (la notificación se envía 15min antes de entrenar)
-      const manualMinutesFromMidnight = hasEnoughHistory
+      const manualMins = hasEnoughHistory
         ? undefined
         : manualHour * 60 + manualMinute + 15;
-      const result = await setupWorkoutReminder(user.id, manualMinutesFromMidnight);
+      const result = await setupWorkoutReminder(user.id, manualMins);
       if (result.scheduled) {
         setIsEnabled(true);
         setReminderHour(result.hour);
@@ -76,15 +80,13 @@ export default function NotificationsScreen() {
         setFromHistory(result.fromHistory);
       }
     }
-
     setIsSaving(false);
   };
 
   const handleSaveManualTime = async () => {
     if (!user?.id) return;
     setIsSaving(true);
-    const minutesFromMidnight = manualHour * 60 + manualMinute + 15;
-    const result = await setupWorkoutReminder(user.id, minutesFromMidnight);
+    const result = await setupWorkoutReminder(user.id, manualHour * 60 + manualMinute + 15);
     if (result.scheduled) {
       setIsEnabled(true);
       setReminderHour(result.hour);
@@ -94,7 +96,7 @@ export default function NotificationsScreen() {
     setIsSaving(false);
   };
 
-  const formatTime = (h: number, m: number) =>
+  const fmt = (h: number, m: number) =>
     `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
   const adjustHour = (delta: number) =>
@@ -108,129 +110,191 @@ export default function NotificationsScreen() {
       return next;
     });
 
+  // Notification preview time (15 min before)
+  const notifH = Math.max(0, manualHour - (manualMinute < 15 ? 1 : 0));
+  const notifM = (manualMinute - 15 + 60) % 60;
+
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900 ml-2">Recordatorios</Text>
-      </View>
+    <>
+      <Stack.Screen options={{
+        title: 'RECORDATORIOS',
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => router.navigate('/student/profile')} style={{ marginLeft: 4, padding: 4 }}>
+            <Ionicons name="chevron-back" size={24} color={C.primary} />
+          </TouchableOpacity>
+        ),
+      }} />
+      <View style={s.safe}>
+        <LinearGradient
+          colors={['transparent', C.primary, 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.topLine}
+        />
 
-      <ScrollView className="flex-1 p-4">
-        {/* Toggle principal */}
-        <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1 mr-4">
-              <Text className="text-gray-900 font-semibold text-base">Recordatorio diario</Text>
-              <Text className="text-gray-500 text-sm mt-1">
-                Recibí una notificación antes de tu hora habitual de entrenamiento
-              </Text>
-            </View>
-            <Switch
-              value={isEnabled}
-              onValueChange={handleToggle}
-              disabled={isLoading || isSaving}
-              trackColor={{ false: '#D1D5DB', true: '#3B82F6' }}
-              thumbColor="white"
-            />
-          </View>
+        <ScrollView contentContainerStyle={s.scroll}>
 
-          {isEnabled && (
-            <View className="mt-4 pt-4 border-t border-gray-100">
-              <View className="flex-row items-center">
-                <Ionicons name="alarm-outline" size={20} color="#3B82F6" />
-                <Text className="text-gray-700 ml-2">
-                  Notificación a las{' '}
-                  <Text className="font-bold text-blue-600">
-                    {formatTime(reminderHour, reminderMinute)}
-                  </Text>
+          {/* ── Toggle ──────────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>NOTIFICACIÓN</Text>
+          <View style={s.toggleCard}>
+            <View style={s.toggleRow}>
+              <View style={s.toggleIconWrap}>
+                <Ionicons name="notifications-outline" size={20} color={C.primary} />
+              </View>
+              <View style={s.toggleInfo}>
+                <Text style={s.toggleLabel}>Recordatorio diario</Text>
+                <Text style={s.toggleSub}>
+                  Recibí un aviso antes de tu hora habitual de entrenamiento
                 </Text>
               </View>
-              {fromHistory && (
-                <View className="flex-row items-center mt-2">
-                  <Ionicons name="analytics-outline" size={16} color="#6B7280" />
-                  <Text className="text-gray-400 text-xs ml-1">
-                    Calculado a partir de tu historial de entrenamientos
+              <Switch
+                value={isEnabled}
+                onValueChange={handleToggle}
+                disabled={isLoading || isSaving}
+                trackColor={{ false: C.border, true: C.primaryDim }}
+                thumbColor={isEnabled ? C.primary : C.neutral}
+              />
+            </View>
+
+            {isEnabled && (
+              <View style={s.activeInfo}>
+                <View style={s.activeRow}>
+                  <Ionicons name="alarm-outline" size={16} color={C.primary} />
+                  <Text style={s.activeText}>
+                    Próxima notificación a las{' '}
+                    <Text style={s.activeTime}>{fmt(reminderHour, reminderMinute)}</Text>
                   </Text>
                 </View>
-              )}
-            </View>
+                {fromHistory && (
+                  <View style={s.historyRow}>
+                    <Ionicons name="analytics-outline" size={14} color={C.neutral} />
+                    <Text style={s.historyText}>
+                      Calculado a partir de tu historial de entrenamientos
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* ── Selector manual ──────────────────────────────────── */}
+          {!hasEnoughHistory && (
+            <>
+              <Text style={s.sectionTitle}>HORA DE ENTRENAMIENTO</Text>
+              <View style={s.timeCard}>
+                <Text style={s.timeCardSub}>
+                  Todavía no tenés suficientes sesiones (mín. {MIN_SESSIONS_FOR_HISTORY}).
+                  Indicá a qué hora solés entrenar.
+                </Text>
+
+                {/* Picker */}
+                <View style={s.pickerRow}>
+                  {/* Horas */}
+                  <View style={s.pickerCol}>
+                    <TouchableOpacity onPress={() => adjustHour(1)} style={s.chevronBtn} activeOpacity={0.7}>
+                      <Ionicons name="chevron-up" size={26} color={C.primary} />
+                    </TouchableOpacity>
+                    <Text style={s.pickerDigit}>{manualHour.toString().padStart(2, '0')}</Text>
+                    <TouchableOpacity onPress={() => adjustHour(-1)} style={s.chevronBtn} activeOpacity={0.7}>
+                      <Ionicons name="chevron-down" size={26} color={C.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={s.pickerColon}>:</Text>
+
+                  {/* Minutos */}
+                  <View style={s.pickerCol}>
+                    <TouchableOpacity onPress={() => adjustMinute(15)} style={s.chevronBtn} activeOpacity={0.7}>
+                      <Ionicons name="chevron-up" size={26} color={C.primary} />
+                    </TouchableOpacity>
+                    <Text style={s.pickerDigit}>{manualMinute.toString().padStart(2, '0')}</Text>
+                    <TouchableOpacity onPress={() => adjustMinute(-15)} style={s.chevronBtn} activeOpacity={0.7}>
+                      <Ionicons name="chevron-down" size={26} color={C.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={s.notifPreview}>
+                  Te avisamos a las {fmt(notifH, notifM)}, 15 min antes de entrenar
+                </Text>
+
+                <TouchableOpacity
+                  onPress={handleSaveManualTime}
+                  disabled={isSaving}
+                  activeOpacity={0.85}
+                  style={s.saveBtn}
+                >
+                  <LinearGradient
+                    colors={[C.primaryDim, '#003d4d']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={s.saveBtnGrad}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color={C.primary} />
+                    <Text style={s.saveBtnText}>ACTIVAR RECORDATORIO</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
-        </View>
 
-        {/* Selector manual (sin historial o para override) */}
-        {!hasEnoughHistory && (
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="time-outline" size={20} color="#F97316" />
-              <Text className="text-gray-900 font-semibold ml-2">Hora de entrenamiento</Text>
+          {/* ── Info ────────────────────────────────────────────── */}
+          <View style={s.infoCard}>
+            <View style={s.infoRow}>
+              <Ionicons name="information-circle-outline" size={18} color={C.primary} />
+              <Text style={s.infoText}>
+                La hora se recalcula automáticamente después de cada entrenamiento completado,
+                para adaptarse a tu rutina real.
+              </Text>
             </View>
-            <Text className="text-gray-500 text-sm mb-4">
-              Todavía no tenés suficientes sesiones (mínimo {MIN_SESSIONS_FOR_HISTORY}).
-              Indicá a qué hora solés entrenar.
-            </Text>
-
-            {/* Selector hora:minuto */}
-            <View className="flex-row items-center justify-center mb-4">
-              {/* Horas */}
-              <View className="items-center">
-                <TouchableOpacity onPress={() => adjustHour(1)} className="p-3">
-                  <Ionicons name="chevron-up" size={24} color="#3B82F6" />
-                </TouchableOpacity>
-                <Text className="text-4xl font-bold text-gray-900 w-16 text-center">
-                  {manualHour.toString().padStart(2, '0')}
-                </Text>
-                <TouchableOpacity onPress={() => adjustHour(-1)} className="p-3">
-                  <Ionicons name="chevron-down" size={24} color="#3B82F6" />
-                </TouchableOpacity>
-              </View>
-
-              <Text className="text-4xl font-bold text-gray-400 mx-2">:</Text>
-
-              {/* Minutos (en pasos de 15) */}
-              <View className="items-center">
-                <TouchableOpacity onPress={() => adjustMinute(15)} className="p-3">
-                  <Ionicons name="chevron-up" size={24} color="#3B82F6" />
-                </TouchableOpacity>
-                <Text className="text-4xl font-bold text-gray-900 w-16 text-center">
-                  {manualMinute.toString().padStart(2, '0')}
-                </Text>
-                <TouchableOpacity onPress={() => adjustMinute(-15)} className="p-3">
-                  <Ionicons name="chevron-down" size={24} color="#3B82F6" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Text className="text-gray-400 text-xs text-center mb-3">
-              Te vamos a avisar 15 minutos antes ({formatTime(
-                Math.max(0, manualHour - (manualMinute < 15 ? 1 : 0)),
-                (manualMinute - 15 + 60) % 60
-              )})
-            </Text>
-
-            <TouchableOpacity
-              onPress={handleSaveManualTime}
-              disabled={isSaving}
-              className="bg-blue-500 rounded-xl py-3 items-center"
-            >
-              <Text className="text-white font-semibold">Activar recordatorio</Text>
-            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Info */}
-        <View className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <View className="flex-row items-start">
-            <Ionicons name="information-circle" size={20} color="#3B82F6" />
-            <Text className="text-blue-700 text-sm ml-2 flex-1">
-              La hora se recalcula automáticamente después de cada entrenamiento completado,
-              para adaptarse a tu rutina real.
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </View>
+    </>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  safe:    { flex: 1, backgroundColor: C.bg },
+  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+  scroll:  { padding: 20, paddingBottom: 48 },
+
+  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 10 },
+
+  // Toggle card
+  toggleCard:    { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 24 },
+  toggleRow:     { flexDirection: 'row', alignItems: 'center' },
+  toggleIconWrap:{ width: 40, height: 40, borderRadius: 8, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  toggleInfo:    { flex: 1, marginRight: 12 },
+  toggleLabel:   { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+  toggleSub:     { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17 },
+
+  activeInfo:  { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+  activeRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  activeText:  { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+  activeTime:  { color: C.primary, fontFamily: 'SpaceGrotesk_700Bold' },
+  historyRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  historyText: { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Time card
+  timeCard:    { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 24 },
+  timeCardSub: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 19, marginBottom: 24 },
+
+  pickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  pickerCol:  { alignItems: 'center' },
+  chevronBtn: { padding: 10 },
+  pickerDigit:{ color: C.textHi, fontSize: 48, fontFamily: 'SpaceGrotesk_700Bold', width: 72, textAlign: 'center' },
+  pickerColon:{ color: C.border, fontSize: 42, fontFamily: 'SpaceGrotesk_700Bold', marginHorizontal: 4, marginBottom: 8 },
+
+  notifPreview: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginBottom: 20 },
+
+  saveBtn:     { borderRadius: 12, overflow: 'hidden' },
+  saveBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  saveBtnText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+  // Info
+  infoCard: { backgroundColor: C.cardDeep, borderRadius: 12, borderWidth: 1, borderColor: C.primaryDim, padding: 14 },
+  infoRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  infoText: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, lineHeight: 19 },
+});

@@ -6,6 +6,7 @@ export interface Plan {
   name: string;
   discipline: string;
   weekly_frequency: number;
+  training_days: number[] | null;  // [1,2,4] = lunes, martes, jueves
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -16,6 +17,7 @@ export interface CreatePlanData {
   name: string;
   discipline: string;
   weekly_frequency: number;
+  training_days?: number[];
 }
 
 export interface UpdatePlanData {
@@ -130,6 +132,7 @@ export async function createPlan(
         name: data.name.trim(),
         discipline: data.discipline,
         weekly_frequency: data.weekly_frequency,
+        training_days: data.training_days ?? null,
       })
       .select()
       .single();

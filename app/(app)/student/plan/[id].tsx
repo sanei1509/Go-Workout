@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   getPlanById,
   deletePlan,
@@ -22,36 +23,46 @@ import {
   Routine,
 } from '@/lib/services/routineService';
 
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+};
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan, setPlan]         = useState<Plan | null>(null);
   const [routines, setRoutines] = useState<Routine[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
 
   useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [id])
+    useCallback(() => { loadData(); }, [id])
   );
 
   const loadData = async () => {
     if (!id) return;
-
     setIsLoading(true);
-
     const [planResult, routinesResult] = await Promise.all([
       getPlanById(id),
       getRoutinesByPlan(id),
     ]);
-
     if (planResult.error) {
       setError(planResult.error.message);
     } else {
       setPlan(planResult.plan);
     }
-
     setRoutines(routinesResult.routines);
     setIsLoading(false);
   };
@@ -62,28 +73,21 @@ export default function PlanDetailScreen() {
     setIsRefreshing(false);
   };
 
-  const handleGoBack = () => {
-    router.back();
-  };
-
   const handleDelete = () => {
     Alert.alert(
       'Eliminar plan',
-      '¿Estás seguro de que querés eliminar este plan? Esta acción no se puede deshacer.',
+      '¿Seguro que querés eliminar este plan? Esta acción no se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          text: 'Eliminar', style: 'destructive',
           onPress: async () => {
             if (!id) return;
-
             const { success, error: err } = await deletePlan(id);
-
             if (err || !success) {
               Alert.alert('Error', err?.message || 'No se pudo eliminar el plan');
             } else {
-              router.back();
+              router.navigate('/student');
             }
           },
         },
@@ -99,161 +103,212 @@ export default function PlanDetailScreen() {
     router.push(`/student/routine/${routineId}`);
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error || !plan) {
-    return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-red-500 text-center">
-            {error || 'Plan no encontrado'}
-          </Text>
-          <TouchableOpacity
-            onPress={handleGoBack}
-            className="mt-4 bg-blue-500 px-6 py-3 rounded-lg"
-          >
-            <Text className="text-white font-semibold">Volver</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={handleGoBack} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900 flex-1 text-center">
-          {plan.name}
-        </Text>
-        <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
-          <Ionicons name="trash-outline" size={24} color="#EF4444" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Info del plan */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <View className="flex-row items-center mb-4">
-            <View className="w-14 h-14 bg-blue-100 rounded-xl items-center justify-center mr-4">
-              <Ionicons name="barbell" size={28} color="#3B82F6" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-xl font-bold text-gray-900">{plan.name}</Text>
-              <Text className="text-gray-500">{plan.discipline}</Text>
-            </View>
-          </View>
-
-          <View className="flex-row">
-            <View className="flex-1 bg-gray-50 rounded-lg p-3 mr-2">
-              <Text className="text-gray-500 text-sm">Frecuencia</Text>
-              <Text className="text-gray-900 font-semibold">
-                {getFrequencyLabel(plan.weekly_frequency)}
-              </Text>
-            </View>
-            <View className="flex-1 bg-gray-50 rounded-lg p-3 ml-2">
-              <Text className="text-gray-500 text-sm">Rutinas</Text>
-              <Text className="text-gray-900 font-semibold">
-                {routines.length} creada{routines.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Rutinas */}
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-gray-700 font-semibold text-lg">Rutinas</Text>
-          <TouchableOpacity
-            onPress={handleAddRoutine}
-            className="flex-row items-center"
-          >
-            <Ionicons name="add-circle" size={20} color="#3B82F6" />
-            <Text className="text-blue-500 font-medium ml-1">Agregar</Text>
+    <>
+      <Stack.Screen options={{
+        title: plan?.name ?? 'PLAN',
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => router.navigate('/student')} style={{ marginLeft: 4, padding: 4 }}>
+            <Ionicons name="chevron-back" size={24} color={C.primary} />
           </TouchableOpacity>
-        </View>
+        ),
+        headerRight: () => (
+          <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
+            <Ionicons name="trash-outline" size={20} color="#f87171" />
+          </TouchableOpacity>
+        ),
+      }} />
 
-        {routines.length === 0 ? (
-          /* Estado vacío */
-          <View className="bg-white rounded-xl p-8 shadow-sm items-center">
-            <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-              <Ionicons name="calendar-outline" size={40} color="#9CA3AF" />
-            </View>
-            <Text className="text-gray-900 font-semibold text-lg text-center mb-2">
-              Sin rutinas todavía
-            </Text>
-            <Text className="text-gray-500 text-center mb-4">
-              Agregá tu primera rutina para empezar a entrenar
-            </Text>
-            <TouchableOpacity
-              onPress={handleAddRoutine}
-              className="bg-blue-500 px-6 py-3 rounded-xl flex-row items-center"
-            >
-              <Ionicons name="add" size={20} color="white" />
-              <Text className="text-white font-semibold ml-2">Crear rutina</Text>
+      <View style={s.safe}>
+        <LinearGradient
+          colors={['transparent', C.primary, 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.topLine}
+        />
+
+        {isLoading ? (
+          <View style={s.center}>
+            <ActivityIndicator size="large" color={C.primary} />
+          </View>
+        ) : error || !plan ? (
+          <View style={s.center}>
+            <Ionicons name="alert-circle-outline" size={48} color="#f87171" />
+            <Text style={s.errorText}>{error ?? 'Plan no encontrado'}</Text>
+            <TouchableOpacity onPress={() => router.navigate('/student')} style={s.errorBtn}>
+              <Text style={s.errorBtnText}>VOLVER</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          /* Lista de rutinas */
-          <View>
-            {routines.map((routine) => (
-              <TouchableOpacity
-                key={routine.id}
-                onPress={() => handleOpenRoutine(routine.id)}
-                className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center">
-                  <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center mr-4">
-                    <Text className="text-blue-600 font-bold text-lg">
-                      {routine.day_number}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-900 font-semibold text-lg">
-                      {routine.name}
-                    </Text>
-                    <Text className="text-gray-500 text-sm">
-                      Día {routine.day_number}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Info de ayuda */}
-        {routines.length === 0 && (
-          <View className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4">
-            <View className="flex-row items-start">
-              <Ionicons name="bulb-outline" size={24} color="#3B82F6" />
-              <View className="ml-3 flex-1">
-                <Text className="text-blue-800 font-semibold">Tip</Text>
-                <Text className="text-blue-700 mt-1">
-                  Creá una rutina para cada día de entrenamiento. Por ejemplo: "Día 1 - Pecho y Tríceps"
-                </Text>
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={C.primary} />
+            }
+          >
+            {/* ── Hero card ──────────────────────────────── */}
+            <View style={s.heroCard}>
+              <View style={s.heroIcon}>
+                <Ionicons name="barbell" size={28} color={C.primary} />
+              </View>
+              <View style={s.heroInfo}>
+                <Text style={s.heroName}>{plan.name}</Text>
+                <Text style={s.heroDiscipline}>{plan.discipline}</Text>
               </View>
             </View>
-          </View>
+
+            {/* ── Stats ──────────────────────────────────── */}
+            <View style={s.statsRow}>
+              <View style={s.statItem}>
+                <Ionicons name="calendar-outline" size={16} color={C.primary} style={{ marginBottom: 4 }} />
+                <Text style={s.statValue}>{getFrequencyLabel(plan.weekly_frequency)}</Text>
+                <Text style={s.statLabel}>FRECUENCIA</Text>
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Ionicons name="list-outline" size={16} color={C.primary} style={{ marginBottom: 4 }} />
+                <Text style={s.statValue}>{routines.length}</Text>
+                <Text style={s.statLabel}>RUTINAS</Text>
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Ionicons
+                  name={plan.is_active ? 'checkmark-circle-outline' : 'pause-circle-outline'}
+                  size={16}
+                  color={plan.is_active ? C.primary : C.neutral}
+                  style={{ marginBottom: 4 }}
+                />
+                <Text style={[s.statValue, !plan.is_active && { color: C.neutral }]}>
+                  {plan.is_active ? 'Activo' : 'Inactivo'}
+                </Text>
+                <Text style={s.statLabel}>ESTADO</Text>
+              </View>
+            </View>
+
+            {/* ── Rutinas ────────────────────────────────── */}
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>RUTINAS</Text>
+              {routines.length > 0 && (
+                <TouchableOpacity onPress={handleAddRoutine} activeOpacity={0.8} style={s.addBtn}>
+                  <Ionicons name="add" size={16} color={C.primary} />
+                  <Text style={s.addBtnText}>AGREGAR</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {routines.length === 0 ? (
+              <EmptyRoutines onAdd={handleAddRoutine} frequency={plan.weekly_frequency} />
+            ) : (
+              <View style={s.routineList}>
+                {routines.map((routine, idx) => (
+                  <TouchableOpacity
+                    key={routine.id}
+                    onPress={() => handleOpenRoutine(routine.id)}
+                    activeOpacity={0.85}
+                    style={s.routineCard}
+                  >
+                    <View style={s.routineDayBadge}>
+                      <Text style={s.routineDayNum}>{routine.day_number}</Text>
+                      <Text style={s.routineDayLabel}>DÍA</Text>
+                    </View>
+                    <View style={s.routineInfo}>
+                      <Text style={s.routineName}>{routine.name}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={C.border} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </>
   );
 }
+
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+function EmptyRoutines({ onAdd, frequency }: { onAdd: () => void; frequency: number }) {
+  return (
+    <View style={s.emptyCard}>
+      <View style={s.emptyIconWrap}>
+        <Ionicons name="calendar-outline" size={36} color={C.neutral} />
+      </View>
+      <Text style={s.emptyTitle}>Sin rutinas todavía</Text>
+      <Text style={s.emptyText}>
+        Creá una rutina para cada día de entrenamiento.{'\n'}
+        Tu plan tiene {frequency} día{frequency !== 1 ? 's' : ''} por semana.
+      </Text>
+
+      <TouchableOpacity onPress={onAdd} activeOpacity={0.85} style={s.emptyBtn}>
+        <LinearGradient
+          colors={[C.primaryDim, '#003d4d']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.emptyBtnGrad}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={C.primary} />
+          <Text style={s.emptyBtnText}>CREAR PRIMERA RUTINA</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      <View style={s.tipCard}>
+        <Ionicons name="bulb-outline" size={16} color={C.tertiary} />
+        <Text style={s.tipText}>
+          Ejemplo: "Día 1 — Pecho y Tríceps", "Día 2 — Espalda y Bíceps"
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  safe:    { flex: 1, backgroundColor: C.bg },
+  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+  scroll:  { padding: 20, paddingBottom: 48 },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+
+  errorText:    { color: C.textLo, textAlign: 'center', marginTop: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  errorBtn:     { marginTop: 20, backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingHorizontal: 24, paddingVertical: 10 },
+  errorBtnText: { color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+  // Hero
+  heroCard:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 18, marginBottom: 12 },
+  heroIcon:       { width: 52, height: 52, borderRadius: 12, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  heroInfo:       { flex: 1 },
+  heroName:       { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+  heroDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+
+  // Stats
+  statsRow:    { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 24, overflow: 'hidden' },
+  statItem:    { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8 },
+  statDivider: { width: 1, backgroundColor: C.border },
+  statValue:   { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 2 },
+  statLabel:   { color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+
+  // Section header
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle:  { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3 },
+  addBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primaryDim, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  addBtnText:    { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+  // Routine list
+  routineList:     { gap: 10 },
+  routineCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+  routineDayBadge: { width: 44, height: 44, borderRadius: 10, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  routineDayNum:   { color: C.primary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 20 },
+  routineDayLabel: { color: C.primary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, opacity: 0.7 },
+  routineInfo:     { flex: 1 },
+  routineName:     { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold' },
+
+  // Empty
+  emptyCard:     { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center' },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: C.cardDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle:    { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 8 },
+  emptyText:     { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  emptyBtn:      { width: '100%', borderRadius: 12, overflow: 'hidden', marginBottom: 20 },
+  emptyBtnGrad:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  emptyBtnText:  { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  tipCard:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: C.cardDeep, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12 },
+  tipText:       { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, lineHeight: 18 },
+});

@@ -7,224 +7,388 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  createPlan,
-  DISCIPLINES,
-  FREQUENCIES,
-} from '@/lib/services/planService';
+import { createPlan, DISCIPLINES, FREQUENCIES } from '@/lib/services/planService';
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+};
+
+const TOTAL_STEPS = 3;
+
+const DISCIPLINE_ICONS: Record<string, string> = {
+  'Musculación':    'barbell-outline',
+  'Crossfit':       'flash-outline',
+  'Calistenia':     'body-outline',
+  'Funcional':      'fitness-outline',
+  'Running':        'walk-outline',
+  'Natación':       'water-outline',
+  'Yoga':           'leaf-outline',
+  'Pilates':        'ellipse-outline',
+  'Boxeo':          'shield-outline',
+  'Artes Marciales':'trophy-outline',
+  'Ciclismo':       'bicycle-outline',
+  'HIIT':           'timer-outline',
+  'Powerlifting':   'barbell-outline',
+  'Otro':           'apps-outline',
+};
+
+const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function CreatePlanScreen() {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form state
-  const [name, setName] = useState('');
+  const [name, setName]             = useState('');
   const [discipline, setDiscipline] = useState<string | null>(null);
-  const [frequency, setFrequency] = useState<number | null>(null);
-
-  // Current step
-  const [step, setStep] = useState(1);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [step, setStep]             = useState(1);
 
   const handleGoBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    } else {
-      router.back();
-    }
+    if (step > 1) setStep(step - 1);
+    else router.navigate('/student');
   };
 
   const canProceed = () => {
-    switch (step) {
-      case 1:
-        return name.trim().length >= 2;
-      case 2:
-        return discipline !== null;
-      case 3:
-        return frequency !== null;
-      default:
-        return false;
-    }
+    if (step === 1) return name.trim().length >= 2;
+    if (step === 2) return discipline !== null;
+    if (step === 3) return selectedDays.length > 0;
+    return false;
   };
 
   const handleNext = () => {
-    if (step < 3) {
-      setStep(step + 1);
-    } else {
-      handleSubmit();
-    }
+    if (step < TOTAL_STEPS) setStep(step + 1);
+    else handleSubmit();
+  };
+
+  const handleSelectDiscipline = (d: string) => {
+    setDiscipline(d);
+    setTimeout(() => setStep(3), 200);
+  };
+
+  const handleToggleDay = (day: number) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
   };
 
   const handleSubmit = async () => {
-    if (!user?.id || !discipline || !frequency) return;
-
+    if (!user?.id || !discipline || selectedDays.length === 0) return;
     setIsSubmitting(true);
-
+    const sorted = [...selectedDays].sort((a, b) => a - b);
     const { plan, error } = await createPlan(user.id, {
       name: name.trim(),
       discipline,
-      weekly_frequency: frequency,
+      weekly_frequency: selectedDays.length,
+      training_days: sorted,
     });
-
     setIsSubmitting(false);
-
     if (error) {
       Alert.alert('Error', error.message);
       return;
     }
-
-    // Navegar al detalle del plan creado
     router.replace(`/student/plan/${plan?.id}`);
   };
 
-  const renderStep1 = () => (
-    <View className="flex-1">
-      <Text className="text-2xl font-bold text-gray-900 mb-2">
-        ¿Cómo se llama tu plan?
-      </Text>
-      <Text className="text-gray-500 mb-6">
-        Dale un nombre que te ayude a identificarlo
-      </Text>
-
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Ej: Rutina de fuerza, Plan de verano..."
-        className="bg-white border border-gray-200 rounded-xl px-4 py-4 text-lg text-gray-900"
-        autoFocus
-        maxLength={50}
-      />
-
-      <Text className="text-gray-400 text-sm mt-2 text-right">
-        {name.length}/50
-      </Text>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View className="flex-1">
-      <Text className="text-2xl font-bold text-gray-900 mb-2">
-        ¿Qué disciplina vas a entrenar?
-      </Text>
-      <Text className="text-gray-500 mb-6">
-        Elegí la disciplina principal de este plan
-      </Text>
-
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="flex-row flex-wrap">
-          {DISCIPLINES.map((d) => (
-            <TouchableOpacity
-              key={d}
-              onPress={() => setDiscipline(d)}
-              className={`px-4 py-3 rounded-xl mr-2 mb-2 ${
-                discipline === d
-                  ? 'bg-blue-500'
-                  : 'bg-white border border-gray-200'
-              }`}
-            >
-              <Text
-                className={`font-medium ${
-                  discipline === d ? 'text-white' : 'text-gray-700'
-                }`}
-              >
-                {d}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-
-  const renderStep3 = () => (
-    <View className="flex-1">
-      <Text className="text-2xl font-bold text-gray-900 mb-2">
-        ¿Cuántos días por semana?
-      </Text>
-      <Text className="text-gray-500 mb-6">
-        Elegí la frecuencia de entrenamiento
-      </Text>
-
-      <View>
-        {FREQUENCIES.map((f) => (
-          <TouchableOpacity
-            key={f.value}
-            onPress={() => setFrequency(f.value)}
-            className={`p-4 rounded-xl mb-3 flex-row items-center justify-between ${
-              frequency === f.value
-                ? 'bg-blue-500'
-                : 'bg-white border border-gray-200'
-            }`}
-          >
-            <Text
-              className={`font-medium text-lg ${
-                frequency === f.value ? 'text-white' : 'text-gray-700'
-              }`}
-            >
-              {f.label}
-            </Text>
-            {frequency === f.value && (
-              <Ionicons name="checkmark-circle" size={24} color="white" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={handleGoBack} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-gray-500">Paso {step} de 3</Text>
-        <View className="w-10" />
-      </View>
+    <>
+      <Stack.Screen options={{
+        title: '',
+        headerLeft: () => (
+          <TouchableOpacity onPress={handleGoBack} style={{ marginLeft: 4, padding: 4 }}>
+            <Ionicons name="chevron-back" size={24} color={C.primary} />
+          </TouchableOpacity>
+        ),
+      }} />
 
-      {/* Progress bar */}
-      <View className="h-1 bg-gray-200">
-        <View
-          className="h-full bg-blue-500"
-          style={{ width: `${(step / 3) * 100}%` }}
+      <KeyboardAvoidingView
+        style={s.safe}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <LinearGradient
+          colors={['transparent', C.primary, 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.topLine}
         />
-      </View>
 
-      {/* Content */}
-      <View className="flex-1 px-4 py-6">
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-      </View>
+        {/* ── Steps indicator ──────────────────────────────── */}
+        <View style={s.stepsRow}>
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+            const n      = i + 1;
+            const done   = n < step;
+            const active = n === step;
+            return (
+              <View key={n} style={s.stepItem}>
+                <View style={[s.stepDot, active && s.stepDotActive, done && s.stepDotDone]}>
+                  {done
+                    ? <Ionicons name="checkmark" size={13} color={C.bg} />
+                    : <Text style={[s.stepNum, (active || done) && { color: C.bg }]}>{n}</Text>
+                  }
+                </View>
+                {n < TOTAL_STEPS && (
+                  <View style={[s.stepLine, done && s.stepLineDone]} />
+                )}
+              </View>
+            );
+          })}
+        </View>
 
-      {/* Footer */}
-      <View className="px-4 py-4 bg-white border-t border-gray-100">
-        <TouchableOpacity
-          onPress={handleNext}
-          disabled={!canProceed() || isSubmitting}
-          className={`py-4 rounded-xl flex-row items-center justify-center ${
-            canProceed() && !isSubmitting ? 'bg-blue-500' : 'bg-gray-300'
-          }`}
+        {/* ── Content ──────────────────────────────────────── */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={s.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {isSubmitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Text className="text-white font-semibold text-lg">
-                {step === 3 ? 'Crear plan' : 'Continuar'}
-              </Text>
-              {step < 3 && (
-                <Ionicons name="arrow-forward" size={20} color="white" className="ml-2" />
-              )}
-            </>
+          {step === 1 && <Step1 name={name} setName={setName} />}
+          {step === 2 && <Step2 discipline={discipline} onSelect={handleSelectDiscipline} />}
+          {step === 3 && (
+            <Step3
+              name={name}
+              discipline={discipline!}
+              selectedDays={selectedDays}
+              onToggleDay={handleToggleDay}
+            />
           )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        </ScrollView>
+
+        {/* ── Footer CTA (no en step 2 — selección auto-avanza) ── */}
+        {step !== 2 && (
+          <View style={s.footer}>
+            <TouchableOpacity
+              onPress={handleNext}
+              disabled={!canProceed() || isSubmitting}
+              activeOpacity={0.85}
+              style={s.ctaBtn}
+            >
+              {canProceed() && !isSubmitting ? (
+                <LinearGradient
+                  colors={[C.primaryDim, '#003d4d']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={s.ctaGrad}
+                >
+                  <Text style={s.ctaText}>
+                    {step === TOTAL_STEPS ? 'CREAR PLAN' : 'CONTINUAR'}
+                  </Text>
+                  <Ionicons
+                    name={step === TOTAL_STEPS ? 'checkmark-circle-outline' : 'arrow-forward'}
+                    size={18}
+                    color={C.primary}
+                  />
+                </LinearGradient>
+              ) : (
+                <View style={[s.ctaGrad, s.ctaGradDisabled]}>
+                  {isSubmitting
+                    ? <ActivityIndicator color={C.primary} />
+                    : <Text style={[s.ctaText, { color: C.neutral }]}>
+                        {step === TOTAL_STEPS ? 'CREAR PLAN' : 'CONTINUAR'}
+                      </Text>
+                  }
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </>
   );
 }
+
+// ─── Step 1: Nombre ───────────────────────────────────────────────────────────
+
+function Step1({ name, setName }: { name: string; setName: (v: string) => void }) {
+  return (
+    <View>
+      <Text style={s.stepTitle}>¿Cómo se llama{'\n'}tu plan?</Text>
+      <Text style={s.stepSub}>Dale un nombre que te ayude a identificarlo</Text>
+
+      <View style={s.inputWrap}>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Ej: Rutina de fuerza..."
+          placeholderTextColor={C.neutral}
+          style={s.input}
+          autoFocus
+          maxLength={50}
+          returnKeyType="next"
+        />
+        <Text style={s.charCount}>{name.length}/50</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 2: Disciplina ───────────────────────────────────────────────────────
+
+function Step2({ discipline, onSelect }: { discipline: string | null; onSelect: (d: string) => void }) {
+  return (
+    <View>
+      <Text style={s.stepTitle}>¿Qué disciplina{'\n'}vas a entrenar?</Text>
+      <Text style={s.stepSub}>Tocá una para continuar</Text>
+
+      <View style={s.disciplineGrid}>
+        {DISCIPLINES.map((d) => {
+          const active = discipline === d;
+          return (
+            <TouchableOpacity
+              key={d}
+              onPress={() => onSelect(d)}
+              activeOpacity={0.75}
+              style={[s.disciplineChip, active && s.disciplineChipActive]}
+            >
+              <Ionicons
+                name={(DISCIPLINE_ICONS[d] ?? 'apps-outline') as any}
+                size={18}
+                color={active ? C.bg : C.neutral}
+                style={{ marginBottom: 5 }}
+              />
+              <Text style={[s.disciplineText, active && s.disciplineTextActive]}>{d}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 3: Frecuencia ───────────────────────────────────────────────────────
+
+function Step3({
+  name, discipline, selectedDays, onToggleDay,
+}: {
+  name: string; discipline: string; selectedDays: number[]; onToggleDay: (day: number) => void;
+}) {
+  const count = selectedDays.length;
+  const freqLabel = count > 0
+    ? FREQUENCIES.find(f => f.value === count)?.label ?? `${count} días por semana`
+    : null;
+
+  return (
+    <View>
+      <Text style={s.stepTitle}>¿Qué días{'\n'}entrenás?</Text>
+      <Text style={s.stepSub}>Seleccioná uno o varios días</Text>
+
+      {/* Resumen */}
+      <View style={s.summaryCard}>
+        <Text style={s.summaryLabel}>PLAN</Text>
+        <Text style={s.summaryName}>{name}</Text>
+        <Text style={s.summaryDiscipline}>{discipline}</Text>
+      </View>
+
+      {/* Selector de días independiente */}
+      <View style={s.daySelector}>
+        <View style={s.dayDotsRow}>
+          {DAY_LABELS.map((label, i) => {
+            const dayNum  = i + 1;
+            const active  = selectedDays.includes(dayNum);
+            return (
+              <TouchableOpacity
+                key={label}
+                onPress={() => onToggleDay(dayNum)}
+                activeOpacity={0.7}
+                style={[s.dayDot, active && s.dayDotActive]}
+              >
+                <Text style={[s.dayLabel, active && s.dayLabelActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {freqLabel ? (
+          <View style={s.freqResult}>
+            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+            <Text style={s.freqResultText}>{freqLabel}</Text>
+          </View>
+        ) : (
+          <Text style={s.freqHint}>Tocá los días que querés entrenar</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  safe:    { flex: 1, backgroundColor: C.bg },
+  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+  scroll:  { padding: 24, paddingBottom: 16 },
+
+  // ── Steps indicator (centrado con tamaños fijos) ──
+  stepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  stepItem:       { flexDirection: 'row', alignItems: 'center' },
+  stepDot:        { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
+  stepDotActive:  { borderColor: C.primary, backgroundColor: C.primary },
+  stepDotDone:    { borderColor: C.primary, backgroundColor: C.primary },
+  stepNum:        { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+  stepLine:       { width: 48, height: 1.5, backgroundColor: C.border, marginHorizontal: 6 },
+  stepLineDone:   { backgroundColor: C.primary },
+
+  // ── Step content ──
+  stepTitle: { color: C.textHi, fontSize: 28, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 34, marginBottom: 8 },
+  stepSub:   { color: C.textLo, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 28 },
+
+  // ── Step 1 ──
+  inputWrap:  { backgroundColor: C.card, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, overflow: 'hidden' },
+  input:      { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 20, paddingVertical: 18 },
+  charCount:  { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'right', paddingHorizontal: 16, paddingBottom: 10 },
+
+  // ── Step 2 ──
+  disciplineGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  disciplineChip:      { width: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  disciplineChipActive:{ backgroundColor: C.primary, borderColor: C.primary },
+  disciplineText:      { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center' },
+  disciplineTextActive:{ color: C.bg },
+
+  // ── Step 3 ──
+  summaryCard:       { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.primaryDim, padding: 16, marginBottom: 24 },
+  summaryLabel:      { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 4 },
+  summaryName:       { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
+  summaryDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginTop: 2 },
+
+  daySelector: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center' },
+  dayDotsRow:  { flexDirection: 'row', gap: 8, marginBottom: 20 },
+
+  dayDot:       { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
+  dayDotActive: { backgroundColor: C.primary, borderColor: C.primary },
+
+  dayLabel:       { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+  dayLabelActive: { color: C.bg },
+
+  freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  freqResultText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+  freqHint:       { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // ── Footer ──
+  footer:         { padding: 20, paddingBottom: 32 },
+  ctaBtn:         { borderRadius: 14, overflow: 'hidden' },
+  ctaGrad:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
+  ctaGradDisabled:{ backgroundColor: C.cardDeep },
+  ctaText:        { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+});

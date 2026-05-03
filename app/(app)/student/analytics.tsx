@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getGeneralStats,
@@ -18,6 +19,23 @@ import {
   GeneralStats,
   PersonalRecord,
 } from '@/lib/services/progressService';
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  secondary:  '#475569',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+};
+
+const TROPHY_COLORS = ['#D97706', '#9CA3AF', '#CD7C3A'];
 
 export default function AnalyticsScreen() {
   const { user } = useAuth();
@@ -54,135 +72,210 @@ export default function AnalyticsScreen() {
     new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900">Análisis de progreso</Text>
-        <View className="w-10" />
-      </View>
+    <>
+      <Stack.Screen options={{ title: 'PROGRESO' }} />
+      <View style={s.container}>
+        <LinearGradient
+          colors={['transparent', C.primary, 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.topLine}
+        />
 
-      {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ padding: 16 }}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-        >
-          {/* Volumen semanal */}
-          {generalStats && (
-            <View className="mb-6">
-              <Text className="text-gray-700 font-semibold mb-3">Volumen semanal</Text>
-              <View className="flex-row">
-                <View className="flex-1 bg-white rounded-xl p-4 mr-2 shadow-sm">
-                  <Text className="text-gray-500 text-xs mb-1">Esta semana</Text>
-                  <Text className="text-gray-900 font-bold text-2xl">
-                    {generalStats.volumeThisWeek.toLocaleString()}
-                  </Text>
-                  <View className="flex-row items-center mt-1">
-                    <Ionicons
-                      name={generalStats.volumeChange >= 0 ? 'trending-up' : 'trending-down'}
-                      size={14}
-                      color={generalStats.volumeChange >= 0 ? '#16A34A' : '#EF4444'}
-                    />
-                    <Text
-                      className="text-xs ml-1 font-medium"
-                      style={{ color: generalStats.volumeChange >= 0 ? '#16A34A' : '#EF4444' }}
-                    >
-                      {generalStats.volumeChange >= 0 ? '+' : ''}{generalStats.volumeChange}% vs sem. ant.
-                    </Text>
-                  </View>
-                </View>
-                <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm items-center justify-center">
-                  <Text className="text-gray-900 font-bold text-2xl">{generalStats.totalSets}</Text>
-                  <Text className="text-gray-500 text-xs mt-1">Series esta semana</Text>
-                </View>
-                <View className="flex-1 bg-white rounded-xl p-4 ml-2 shadow-sm items-center justify-center">
-                  <Text className="text-gray-900 font-bold text-2xl">{generalStats.distinctExercises}</Text>
-                  <Text className="text-gray-500 text-xs mt-1">Ejercicios distintos</Text>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Acceso a evolución por ejercicio */}
-          <TouchableOpacity
-            onPress={() => router.push('/student/progress' as any)}
-            className="bg-blue-500 rounded-xl p-4 mb-6 flex-row items-center shadow-sm"
+        {isLoading ? (
+          <View style={s.loading}>
+            <ActivityIndicator size="large" color={C.primary} />
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}
+                tintColor={C.primary} colors={[C.primary]} />
+            }
           >
-            <View className="w-12 h-12 bg-white/20 rounded-xl items-center justify-center mr-4">
-              <Ionicons name="stats-chart" size={24} color="white" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white font-bold text-base">Evolución por ejercicio</Text>
-              <Text className="text-blue-100 text-sm">Ver gráfico de progreso y récord</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="white" />
-          </TouchableOpacity>
+            {/* ── Volumen semanal ──────────────────────────────────── */}
+            {generalStats && (
+              <>
+                <Text style={s.sectionTitle}>ESTA SEMANA</Text>
 
-          {/* Récords personales */}
-          <Text className="text-gray-700 font-semibold mb-3">
-            Récords personales ({records.length})
-          </Text>
+                {/* Hero stat — volumen */}
+                <View style={s.heroCard}>
+                  <LinearGradient
+                    colors={['transparent', C.primary, 'transparent']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={s.heroTopLine}
+                  />
+                  <View style={s.heroBody}>
+                    <View style={s.heroLeft}>
+                      <Text style={s.heroLabel}>VOLUMEN TOTAL</Text>
+                      <Text style={s.heroValue}>
+                        {generalStats.volumeThisWeek.toLocaleString()}
+                        <Text style={s.heroUnit}> kg</Text>
+                      </Text>
+                      <View style={s.changePill}>
+                        <Ionicons
+                          name={generalStats.volumeChange >= 0 ? 'trending-up' : 'trending-down'}
+                          size={13}
+                          color={generalStats.volumeChange >= 0 ? '#4ade80' : '#f87171'}
+                        />
+                        <Text style={[s.changeText, { color: generalStats.volumeChange >= 0 ? '#4ade80' : '#f87171' }]}>
+                          {generalStats.volumeChange >= 0 ? '+' : ''}{generalStats.volumeChange}% vs sem. ant.
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={s.heroRight}>
+                      <View style={s.miniStat}>
+                        <Text style={s.miniValue}>{generalStats.totalSets}</Text>
+                        <Text style={s.miniLabel}>SERIES</Text>
+                      </View>
+                      <View style={[s.miniStat, { borderTopWidth: 1, borderTopColor: C.border }]}>
+                        <Text style={s.miniValue}>{generalStats.distinctExercises}</Text>
+                        <Text style={s.miniLabel}>EJERCICIOS</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
 
-          {records.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 shadow-sm items-center">
-              <View className="w-16 h-16 bg-amber-100 rounded-full items-center justify-center mb-3">
-                <Ionicons name="trophy-outline" size={32} color="#D97706" />
+            {/* ── Evolución por ejercicio ──────────────────────────── */}
+            <TouchableOpacity
+              onPress={() => router.push('/student/progress' as any)}
+              activeOpacity={0.85}
+              style={s.ctaCard}
+            >
+              <LinearGradient
+                colors={[C.primaryDim, '#003d4d']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.ctaGradient}
+              >
+                <View style={s.ctaIcon}>
+                  <Ionicons name="stats-chart-outline" size={24} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ctaTitle}>EVOLUCIÓN POR EJERCICIO</Text>
+                  <Text style={s.ctaSub}>Gráfico de progreso y récords</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={C.primary} />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* ── Récords personales ───────────────────────────────── */}
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>RÉCORDS PERSONALES</Text>
+              {records.length > 0 && (
+                <View style={s.countBadge}>
+                  <Text style={s.countBadgeText}>{records.length}</Text>
+                </View>
+              )}
+            </View>
+
+            {records.length === 0 ? (
+              <View style={s.emptyCard}>
+                <View style={s.emptyIcon}>
+                  <Ionicons name="trophy-outline" size={32} color={C.tertiary} />
+                </View>
+                <Text style={s.emptyTitle}>SIN RÉCORDS AÚN</Text>
+                <Text style={s.emptyDesc}>
+                  Completá entrenamientos para ver tus récords aquí.
+                </Text>
               </View>
-              <Text className="text-gray-500 text-center">
-                Completá entrenamientos para ver tus récords aquí.
-              </Text>
-            </View>
-          ) : (
-            <View className="bg-white rounded-xl shadow-sm overflow-hidden">
-              {records.map((record, idx) => (
-                <TouchableOpacity
-                  key={record.exercise_name}
-                  onPress={() => router.push('/student/progress' as any)}
-                  className={`flex-row items-center px-4 py-3 ${
-                    idx < records.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
-                >
-                  {/* Posición */}
-                  <View className="w-8 items-center mr-3">
-                    {idx === 0 ? (
-                      <Ionicons name="trophy" size={18} color="#D97706" />
-                    ) : idx === 1 ? (
-                      <Ionicons name="trophy" size={18} color="#9CA3AF" />
-                    ) : idx === 2 ? (
-                      <Ionicons name="trophy" size={18} color="#CD7C3A" />
-                    ) : (
-                      <Text className="text-gray-400 text-sm font-medium">{idx + 1}</Text>
-                    )}
-                  </View>
+            ) : (
+              <View style={s.recordList}>
+                {records.map((record, idx) => (
+                  <TouchableOpacity
+                    key={record.exercise_name}
+                    onPress={() => router.push('/student/progress' as any)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[s.recordRow, idx < records.length - 1 && s.recordRowBorder]}>
+                      {/* Rank */}
+                      <View style={s.rankWrap}>
+                        {idx < 3 ? (
+                          <Ionicons name="trophy" size={16} color={TROPHY_COLORS[idx]} />
+                        ) : (
+                          <Text style={s.rankNum}>{idx + 1}</Text>
+                        )}
+                      </View>
 
-                  {/* Nombre */}
-                  <View className="flex-1">
-                    <Text className="text-gray-900 font-medium">{record.exercise_name}</Text>
-                    <Text className="text-gray-400 text-xs mt-0.5">{formatDate(record.achieved_at)}</Text>
-                  </View>
+                      {/* Name + date */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.exerciseName}>{record.exercise_name}</Text>
+                        <Text style={s.exerciseDate}>{formatDate(record.achieved_at)}</Text>
+                      </View>
 
-                  {/* PR */}
-                  <View className="items-end mr-2">
-                    <Text className="text-gray-900 font-bold">
-                      {formatProgressValue(record.best_value, record.exercise_type)}
-                    </Text>
-                    <Text className="text-gray-400 text-xs">× {record.best_sets} series</Text>
-                  </View>
+                      {/* PR value */}
+                      <View style={s.prWrap}>
+                        <Text style={s.prValue}>
+                          {formatProgressValue(record.best_value, record.exercise_type)}
+                        </Text>
+                        <Text style={s.prSets}>× {record.best_sets} series</Text>
+                      </View>
 
-                  <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      )}
-    </SafeAreaView>
+                      <Ionicons name="chevron-forward" size={14} color={C.border} style={{ marginLeft: 4 }} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </View>
+    </>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  topLine:   { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+  loading:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scroll:    { padding: 20, paddingBottom: 40 },
+
+  // Section
+  sectionRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 8 },
+  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
+  countBadge:   { marginLeft: 10, backgroundColor: C.primaryDim, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  countBadgeText: { color: C.primary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  // Hero stats card
+  heroCard:    { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.primary, marginBottom: 16, overflow: 'hidden' },
+  heroTopLine: { height: 2, opacity: 0.6 },
+  heroBody:    { flexDirection: 'row', padding: 20 },
+  heroLeft:    { flex: 1, paddingRight: 16 },
+  heroLabel:   { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 6 },
+  heroValue:   { color: C.textHi, fontSize: 34, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -1 },
+  heroUnit:    { color: C.neutral, fontSize: 18, fontFamily: 'SpaceGrotesk_400Regular' },
+  changePill:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  changeText:  { fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+  heroRight:   { borderLeftWidth: 1, borderLeftColor: C.border, paddingLeft: 16, justifyContent: 'center', gap: 0 },
+  miniStat:    { paddingVertical: 10, alignItems: 'center', minWidth: 72 },
+  miniValue:   { color: C.textHi, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
+  miniLabel:   { color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginTop: 2 },
+
+  // CTA card
+  ctaCard:     { borderRadius: 12, marginBottom: 28, overflow: 'hidden', borderWidth: 1, borderColor: C.primaryDim },
+  ctaGradient: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14 },
+  ctaIcon:     { width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(0,209,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  ctaTitle:    { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, marginBottom: 3 },
+  ctaSub:      { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Records
+  recordList:      { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  recordRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  recordRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  rankWrap:        { width: 28, alignItems: 'center', marginRight: 12 },
+  rankNum:         { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+  exerciseName:    { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 2 },
+  exerciseDate:    { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+  prWrap:          { alignItems: 'flex-end', marginRight: 4 },
+  prValue:         { color: C.primary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
+  prSets:          { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 1 },
+
+  // Empty
+  emptyCard:  { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 40, alignItems: 'center' },
+  emptyIcon:  { width: 64, height: 64, borderRadius: 32, backgroundColor: '#2a1f00', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 8 },
+  emptyDesc:  { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20 },
+});

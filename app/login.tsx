@@ -11,15 +11,19 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link, Redirect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
+import { Svg, Path, G } from 'react-native-svg';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { session, isLoading: authLoading, signIn, signInWithGoogle } = useAuth();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -37,6 +41,25 @@ export default function LoginScreen() {
       router.replace('/');
     }
   };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    setIsGoogleLoading(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      router.replace('/');
+    }
+  };
+
+  if (authLoading) {
+    return null;
+  }
+
+  if (session) {
+    return <Redirect href="/" />;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -56,7 +79,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.inner}>
+        <View style={[styles.inner, { paddingBottom: Math.max(40, insets.bottom + 24) }]}>
           {/* Brand Header */}
           <View style={styles.header}>
             <Image
@@ -65,19 +88,6 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
             <Text style={styles.tagline}>JUST START</Text>
-          </View>
-
-          {/* Hero Image */}
-          <View style={styles.heroContainer}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80' }}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['rgba(9,15,18,0.15)', 'transparent', 'rgba(9,15,18,0.85)']}
-              style={StyleSheet.absoluteFillObject}
-            />
           </View>
 
           {/* Form */}
@@ -128,6 +138,36 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Button */}
+          <TouchableOpacity
+            onPress={handleGoogleLogin}
+            disabled={isGoogleLoading}
+            activeOpacity={0.85}
+            style={styles.googleButton}
+          >
+            {!isGoogleLoading && (
+              <Svg width={20} height={20} viewBox="0 0 48 48">
+                <G>
+                  <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                  <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                  <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                  <Path fill="none" d="M0 0h48v48H0z" />
+                </G>
+              </Svg>
+            )}
+            <Text style={styles.googleButtonText}>
+              {isGoogleLoading ? 'CONECTANDO...' : 'CONTINUAR CON GOOGLE'}
+            </Text>
+          </TouchableOpacity>
+
           {/* Footer links */}
           <View style={styles.footer}>
             <TouchableOpacity>
@@ -166,7 +206,6 @@ scrollContent: {
   inner: {
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -184,18 +223,6 @@ scrollContent: {
     letterSpacing: 10,
     textTransform: 'uppercase',
     marginTop: -8,
-  },
-  heroContainer: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 32,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.55,
   },
   form: {
     marginBottom: 24,
@@ -243,6 +270,40 @@ scrollContent: {
     fontFamily: 'SpaceGrotesk_700Bold',
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#3c494e',
+  },
+  dividerText: {
+    color: '#859399',
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: 3,
+    marginHorizontal: 12,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3c494e',
+    borderRadius: 4,
+    paddingVertical: 16,
+    gap: 12,
+    marginBottom: 8,
+  },
+  googleButtonText: {
+    color: '#c8d8de',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: 2,
   },
   footer: {
     flexDirection: 'row',

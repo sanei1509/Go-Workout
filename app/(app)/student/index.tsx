@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useRootNavigationState } from 'expo-router';
+import { router, useRootNavigationState, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +26,11 @@ import {
   getDayLabel,
   getCurrentDayOfWeek,
 } from '@/lib/services/todayService';
+import {
+  getActiveSnapshot,
+  ActiveWorkoutSnapshot,
+} from '@/lib/services/activeSessionService';
+import { getRoutineById } from '@/lib/services/routineService';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -66,6 +71,30 @@ export default function StudentHome() {
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeSnapshot, setActiveSnapshot] = useState<ActiveWorkoutSnapshot | null>(null);
+  const [activeRoutineName, setActiveRoutineName] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const checkActive = async () => {
+        if (!user?.id) return;
+        const snap = await getActiveSnapshot(user.id);
+        if (cancelled) return;
+        if (!snap) {
+          setActiveSnapshot(null);
+          setActiveRoutineName(null);
+          return;
+        }
+        setActiveSnapshot(snap);
+        const { routine } = await getRoutineById(snap.routineId);
+        if (cancelled) return;
+        setActiveRoutineName(routine?.name ?? null);
+      };
+      checkActive();
+      return () => { cancelled = true; };
+    }, [user?.id])
+  );
 
   useEffect(() => {
     if (user?.id && mode === 'personal') {
@@ -168,6 +197,14 @@ export default function StudentHome() {
               tintColor={C.primary} colors={[C.primary]} />
           }
         >
+          {activeSnapshot && (
+            <ResumeWorkoutBanner
+              routineId={activeSnapshot.routineId}
+              routineName={activeRoutineName}
+              startedAt={activeSnapshot.startedAt}
+            />
+          )}
+
           {mode === 'personal' ? (
             <PersonalPlanView
               plans={plans}
@@ -182,6 +219,39 @@ export default function StudentHome() {
         </ScrollView>
       </SafeAreaView>
     </View>
+  );
+}
+
+// ─── Resume Workout Banner ────────────────────────────────────────────────────
+
+function ResumeWorkoutBanner({ routineId, routineName, startedAt }: {
+  routineId: string;
+  routineName: string | null;
+  startedAt: string;
+}) {
+  const elapsedMin = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000));
+  const handleResume = () => router.push(`/student/workout/${routineId}`);
+
+  return (
+    <TouchableOpacity onPress={handleResume} activeOpacity={0.85} style={s.resumeWrap}>
+      <LinearGradient
+        colors={[C.primaryDim, '#003d4d']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={s.resumeCard}
+      >
+        <View style={s.resumeIcon}>
+          <Ionicons name="play" size={18} color={C.bg} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.resumeLabel}>ENTRENAMIENTO EN CURSO</Text>
+          <Text style={s.resumeTitle} numberOfLines={1}>
+            {routineName?.toUpperCase() ?? 'CONTINUAR'}
+          </Text>
+          <Text style={s.resumeMeta}>Hace {elapsedMin} min · Tocá para continuar</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.primary} />
+      </LinearGradient>
+    </TouchableOpacity>
   );
 }
 
@@ -555,5 +625,13 @@ const s = StyleSheet.create({
   tagText:   { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
   placeholderCard: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', gap: 10 },
   placeholderText: { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center' },
+
+  // Resume workout banner
+  resumeWrap:   { borderRadius: 14, overflow: 'hidden', marginBottom: 20 },
+  resumeCard:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12, borderWidth: 1, borderColor: C.primary, borderRadius: 14 },
+  resumeIcon:   { width: 36, height: 36, borderRadius: 18, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  resumeLabel:  { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 2 },
+  resumeTitle:  { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+  resumeMeta:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
 });

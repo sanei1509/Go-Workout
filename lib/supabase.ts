@@ -1,30 +1,31 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const ExpoSecureStoreAdapter = {
+const webStorage = {
   getItem: async (key: string) => {
-    // SecureStore doesn't work on web, use AsyncStorage as fallback
-    if (Platform.OS === 'web') {
-      return AsyncStorage.getItem(key);
-    }
-    return SecureStore.getItemAsync(key);
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(key);
   },
   setItem: async (key: string, value: string) => {
-    if (Platform.OS === 'web') {
-      return AsyncStorage.setItem(key, value);
-    }
-    return SecureStore.setItemAsync(key, value);
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(key, value);
   },
   removeItem: async (key: string) => {
-    if (Platform.OS === 'web') {
-      return AsyncStorage.removeItem(key);
-    }
-    return SecureStore.deleteItemAsync(key);
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
   },
 };
+
+const ExpoSecureStoreAdapter =
+  Platform.OS === 'web'
+    ? webStorage
+    : {
+        getItem: (key: string) => SecureStore.getItemAsync(key),
+        setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+        removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+      };
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;

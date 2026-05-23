@@ -19,9 +19,16 @@ import {
   startWorkoutSession,
   finishWorkoutSession,
   logExercise,
+  deleteSession,
   WorkoutSession,
 } from '@/lib/services/workoutService';
 import { setupWorkoutReminder, hasActiveReminder } from '@/lib/services/notificationService';
+import {
+  getActiveSnapshot,
+  saveActiveSnapshot,
+  clearActiveSnapshot,
+  ExerciseProgressSnapshot,
+} from '@/lib/services/activeSessionService';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -75,7 +82,8 @@ export default function WorkoutScreen() {
   const [showRestModal, setShowRestModal] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Elapsed time
+  // Elapsed time (derived from startedAt so it survives app close/reopen)
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -95,15 +103,27 @@ export default function WorkoutScreen() {
   }, [routineId]);
 
   useEffect(() => {
-    if (session && !session.finished_at) {
-      elapsedTimerRef.current = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-      }, 1000);
+    if (startedAtMs && session && !session.finished_at) {
+      const tick = () => setElapsedTime(Math.floor((Date.now() - startedAtMs) / 1000));
+      tick();
+      elapsedTimerRef.current = setInterval(tick, 1000);
     }
     return () => {
       if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
-  }, [session]);
+  }, [startedAtMs, session]);
+
+  useEffect(() => {
+    if (!user?.id || !session || !routineId || isLoading) return;
+    saveActiveSnapshot({
+      userId: user.id,
+      routineId,
+      sessionId: session.id,
+      startedAt: session.started_at,
+      currentExerciseIndex,
+      progress: Array.from(progress.values()),
+    });
+  }, [progress, currentExerciseIndex, session, user?.id, routineId, isLoading]);
 
   const loadRoutineAndStart = async () => {
     if (!routineId || !user?.id) return;
@@ -123,14 +143,66 @@ export default function WorkoutScreen() {
         initialProgress.set(ex.id, { exerciseId: ex.id, setsCompleted: 0, isComplete: false });
       });
     });
+
+    const snapshot = await getActiveSnapshot(user.id);
+    const validExerciseIds = new Set(initialProgress.keys());
+
+    if (snapshot && snapshot.routineId === routineId) {
+      snapshot.progress.forEach(p => {
+        if (validExerciseIds.has(p.exerciseId)) {
+          initialProgress.set(p.exerciseId, {
+            exerciseId: p.exerciseId,
+            setsCompleted: p.setsCompleted,
+            isComplete: p.isComplete,
+          });
+        }
+      });
+      setProgress(initialProgress);
+
+      const totalEx = Array.from(validExerciseIds).length;
+      const safeIndex = Math.min(snapshot.currentExerciseIndex, Math.max(0, totalEx - 1));
+      setCurrentExerciseIndex(safeIndex);
+
+      setSession({
+        id: snapshot.sessionId,
+        user_id: snapshot.userId,
+        routine_id: snapshot.routineId,
+        started_at: snapshot.startedAt,
+        finished_at: null,
+        created_at: snapshot.startedAt,
+      });
+      setStartedAtMs(new Date(snapshot.startedAt).getTime());
+      setIsLoading(false);
+      return;
+    }
+
+    if (snapshot && snapshot.routineId !== routineId) {
+      await clearActiveSnapshot();
+    }
+
     setProgress(initialProgress);
 
     const { session: newSession, error: sessionError } = await startWorkoutSession({
       user_id: user.id,
       routine_id: routineId,
     });
-    if (sessionError) { setError(sessionError.message); setIsLoading(false); return; }
+    if (sessionError || !newSession) {
+      setError(sessionError?.message || 'No se pudo iniciar la sesión');
+      setIsLoading(false);
+      return;
+    }
     setSession(newSession);
+    setStartedAtMs(new Date(newSession.started_at).getTime());
+
+    await saveActiveSnapshot({
+      userId: user.id,
+      routineId,
+      sessionId: newSession.id,
+      startedAt: newSession.started_at,
+      currentExerciseIndex: 0,
+      progress: Array.from(initialProgress.values()),
+    });
+
     setIsLoading(false);
   };
 
@@ -210,6 +282,7 @@ export default function WorkoutScreen() {
                 if (active) setupWorkoutReminder(user.id);
               }
             }
+            await clearActiveSnapshot();
             router.back();
           },
         },
@@ -223,7 +296,15 @@ export default function WorkoutScreen() {
       '¿Estás seguro? Se perderá el progreso.',
       [
         { text: 'Continuar', style: 'cancel' },
-        { text: 'Cancelar', style: 'destructive', onPress: () => router.back() },
+        {
+          text: 'Cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            if (session) await deleteSession(session.id);
+            await clearActiveSnapshot();
+            router.back();
+          },
+        },
       ]
     );
   };

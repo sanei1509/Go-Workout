@@ -33,8 +33,15 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user?.id && profile?.role === 'STUDENT') {
       loadTrainersAndContext();
-    } else if (!user?.id) {
+      return;
+    }
+
+    if (!user?.id) {
+      setMode('personal');
+      setSelectedTrainer(null);
+      setTrainers([]);
       setIsLoading(false);
+      AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
     }
   }, [user?.id, profile?.role]);
 

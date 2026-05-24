@@ -112,7 +112,14 @@ export default function ProfileScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Salir', style: 'destructive',
-        onPress: async () => { await signOut(); router.replace('/login'); },
+        onPress: async () => {
+          const { error } = await signOut();
+          if (error) {
+            Alert.alert('Error', error.message);
+            return;
+          }
+          router.replace('/login');
+        },
       },
     ]);
   };

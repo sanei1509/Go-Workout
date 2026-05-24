@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   Keyboard,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +66,7 @@ const FREQUENCIES = [
 
 export default function CreateInvitationScreen() {
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -157,12 +158,12 @@ export default function CreateInvitationScreen() {
   const handleSubmit = async () => {
     const validationError = validateForm();
     if (validationError) {
-      Alert.alert('Error', validationError);
+      showAlert('Error', validationError);
       return;
     }
 
     if (!user?.id || !foundStudent) {
-      Alert.alert('Error', 'No se pudo identificar al entrenador o alumno');
+      showAlert('Error', 'No se pudo identificar al entrenador o alumno');
       return;
     }
 
@@ -182,11 +183,11 @@ export default function CreateInvitationScreen() {
     setIsSubmitting(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Invitación enviada',
       `${foundStudent.full_name} recibirá la invitación en su bandeja de entrada`,
       [

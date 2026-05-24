@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, StyleSheet, Vibration,
+  Modal, StyleSheet, Vibration,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,6 +68,7 @@ type FlatExercise = {
 export default function WorkoutScreen() {
   const { routineId } = useLocalSearchParams<{ routineId: string }>();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
@@ -265,7 +267,7 @@ export default function WorkoutScreen() {
   const handleFinishWorkout = () => {
     const completedCount = Array.from(progress.values()).filter(p => p.isComplete).length;
     const allDone = completedCount === totalExercises;
-    Alert.alert(
+    showAlert(
       'Finalizar entrenamiento',
       allDone
         ? `¡Excelente! Completaste todos los ejercicios.\n\n¿Querés terminar?`
@@ -291,7 +293,7 @@ export default function WorkoutScreen() {
   };
 
   const handleCancelWorkout = () => {
-    Alert.alert(
+    showAlert(
       'Cancelar entrenamiento',
       '¿Estás seguro? Se perderá el progreso.',
       [

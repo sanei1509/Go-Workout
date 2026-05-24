@@ -14,6 +14,7 @@ import {
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { TrainingProvider } from '@/contexts/TrainingContext';
+import { AlertProvider } from '@/components/AppAlert';
 
 export {
   ErrorBoundary,
@@ -42,11 +43,13 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <TrainingProvider>
-        <RootLayoutNav />
-      </TrainingProvider>
-    </AuthProvider>
+    <AlertProvider>
+      <AuthProvider>
+        <TrainingProvider>
+          <RootLayoutNav />
+        </TrainingProvider>
+      </AuthProvider>
+    </AlertProvider>
   );
 }
 

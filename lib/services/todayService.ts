@@ -333,6 +333,37 @@ export async function getWorkoutHistory(
   }
 }
 
+// Obtener los números de día (1-7) que tuvieron sesiones completadas esta semana
+export async function getWeeklyCompletedDays(userId: string): Promise<{
+  days: number[];
+  error: Error | null;
+}> {
+  try {
+    const weekStart = getWeekStart();
+    const weekStartStr = weekStart.toISOString();
+
+    const { data: sessions, error } = await supabase
+      .from('workout_sessions')
+      .select('started_at')
+      .eq('user_id', userId)
+      .gte('started_at', weekStartStr)
+      .not('finished_at', 'is', null);
+
+    if (error) return { days: [], error: new Error(error.message) };
+
+    const dayNumbers = new Set<number>();
+    (sessions || []).forEach(s => {
+      const d = new Date(s.started_at).getDay();
+      // JS: 0=Dom → 7, 1=Lun → 1, ..., 6=Sáb → 6
+      dayNumbers.add(d === 0 ? 7 : d);
+    });
+
+    return { days: Array.from(dayNumbers), error: null };
+  } catch {
+    return { days: [], error: new Error('Error al obtener días completados') };
+  }
+}
+
 // Helper: Formatear duración en minutos
 export function formatDurationMinutes(startedAt: string, finishedAt: string): number {
   const start = new Date(startedAt);

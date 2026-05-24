@@ -20,12 +20,15 @@ import { getUserPlans, getFrequencyLabel, Plan } from '@/lib/services/planServic
 import {
   getTodayRoutine,
   getWeeklyStats,
+  getWeeklyCompletedDays,
   TodayRoutineResult,
   TodayRoutineItem,
   WeeklyStats,
+  WEEKDAYS,
   getDayLabel,
   getCurrentDayOfWeek,
 } from '@/lib/services/todayService';
+import { Profile } from '@/lib/services/profileService';
 import {
   getActiveSnapshot,
   ActiveWorkoutSnapshot,
@@ -48,7 +51,7 @@ const C = {
 };
 
 export default function StudentHome() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const {
     mode,
     selectedTrainer,
@@ -69,6 +72,7 @@ export default function StudentHome() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [todayData, setTodayData] = useState<TodayRoutineResult | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null);
+  const [weeklyCompletedDays, setWeeklyCompletedDays] = useState<number[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSnapshot, setActiveSnapshot] = useState<ActiveWorkoutSnapshot | null>(null);
@@ -106,14 +110,16 @@ export default function StudentHome() {
     if (!user?.id) return;
     setIsLoadingPlans(true);
     try {
-      const [plansResult, todayResult, statsResult] = await Promise.all([
+      const [plansResult, todayResult, statsResult, completedDaysResult] = await Promise.all([
         getUserPlans(user.id),
         getTodayRoutine(user.id),
         getWeeklyStats(user.id),
+        getWeeklyCompletedDays(user.id),
       ]);
       setPlans(plansResult.plans);
       setTodayData(todayResult.result);
       setWeeklyStats(statsResult.stats);
+      setWeeklyCompletedDays(completedDaysResult.days);
     } catch {
     } finally {
       setIsLoadingPlans(false);
@@ -212,6 +218,8 @@ export default function StudentHome() {
               hasTrainers={hasTrainers}
               todayData={todayData}
               weeklyStats={weeklyStats}
+              weeklyCompletedDays={weeklyCompletedDays}
+              profile={profile}
             />
           ) : (
             <TrainerView trainer={selectedTrainer!} />
@@ -266,20 +274,52 @@ function ResumeWorkoutBanner({ routineId, routineName, startedAt }: {
 
 // ─── Personal Plan View ───────────────────────────────────────────────────────
 
-function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStats }: {
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStats, weeklyCompletedDays, profile }: {
   plans: Plan[];
   isLoading: boolean;
   hasTrainers: boolean;
   todayData: TodayRoutineResult | null;
   weeklyStats: WeeklyStats | null;
+  weeklyCompletedDays: number[];
+  profile: Profile | null;
 }) {
   const handleCreatePlan = () => router.push('/student/plan/create');
   const handleOpenPlan = (id: string) => router.push(`/student/plan/${id}`);
-  const handleViewHistory = () => router.push('/student/history');
   const dayLabel = getDayLabel(getCurrentDayOfWeek());
+
+  const firstName = profile?.full_name?.split(' ')[0] ?? '';
+  const greeting = getGreeting();
+
+  // Union of all active plans' training days
+  const trainingDays = Array.from(new Set(
+    plans.filter(p => p.is_active).flatMap(p => p.training_days ?? [])
+  ));
 
   return (
     <View>
+      {/* ── Greeting header ─────────────────────────────────────── */}
+      <View style={s.greetingWrap}>
+        <Text style={s.greetingText}>
+          {greeting}{firstName ? `, ${firstName}` : ''}
+        </Text>
+      </View>
+
+      {/* ── Weekly mini calendar ────────────────────────────────── */}
+      {plans.length > 0 && (
+        <WeeklyCalendar
+          trainingDays={trainingDays}
+          completedDays={weeklyCompletedDays}
+          todayDay={getCurrentDayOfWeek()}
+        />
+      )}
+
       {/* ── Today hero ──────────────────────────────────────────── */}
       {plans.length > 0 && (
         <View style={{ marginBottom: 28 }}>
@@ -287,7 +327,7 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
             <RestCard dayLabel={dayLabel} />
           ) : (
             (todayData?.items ?? []).map(item => (
-              <TodayRoutineCard key={item.routine.id} item={item} dayLabel={dayLabel} onViewHistory={handleViewHistory} />
+              <TodayRoutineCard key={item.routine.id} item={item} dayLabel={dayLabel} />
             ))
           )}
 
@@ -345,34 +385,19 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
       ) : plans.length === 0 ? (
         <EmptyPlans onCreatePlan={handleCreatePlan} />
       ) : (
-        <View style={{ marginBottom: 28 }}>
-          {plans.map((plan, i) => (
+        <View style={[s.planList, { marginBottom: 28 }]}>
+          {plans.filter(p => p.is_active).map((plan, idx, arr) => (
             <TouchableOpacity key={plan.id} onPress={() => handleOpenPlan(plan.id)} activeOpacity={0.85}>
-              <View style={[s.planCard, i === 0 && s.planCardHighlight]}>
-                {i === 0 && <View style={[s.planBar, { backgroundColor: C.primary }]} />}
-                <View style={[s.planIcon, i === 0 && { backgroundColor: C.primaryDim }]}>
-                  <Ionicons name="barbell" size={20} color={i === 0 ? C.primary : C.neutral} />
-                </View>
+              <View style={[s.planListItem, idx < arr.length - 1 && s.planListSep]}>
+                <View style={s.planListAccent} />
                 <View style={{ flex: 1 }}>
-                  {i === 0 && <Text style={s.planBadge}>ACTIVO</Text>}
-                  <Text style={[s.planName, i === 0 && { color: C.textHi }]}>{plan.name.toUpperCase()}</Text>
-                  <Text style={s.planMeta}>{plan.discipline} · {getFrequencyLabel(plan.weekly_frequency)}</Text>
+                  <Text style={s.planListName}>{plan.name.toUpperCase()}</Text>
+                  <Text style={s.planListMeta}>{plan.discipline} · {getFrequencyLabel(plan.weekly_frequency)}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={i === 0 ? C.secondary : C.border} />
+                <Ionicons name="chevron-forward" size={14} color={C.secondary} />
               </View>
             </TouchableOpacity>
           ))}
-        </View>
-      )}
-
-      {/* ── Quick actions ───────────────────────────────────────── */}
-      {plans.length > 0 && (
-        <View style={{ marginBottom: 16 }}>
-          <Text style={[s.sectionTitle, { marginBottom: 12 }]}>MÁS OPCIONES</Text>
-          <ActionRow icon="time-outline" label="HISTORIAL" desc="Ver entrenamientos anteriores" onPress={handleViewHistory} />
-          <ActionRow icon="stats-chart-outline" label="ANÁLISIS DE PROGRESO" desc="PRs, volumen y evolución" onPress={() => router.push('/student/analytics' as any)} />
-          <ActionRow icon="notifications-outline" label="RECORDATORIOS" desc="Configurá tus notificaciones" onPress={() => router.push('/student/notifications')} />
-          <ActionRow icon="sparkles-outline" label="CREAR CON IA" desc="Generá un plan personalizado" badge="PRO" badgeColor={C.tertiary} badgeTextColor="#7a5500" />
         </View>
       )}
 
@@ -386,16 +411,246 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
           </View>
         </View>
       )}
+
+      {/* ── Retos ───────────────────────────────────────────────── */}
+      <ChallengesSection />
+
+      {/* ── Para vos ────────────────────────────────────────────── */}
+      <FeedSection />
+    </View>
+  );
+}
+
+// ─── Challenges Section ───────────────────────────────────────────────────────
+
+const DUMMY_CHALLENGES = [
+  {
+    id: '1',
+    icon: 'flame-outline' as const,
+    accentColor: '#FEB127',
+    accentBg: '#130d00',
+    label: 'RACHA',
+    current: 3,
+    total: 5,
+    title: 'días seguidos',
+    progress: 0.6,
+  },
+  {
+    id: '2',
+    icon: 'barbell-outline' as const,
+    accentColor: '#00D1FF',
+    accentBg: '#001820',
+    label: 'SEMANA',
+    current: 2,
+    total: 5,
+    title: 'para tu meta',
+    progress: 0.4,
+  },
+  {
+    id: '3',
+    icon: 'sparkles-outline' as const,
+    accentColor: '#a78bfa',
+    accentBg: '#0c0920',
+    label: 'IA · PERSONAL',
+    current: 0,
+    total: 100,
+    title: '100 sentadillas',
+    progress: 0,
+  },
+];
+
+function ChallengesSection() {
+  return (
+    <View style={{ marginBottom: 32 }}>
+      <View style={[s.sectionRow, { marginBottom: 14 }]}>
+        <Text style={s.sectionTitle}>RETOS</Text>
+        <View style={s.comingSoonPill}>
+          <Text style={s.comingSoonText}>PRÓXIMAMENTE</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+      >
+        {DUMMY_CHALLENGES.map(ch => (
+          <View key={ch.id} style={[s.chCard, { borderColor: ch.accentColor + '30' }]}>
+            <LinearGradient
+              colors={[ch.accentBg, C.card]}
+              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.chTopRow}>
+              <Ionicons name={ch.icon} size={12} color={ch.accentColor} />
+              <Text style={[s.chLabel, { color: ch.accentColor }]}>{ch.label}</Text>
+            </View>
+
+            <View style={s.chNumRow}>
+              <Text style={[s.chBigNum, { color: ch.progress > 0 ? ch.accentColor : C.border }]}>
+                {ch.progress > 0 ? ch.current : '—'}
+              </Text>
+              {ch.progress > 0 && (
+                <Text style={s.chDenom}>/{ch.total}</Text>
+              )}
+            </View>
+            <Text style={s.chUnitText}>{ch.title}</Text>
+
+            <View style={{ flex: 1 }} />
+            <View style={s.chTrack}>
+              <View style={[s.chFill, {
+                width: `${ch.progress * 100}%` as any,
+                backgroundColor: ch.progress > 0 ? ch.accentColor : 'transparent',
+              }]} />
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Feed Section (consejos / curiosidades / noticias) ────────────────────────
+
+const DUMMY_FEED = [
+  {
+    id: '1',
+    category: 'CONSEJO DEL DÍA',
+    categoryColor: '#00D1FF',
+    title: 'Hidratate antes de entrenar',
+    body: 'Tomar 500 ml de agua 30 min antes mejora tu rendimiento hasta un 10%.',
+    icon: 'water-outline' as const,
+  },
+  {
+    id: '2',
+    category: 'CURIOSIDAD',
+    categoryColor: '#a78bfa',
+    title: '¿Sabías esto del músculo?',
+    body: 'El tejido muscular sigue reparándose 48 h después del ejercicio de fuerza.',
+    icon: 'bulb-outline' as const,
+  },
+  {
+    id: '3',
+    category: 'TU DATO',
+    categoryColor: '#FEB127',
+    title: 'Tu mejor día es el miércoles',
+    body: 'Tus sesiones del miércoles son 12% más largas en promedio.',
+    icon: 'stats-chart-outline' as const,
+  },
+  {
+    id: '4',
+    category: 'CONSEJO',
+    categoryColor: '#4ade80',
+    title: 'Dormí más, rendí más',
+    body: '8 h de sueño aumentan la síntesis proteica muscular un 20% vs. 6 h.',
+    icon: 'moon-outline' as const,
+  },
+];
+
+function FeedSection() {
+  const [featured, ...rest] = DUMMY_FEED;
+
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <View style={[s.sectionRow, { marginBottom: 14 }]}>
+        <Text style={s.sectionTitle}>PARA VOS</Text>
+        <View style={s.comingSoonPill}>
+          <Text style={s.comingSoonText}>PRÓXIMAMENTE</Text>
+        </View>
+      </View>
+
+      {/* Featured card — full width, editorial */}
+      <View style={s.feedFeatured}>
+        <View style={[s.feedFeaturedAccent, { backgroundColor: featured.categoryColor }]} />
+        <View style={{ flex: 1, paddingVertical: 16, paddingRight: 16, paddingLeft: 18 }}>
+          <View style={s.feedTagRow}>
+            <Ionicons name={featured.icon} size={10} color={featured.categoryColor} />
+            <Text style={[s.feedTag, { color: featured.categoryColor }]}>{featured.category}</Text>
+          </View>
+          <Text style={s.feedFeaturedTitle}>{featured.title}</Text>
+          <Text style={s.feedFeaturedBody}>{featured.body}</Text>
+        </View>
+      </View>
+
+      {/* Mini cards — horizontal scroll */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+      >
+        {rest.map(item => (
+          <View key={item.id} style={[s.feedMiniCard, { borderTopColor: item.categoryColor }]}>
+            <View style={s.feedTagRow}>
+              <Ionicons name={item.icon} size={9} color={item.categoryColor} />
+              <Text style={[s.feedMiniTag, { color: item.categoryColor }]}>{item.category}</Text>
+            </View>
+            <Text style={s.feedMiniTitle} numberOfLines={3}>{item.title}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Weekly Calendar ─────────────────────────────────────────────────────────
+
+function WeeklyCalendar({ trainingDays, completedDays, todayDay }: {
+  trainingDays: number[];
+  completedDays: number[];
+  todayDay: number;
+}) {
+  return (
+    <View style={s.calendarWrap}>
+      {WEEKDAYS.map(({ value, short }) => {
+        const isToday = value === todayDay;
+        const isCompleted = completedDays.includes(value);
+        const isTraining = trainingDays.includes(value);
+
+        let circleStyle: object = s.calDayCircle;
+        let letterStyle: object = s.calDayLetter;
+        let showDot = false;
+        let dotColor = C.primary;
+
+        if (isToday && isCompleted) {
+          circleStyle = [s.calDayCircle, s.calDayCircleGreen];
+          letterStyle = [s.calDayLetter, s.calDayLetterDark];
+        } else if (isToday && isTraining) {
+          circleStyle = [s.calDayCircle, s.calDayCirclePrimary];
+          letterStyle = [s.calDayLetter, s.calDayLetterDark];
+        } else if (isToday) {
+          circleStyle = [s.calDayCircle, s.calDayCircleToday];
+          letterStyle = [s.calDayLetter, { color: C.primary }];
+        } else if (isCompleted) {
+          showDot = true;
+          dotColor = '#4ade80';
+          letterStyle = [s.calDayLetter, { color: C.textHi }];
+        } else if (isTraining) {
+          showDot = true;
+          dotColor = C.primaryDim;
+        }
+
+        return (
+          <View key={value} style={s.calDayCol}>
+            <View style={circleStyle}>
+              {isToday && isCompleted ? (
+                <Ionicons name="checkmark" size={14} color="#fff" />
+              ) : (
+                <Text style={letterStyle}>{short.charAt(0)}</Text>
+              )}
+            </View>
+            <View style={[s.calDot, { backgroundColor: showDot ? dotColor : 'transparent' }]} />
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 // ─── Today Routine Card ───────────────────────────────────────────────────────
 
-function TodayRoutineCard({ item, dayLabel, onViewHistory }: {
+function TodayRoutineCard({ item, dayLabel }: {
   item: TodayRoutineItem;
   dayLabel: string;
-  onViewHistory: () => void;
 }) {
   const handleStart = () => router.push(`/student/workout/${item.routine.id}`);
 
@@ -414,10 +669,6 @@ function TodayRoutineCard({ item, dayLabel, onViewHistory }: {
               <Text style={s.heroSub}>{item.routine.name}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onViewHistory} style={s.heroSecBtn} activeOpacity={0.85}>
-            <Ionicons name="time-outline" size={16} color={C.neutral} />
-            <Text style={s.heroSecBtnText}>VER HISTORIAL</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -483,34 +734,6 @@ function EmptyPlans({ onCreatePlan }: { onCreatePlan: () => void }) {
   );
 }
 
-// ─── Action Row ───────────────────────────────────────────────────────────────
-
-function ActionRow({ icon, label, desc, onPress, badge, badgeColor, badgeTextColor }: {
-  icon: string; label: string; desc: string;
-  onPress?: () => void;
-  badge?: string; badgeColor?: string; badgeTextColor?: string;
-}) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.85 : 1} style={s.actionRow}>
-      <View style={s.actionIcon}>
-        <Ionicons name={icon as any} size={20} color={C.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-          <Text style={s.actionLabel}>{label}</Text>
-          {badge && (
-            <View style={[s.badge, { backgroundColor: badgeColor ?? C.primary }]}>
-              <Text style={[s.badgeText, { color: badgeTextColor ?? C.primaryDim }]}>{badge}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={s.actionDesc}>{desc}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={C.border} />
-    </TouchableOpacity>
-  );
-}
-
 // ─── Trainer View ─────────────────────────────────────────────────────────────
 
 function TrainerView({ trainer }: { trainer: ActiveTrainer }) {
@@ -559,6 +782,21 @@ const s = StyleSheet.create({
   loadingContainer:{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   topLine:         { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
 
+  // Greeting header
+  greetingWrap:    { marginBottom: 16, marginTop: 4 },
+  greetingText:    { color: C.textHi, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.5 },
+
+  // Weekly calendar
+  calendarWrap:        { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, paddingVertical: 14, paddingHorizontal: 12, marginBottom: 20 },
+  calDayCol:           { alignItems: 'center', gap: 4, flex: 1 },
+  calDayCircle:        { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  calDayCirclePrimary: { backgroundColor: C.primary },
+  calDayCircleGreen:   { backgroundColor: '#4ade80' },
+  calDayCircleToday:   { borderWidth: 1.5, borderColor: C.primary },
+  calDayLetter:        { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+  calDayLetterDark:    { color: '#001a22' },
+  calDot:              { width: 5, height: 5, borderRadius: 3 },
+
   // Plan selector
   planSelectorWrap:    { overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: C.border },
   planSelectorContent: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
@@ -577,8 +815,6 @@ const s = StyleSheet.create({
   heroMeta:       { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   heroPrimaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 8, gap: 10 },
   heroPrimaryBtnText: { color: C.primaryDim, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
-  heroSecBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: C.border, gap: 8 },
-  heroSecBtnText: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
 
   // Rest card
   restIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.cardDeep, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
@@ -598,33 +834,53 @@ const s = StyleSheet.create({
   addBtn:      { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6, gap: 4 },
   addBtnText:  { color: C.primaryDim, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
 
-  // Plan card
-  planCard:          { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8, overflow: 'hidden' },
-  planCardHighlight: { borderColor: C.secondary },
-  planBar:           { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
-  planIcon:          { width: 40, height: 40, borderRadius: 8, backgroundColor: C.cardDeep, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  planBadge:         { color: C.primary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 3 },
-  planName:          { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 0.5 },
-  planMeta:          { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 2 },
-
   // Empty
   emptyCard: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 32, alignItems: 'center', marginBottom: 8 },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyTitle:{ color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 8 },
   emptyDesc: { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
 
-  // Action rows
-  actionRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8 },
-  actionIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  actionLabel:{ color: C.textHi, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  actionDesc: { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
-  badge:      { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 },
-  badgeText:  { fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
   // Nudge
-  nudgeCard:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.secondary, padding: 14, marginTop: 8 },
+  nudgeCard:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.secondary, padding: 14, marginTop: 8, marginBottom: 24 },
   nudgeTitle: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 4 },
   nudgeDesc:  { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 18 },
+
+  // Coming soon pill
+  comingSoonPill: { backgroundColor: C.cardDeep, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: C.border },
+  comingSoonText: { color: C.neutral, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+
+  // Plan list (minimal)
+  planList:       { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  planListItem:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingRight: 16, paddingLeft: 20, gap: 12 },
+  planListSep:    { borderBottomWidth: 1, borderBottomColor: C.border },
+  planListAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.primary },
+  planListName:   { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+  planListMeta:   { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Challenge achievement chips (horizontal scroll)
+  chCard:     { width: 160, height: 178, borderRadius: 16, borderWidth: 1, padding: 16, overflow: 'hidden', justifyContent: 'flex-start' },
+  chTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  chLabel:    { fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+  chNumRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 4, marginBottom: 4 },
+  chBigNum:   { fontSize: 44, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 50 },
+  chDenom:    { color: C.neutral, fontSize: 20, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 5 },
+  chUnitText: { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  chTrack:    { height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden', marginTop: 14 },
+  chFill:     { height: 3, borderRadius: 2 },
+
+  // Feed — featured card (full-width editorial)
+  feedFeatured:       { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 10 },
+  feedFeaturedAccent: { width: 4 },
+  feedTagRow:         { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
+  feedTag:            { fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+  feedFeaturedTitle:  { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 22, marginBottom: 8 },
+  feedFeaturedBody:   { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17 },
+
+  // Feed — mini cards (horizontal scroll)
+  feedMiniCard:  { width: 140, backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, borderTopWidth: 2.5, padding: 12 },
+  feedMiniTag:   { fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 8 },
+  feedMiniTitle: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 18 },
 
   // Trainer view
   trainerHero:       { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.primary, marginBottom: 24, overflow: 'hidden' },

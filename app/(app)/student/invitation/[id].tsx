@@ -5,12 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,7 @@ interface FormData {
 
 export default function InvitationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { showAlert } = useAlert();
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -96,7 +97,7 @@ export default function InvitationDetailScreen() {
   const handleSubmitForm = () => {
     const validationError = validateForm();
     if (validationError) {
-      Alert.alert('Campos incompletos', validationError);
+      showAlert('Campos incompletos', validationError);
       return;
     }
     setShowFormModal(false);
@@ -104,7 +105,7 @@ export default function InvitationDetailScreen() {
   };
 
   const confirmAccept = () => {
-    Alert.alert(
+    showAlert(
       'Aceptar invitación',
       `¿Querés aceptar la invitación de ${invitation?.trainer?.full_name || 'este entrenador'}?`,
       [
@@ -133,7 +134,7 @@ export default function InvitationDetailScreen() {
             setIsProcessing(false);
 
             if (err || !success) {
-              Alert.alert('Error', err?.message || 'No se pudo aceptar la invitación');
+              showAlert('Error', err?.message || 'No se pudo aceptar la invitación');
             } else {
               setActionResult('accepted');
             }
@@ -157,7 +158,7 @@ export default function InvitationDetailScreen() {
   };
 
   const handleReject = () => {
-    Alert.alert(
+    showAlert(
       'Rechazar invitación',
       '¿Estás seguro de que querés rechazar esta invitación?',
       [
@@ -173,7 +174,7 @@ export default function InvitationDetailScreen() {
             setIsProcessing(false);
 
             if (err || !success) {
-              Alert.alert('Error', err?.message || 'No se pudo rechazar la invitación');
+              showAlert('Error', err?.message || 'No se pudo rechazar la invitación');
             } else {
               setActionResult('rejected');
             }

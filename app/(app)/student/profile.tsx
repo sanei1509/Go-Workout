@@ -4,12 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   TextInput,
   Image,
   StyleSheet,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,7 @@ const C = {
 
 export default function ProfileScreen() {
   const { profile, user, signOut, refreshProfile } = useAuth();
+  const { showAlert } = useAlert();
   const [stats, setStats] = useState<WeeklyStats | null>(null);
   const [totalSessions, setTotalSessions] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState(0);
@@ -73,7 +74,7 @@ export default function ProfileScreen() {
     setIsSavingName(true);
     const { error } = await updateProfile(user.id, { full_name: trimmed });
     if (error) {
-      Alert.alert('Error', 'No se pudo guardar el nombre');
+      showAlert('Error', 'No se pudo guardar el nombre');
     } else {
       await refreshProfile();
       setIsEditingName(false);
@@ -84,7 +85,7 @@ export default function ProfileScreen() {
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para cambiar la foto.');
+      showAlert('Permiso requerido', 'Necesitamos acceso a tu galería para cambiar la foto.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -98,24 +99,24 @@ export default function ProfileScreen() {
     setIsUploadingPhoto(true);
     const { url, error: uploadError } = await uploadAvatar(user!.id, asset.uri, asset.mimeType ?? 'image/jpeg');
     if (uploadError || !url) {
-      Alert.alert('Error', uploadError?.message ?? 'No se pudo subir la imagen');
+      showAlert('Error', uploadError?.message ?? 'No se pudo subir la imagen');
     } else {
       const { error: updateError } = await updateProfile(user!.id, { avatar_url: url });
-      if (updateError) Alert.alert('Error', 'No se pudo guardar la foto');
+      if (updateError) showAlert('Error', 'No se pudo guardar la foto');
       else await refreshProfile();
     }
     setIsUploadingPhoto(false);
   };
 
   const handleLogout = () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro que querés salir?', [
+    showAlert('Cerrar sesión', '¿Estás seguro que querés salir?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Salir', style: 'destructive',
         onPress: async () => {
           const { error } = await signOut();
           if (error) {
-            Alert.alert('Error', error.message);
+            showAlert('Error', error.message);
             return;
           }
           router.replace('/login');

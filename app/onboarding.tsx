@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   Image,
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,7 @@ import { Role } from '@/lib/services/profileService';
 
 export default function OnboardingScreen() {
   const { setRole } = useAuth();
+  const { showAlert } = useAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
@@ -24,13 +25,13 @@ export default function OnboardingScreen() {
     try {
       const { error } = await setRole(role);
       if (error) {
-        Alert.alert('Error', error.message);
+        showAlert('Error', error.message);
         setSelectedRole(null);
       } else {
         router.replace(role === 'TRAINER' ? '/(app)/trainer' : '/(app)/student');
       }
     } catch (e) {
-      Alert.alert('Error', 'Ocurrió un problema al configurar tu perfil');
+      showAlert('Error', 'Ocurrió un problema al configurar tu perfil');
       setSelectedRole(null);
     } finally {
       setIsLoading(false);

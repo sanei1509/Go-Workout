@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,11 +7,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function TrainerPanel() {
   const { profile, signOut, user } = useAuth();
+  const { showAlert } = useAlert();
 
   const handleLogout = async () => {
     const { error } = await signOut();
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
       return;
     }
     router.replace('/login');

@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +38,7 @@ const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export default function CreateRoutineScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
+  const { showAlert } = useAlert();
 
   const [plan, setPlan]               = useState<Plan | null>(null);
   const [existingRoutines, setExistingRoutines] = useState<Routine[]>([]);
@@ -83,7 +84,7 @@ export default function CreateRoutineScreen() {
 
   const handleCreate = async () => {
     if (!planId || name.trim().length < 3 || dayNumber === null) {
-      Alert.alert('Error', 'Completá los campos requeridos');
+      showAlert('Error', 'Completá los campos requeridos');
       return;
     }
     setIsLoading(true);
@@ -94,7 +95,7 @@ export default function CreateRoutineScreen() {
       notes:      notes.trim() || undefined,
     });
     setIsLoading(false);
-    if (error) { Alert.alert('Error', error.message); return; }
+    if (error) { showAlert('Error', error.message); return; }
     if (routine) router.replace(`/student/routine/${routine.id}`);
   };
 

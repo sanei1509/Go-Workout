@@ -6,16 +6,17 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
+  Modal,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
-import { createPlan, DISCIPLINES, FREQUENCIES } from '@/lib/services/planService';
+import { createPlan, getUserPlans, updatePlan, DISCIPLINES, FREQUENCIES } from '@/lib/services/planService';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -54,13 +55,24 @@ const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
+interface ConflictModal {
+  visible: boolean;
+  discipline: string;
+  existingName: string;
+  existingId: string;
+}
+
 export default function CreatePlanScreen() {
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName]             = useState('');
   const [discipline, setDiscipline] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [step, setStep]             = useState(1);
+  const [conflict, setConflict] = useState<ConflictModal>({
+    visible: false, discipline: '', existingName: '', existingId: '',
+  });
 
   const handleGoBack = () => {
     if (step > 1) setStep(step - 1);
@@ -79,9 +91,36 @@ export default function CreatePlanScreen() {
     else handleSubmit();
   };
 
-  const handleSelectDiscipline = (d: string) => {
+  const handleSelectDiscipline = async (d: string) => {
     setDiscipline(d);
+
+    if (user?.id) {
+      const { plans } = await getUserPlans(user.id);
+      const existing = plans.find(p => p.discipline === d);
+
+      if (existing) {
+        setConflict({ visible: true, discipline: d, existingName: existing.name, existingId: existing.id });
+        return;
+      }
+    }
+
     setTimeout(() => setStep(3), 200);
+  };
+
+  const handleConflictModify = () => {
+    setConflict(c => ({ ...c, visible: false }));
+    router.replace(`/student/plan/${conflict.existingId}` as any);
+  };
+
+  const handleConflictReplace = async () => {
+    setConflict(c => ({ ...c, visible: false }));
+    await updatePlan(conflict.existingId, { is_active: false });
+    setTimeout(() => setStep(3), 200);
+  };
+
+  const handleConflictCancel = () => {
+    setConflict(c => ({ ...c, visible: false }));
+    setDiscipline(null);
   };
 
   const handleToggleDay = (day: number) => {
@@ -102,7 +141,7 @@ export default function CreatePlanScreen() {
     });
     setIsSubmitting(false);
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
       return;
     }
     router.replace(`/student/plan/${plan?.id}`);
@@ -208,6 +247,40 @@ export default function CreatePlanScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* ── Conflict Modal ───────────────────────────────────── */}
+      <Modal visible={conflict.visible} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <LinearGradient
+              colors={['transparent', C.tertiary, 'transparent']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={s.modalTopLine}
+            />
+            <View style={s.modalIconWrap}>
+              <Ionicons name="warning-outline" size={28} color={C.tertiary} />
+            </View>
+            <Text style={s.modalTitle}>Plan activo en {conflict.discipline}</Text>
+            <Text style={s.modalDesc}>
+              Ya tenés <Text style={s.modalHighlight}>"{conflict.existingName}"</Text> activo.{'\n'}¿Qué querés hacer?
+            </Text>
+
+            <TouchableOpacity onPress={handleConflictModify} activeOpacity={0.85} style={s.modalBtnPrimary}>
+              <Ionicons name="create-outline" size={18} color={C.primary} />
+              <Text style={s.modalBtnPrimaryText}>MODIFICAR EL EXISTENTE</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleConflictReplace} activeOpacity={0.85} style={s.modalBtnDanger}>
+              <Ionicons name="swap-horizontal-outline" size={18} color="#ff6b6b" />
+              <Text style={s.modalBtnDangerText}>DESACTIVAR Y CREAR NUEVO</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleConflictCancel} activeOpacity={0.7} style={s.modalBtnCancel}>
+              <Text style={s.modalBtnCancelText}>CANCELAR</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -384,6 +457,21 @@ const s = StyleSheet.create({
   freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
   freqResultText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
   freqHint:       { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // ── Conflict Modal ──
+  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  modalCard:          { width: '100%', backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24 },
+  modalTopLine:       { height: 2, opacity: 0.7, marginBottom: 24 },
+  modalIconWrap:      { width: 52, height: 52, borderRadius: 26, backgroundColor: '#2a1f00', borderWidth: 1, borderColor: C.tertiary, alignItems: 'center', justifyContent: 'center', marginBottom: 16, alignSelf: 'center' },
+  modalTitle:         { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 10 },
+  modalDesc:          { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  modalHighlight:     { color: C.textHi, fontFamily: 'SpaceGrotesk_600SemiBold' },
+  modalBtnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primaryDim, borderRadius: 10, paddingVertical: 14, marginBottom: 10 },
+  modalBtnPrimaryText:{ color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  modalBtnDanger:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2a0f0f', borderRadius: 10, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: '#ff6b6b40' },
+  modalBtnDangerText: { color: '#ff6b6b', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  modalBtnCancel:     { alignItems: 'center', paddingVertical: 12 },
+  modalBtnCancelText: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
   // ── Footer ──
   footer:         { padding: 20, paddingBottom: 32 },

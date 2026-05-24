@@ -5,10 +5,10 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   StyleSheet,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,6 +41,7 @@ const C = {
 
 export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { showAlert } = useAlert();
   const [plan, setPlan]         = useState<Plan | null>(null);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
@@ -74,7 +75,7 @@ export default function PlanDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showAlert(
       'Eliminar plan',
       '¿Seguro que querés eliminar este plan? Esta acción no se puede deshacer.',
       [
@@ -85,7 +86,7 @@ export default function PlanDetailScreen() {
             if (!id) return;
             const { success, error: err } = await deletePlan(id);
             if (err || !success) {
-              Alert.alert('Error', err?.message || 'No se pudo eliminar el plan');
+              showAlert('Error', err?.message || 'No se pudo eliminar el plan');
             } else {
               router.navigate('/student');
             }

@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Image,
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Link, Redirect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import { Svg, Path, G } from 'react-native-svg';
 
 export default function LoginScreen() {
   const { session, isLoading: authLoading, signIn, signInWithGoogle } = useAuth();
+  const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,14 +30,14 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      showAlert('Error', 'Por favor completa todos los campos');
       return;
     }
     setIsLoading(true);
     const { error } = await signIn(email, password);
     setIsLoading(false);
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
     } else {
       router.replace('/');
     }
@@ -47,7 +48,7 @@ export default function LoginScreen() {
     const { error } = await signInWithGoogle();
     setIsGoogleLoading(false);
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
     } else {
       router.replace('/');
     }

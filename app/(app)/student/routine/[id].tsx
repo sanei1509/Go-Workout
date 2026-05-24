@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, Modal, TextInput, StyleSheet, KeyboardAvoidingView, Platform,
+  Modal, TextInput, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useAlert } from '@/components/AppAlert';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -198,6 +199,7 @@ const REST_PRESETS = [
 
 export default function RoutineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { showAlert } = useAlert();
   const [routine, setRoutine]           = useState<Routine | null>(null);
   const [discipline, setDiscipline]     = useState('');
   const [isLoading, setIsLoading]       = useState(true);
@@ -244,7 +246,7 @@ export default function RoutineDetailScreen() {
     const { block, error: err } = await addBlock(id, blockType);
     setIsSaving(false);
     setShowBlockModal(false);
-    if (err) { Alert.alert('Error', err.message); return; }
+    if (err) { showAlert('Error', err.message); return; }
     if (block && routine) setRoutine({ ...routine, blocks: [...(routine.blocks || []), block] });
   };
 
@@ -262,11 +264,11 @@ export default function RoutineDetailScreen() {
   };
 
   const handleDeleteBlock = (block: Block) => {
-    Alert.alert('Eliminar bloque', `¿Eliminar "${getBlockLabel(block.block_type)}" y sus ejercicios?`, [
+    showAlert('Eliminar bloque', `¿Eliminar "${getBlockLabel(block.block_type)}" y sus ejercicios?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         const { success, error: err } = await deleteBlock(block.id);
-        if (err || !success) { Alert.alert('Error', err?.message ?? 'Error'); return; }
+        if (err || !success) { showAlert('Error', err?.message ?? 'Error'); return; }
         if (routine) setRoutine({ ...routine, blocks: routine.blocks?.filter(b => b.id !== block.id) || [] });
       }},
     ]);
@@ -309,7 +311,7 @@ export default function RoutineDetailScreen() {
 
   const handleSaveExercise = async () => {
     if (!selectedBlock || exName.trim().length < 2) {
-      Alert.alert('Error', 'Ingresá un nombre de al menos 2 caracteres');
+      showAlert('Error', 'Ingresá un nombre de al menos 2 caracteres');
       return;
     }
     const data: CreateExerciseData = {
@@ -324,7 +326,7 @@ export default function RoutineDetailScreen() {
     if (selectedExercise) {
       const { exercise, error: err } = await updateExercise(selectedExercise.id, data);
       setIsSaving(false);
-      if (err) { Alert.alert('Error', err.message); return; }
+      if (err) { showAlert('Error', err.message); return; }
       if (exercise && routine) {
         setRoutine({ ...routine, blocks: routine.blocks?.map(b =>
           b.id === selectedBlock.id
@@ -335,7 +337,7 @@ export default function RoutineDetailScreen() {
     } else {
       const { exercise, error: err } = await addExercise(selectedBlock.id, data);
       setIsSaving(false);
-      if (err) { Alert.alert('Error', err.message); return; }
+      if (err) { showAlert('Error', err.message); return; }
       if (exercise && routine) {
         setRoutine({ ...routine, blocks: routine.blocks?.map(b =>
           b.id === selectedBlock.id
@@ -348,11 +350,11 @@ export default function RoutineDetailScreen() {
   };
 
   const handleDeleteExercise = (exercise: Exercise) => {
-    Alert.alert('Eliminar ejercicio', `¿Eliminar "${exercise.name}"?`, [
+    showAlert('Eliminar ejercicio', `¿Eliminar "${exercise.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         const { success, error: err } = await deleteExercise(exercise.id);
-        if (err || !success) { Alert.alert('Error', err?.message ?? 'Error'); return; }
+        if (err || !success) { showAlert('Error', err?.message ?? 'Error'); return; }
         if (routine) setRoutine({ ...routine, blocks: routine.blocks?.map(b => ({
           ...b, exercises: b.exercises.filter(e => e.id !== exercise.id),
         })) || [] });
@@ -364,24 +366,24 @@ export default function RoutineDetailScreen() {
   // ── Routine actions ────────────────────────────────────────────────────────
 
   const handleDuplicate = () => {
-    Alert.alert('Duplicar rutina', `Se creará una copia de "${routine?.name}".`, [
+    showAlert('Duplicar rutina', `Se creará una copia de "${routine?.name}".`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Duplicar', onPress: async () => {
         if (!id) return;
         const { routine: copy, error: err } = await duplicateRoutine(id);
-        if (err || !copy) { Alert.alert('Error', err?.message || 'No se pudo duplicar'); return; }
-        Alert.alert('Listo', `Se creó "${copy.name}"`);
+        if (err || !copy) { showAlert('Error', err?.message || 'No se pudo duplicar'); return; }
+        showAlert('Listo', `Se creó "${copy.name}"`);
       }},
     ]);
   };
 
   const handleDelete = () => {
-    Alert.alert('Eliminar rutina', '¿Seguro? Se eliminarán todos los bloques y ejercicios.', [
+    showAlert('Eliminar rutina', '¿Seguro? Se eliminarán todos los bloques y ejercicios.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         if (!id) return;
         const { success, error: err } = await deleteRoutine(id);
-        if (err || !success) { Alert.alert('Error', err?.message || 'Error'); return; }
+        if (err || !success) { showAlert('Error', err?.message || 'Error'); return; }
         router.navigate(`/student/plan/${routine?.plan_id}`);
       }},
     ]);
@@ -390,7 +392,7 @@ export default function RoutineDetailScreen() {
   const handleStartWorkout = () => {
     const hasExercises = routine?.blocks?.some(b => b.exercises.length > 0);
     if (!hasExercises) {
-      Alert.alert('Sin ejercicios', 'Agregá al menos un ejercicio para poder entrenar.');
+      showAlert('Sin ejercicios', 'Agregá al menos un ejercicio para poder entrenar.');
       return;
     }
     router.push(`/student/workout/${id}`);

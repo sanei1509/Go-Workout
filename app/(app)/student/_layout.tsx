@@ -134,6 +134,7 @@ export default function StudentLayout() {
       <Tabs.Screen name="notifications"       options={{ href: null }} />
       <Tabs.Screen name="session/[id]"        options={{ href: null }} />
       <Tabs.Screen name="progress"            options={{ href: null }} />
+      <Tabs.Screen name="coach"               options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }

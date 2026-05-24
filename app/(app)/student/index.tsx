@@ -217,6 +217,15 @@ export default function StudentHome() {
             <TrainerView trainer={selectedTrainer!} />
           )}
         </ScrollView>
+
+        {/* ── Coach IA (botón flotante) ──────────────────────────── */}
+        <TouchableOpacity
+          style={s.coachFab}
+          activeOpacity={0.85}
+          onPress={() => router.push('/student/coach')}
+        >
+          <Ionicons name="sparkles" size={22} color={C.bg} />
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
@@ -633,5 +642,14 @@ const s = StyleSheet.create({
   resumeLabel:  { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 2 },
   resumeTitle:  { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
   resumeMeta:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Coach IA floating button
+  coachFab: {
+    position: 'absolute', right: 20, bottom: 24,
+    width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.primary, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
 
 });

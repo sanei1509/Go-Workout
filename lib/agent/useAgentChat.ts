@@ -11,9 +11,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserPlans } from '@/lib/services/planService';
+import { getRoutinesByPlan } from '@/lib/services/routineService';
 import { getAgentBackend } from './backend';
 import { executePlanProposal, executeRoutineProposal } from './tools';
 import type {
+  AgentActivePlan,
   AgentProposal,
   AgentUserContext,
   ChatMessage,
@@ -21,6 +23,18 @@ import type {
   ProposalStatus,
   RoutineProposal,
 } from './types';
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function getTodayContext(): AgentUserContext['today'] {
+  const d = new Date();
+  const jsDay = d.getDay(); // 0=Dom
+  return {
+    dayNumber: jsDay === 0 ? 7 : jsDay,
+    dayName: DAY_NAMES[jsDay],
+    date: d.toISOString().split('T')[0],
+  };
+}
 
 function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -47,17 +61,39 @@ export function useAgentChat() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    getUserPlans(user.id).then(({ plans }) => {
+
+    const buildContext = async () => {
+      const { plans } = await getUserPlans(user.id);
+      if (cancelled) return;
+
+      const activePlans: AgentActivePlan[] = await Promise.all(
+        plans.map(async (plan) => {
+          const { routines } = await getRoutinesByPlan(plan.id);
+          return {
+            id: plan.id,
+            name: plan.name,
+            discipline: plan.discipline,
+            training_days: plan.training_days ?? [],
+            routines: routines.map((r) => ({
+              id: r.id,
+              name: r.name,
+              day_number: r.day_number,
+            })),
+          };
+        })
+      );
+
       if (cancelled) return;
       setContext({
         userId: user.id,
         displayName: profile?.full_name ?? undefined,
-        activePlans: plans.map((p) => ({ id: p.id, name: p.name, discipline: p.discipline })),
+        today: getTodayContext(),
+        activePlans,
       });
-    });
-    return () => {
-      cancelled = true;
     };
+
+    buildContext();
+    return () => { cancelled = true; };
   }, [user?.id, profile?.full_name]);
 
   const sendMessage = useCallback(
@@ -120,7 +156,13 @@ export function useAgentChat() {
               ? {
                   ...prev,
                   activePlans: [
-                    { id: planId, name: proposal.data.name, discipline: proposal.data.discipline },
+                    {
+                      id: planId,
+                      name: proposal.data.name,
+                      discipline: proposal.data.discipline,
+                      training_days: proposal.data.training_days ?? [],
+                      routines: [],
+                    },
                     ...prev.activePlans,
                   ],
                 }

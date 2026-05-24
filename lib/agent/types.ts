@@ -70,11 +70,29 @@ export interface AgentRequest {
   context: AgentUserContext;
 }
 
+export interface AgentPlanRoutine {
+  id: string;
+  name: string;
+  day_number: number; // 1=lunes … 7=domingo
+}
+
+export interface AgentActivePlan {
+  id: string;
+  name: string;
+  discipline: string;
+  training_days: number[]; // [1,3,5] = lun/mié/vie
+  routines: AgentPlanRoutine[];
+}
+
 export interface AgentUserContext {
   userId: string;
   displayName?: string;
-  // Planes activos del alumno, para que el agente sepa sobre qué construir.
-  activePlans: { id: string; name: string; discipline: string }[];
+  today: {
+    dayNumber: number; // 1=lun … 7=dom
+    dayName: string;   // "Miércoles"
+    date: string;      // "2026-05-24"
+  };
+  activePlans: AgentActivePlan[];
 }
 
 export interface AgentResponse {

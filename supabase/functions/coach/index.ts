@@ -21,10 +21,23 @@ interface ChatMessage {
   role: "user" | "assistant";
   text: string;
 }
+interface AgentPlanRoutine {
+  id: string;
+  name: string;
+  day_number: number;
+}
+interface AgentActivePlan {
+  id: string;
+  name: string;
+  discipline: string;
+  training_days: number[];
+  routines: AgentPlanRoutine[];
+}
 interface AgentUserContext {
   userId: string;
   displayName?: string;
-  activePlans: { id: string; name: string; discipline: string }[];
+  today: { dayNumber: number; dayName: string; date: string };
+  activePlans: AgentActivePlan[];
 }
 interface AgentRequest {
   messages: ChatMessage[];
@@ -50,14 +63,56 @@ USO DE HERRAMIENTAS:
 
 Respondé siempre en español.`;
 
+const WEEKDAY_NAMES = ["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+
 function buildUserContextBlock(ctx: AgentUserContext): string {
-  const name = ctx.displayName ? `El alumno se llama ${ctx.displayName}. ` : "";
-  const plans = ctx.activePlans.length > 0
-    ? `Planes activos del alumno: ${
-      ctx.activePlans.map((p) => `"${p.name}" (${p.discipline}, id=${p.id})`).join(", ")
-    }. Si proponés una rutina, normalmente va sobre uno de estos planes.`
-    : "El alumno todavía no tiene planes activos. Si quiere una rutina, probablemente convenga proponer primero un plan.";
-  return `[Contexto del alumno] ${name}${plans}`;
+  const name = ctx.displayName ? `El alumno se llama ${ctx.displayName}.` : "";
+  const todayStr = `Hoy es ${ctx.today.dayName} (día ${ctx.today.dayNumber}, ${ctx.today.date}).`;
+
+  if (ctx.activePlans.length === 0) {
+    return `[Contexto del alumno] ${name} ${todayStr} El alumno no tiene planes activos. Si quiere una rutina, conviene proponer primero un plan.`;
+  }
+
+  const plansDesc = ctx.activePlans.map((plan) => {
+    const trainingDayNames = (plan.training_days ?? [])
+      .sort((a, b) => a - b)
+      .map((d) => WEEKDAY_NAMES[d] ?? `día ${d}`)
+      .join(", ");
+
+    const routinesDesc = (plan.routines ?? [])
+      .sort((a, b) => a.day_number - b.day_number)
+      .map((r) => `    • ${WEEKDAY_NAMES[r.day_number] ?? `día ${r.day_number}`}: "${r.name}"`)
+      .join("\n");
+
+    const todayDay = ctx.today.dayNumber;
+    const todayRoutine = plan.routines?.find((r) => r.day_number === todayDay);
+    const isTrainingDay = plan.training_days?.includes(todayDay);
+
+    // Próximo día de entrenamiento (diferente a hoy)
+    let nextInfo = "";
+    for (let i = 1; i <= 7; i++) {
+      const checkDay = ((todayDay - 1 + i) % 7) + 1;
+      if (plan.training_days?.includes(checkDay) && checkDay !== todayDay) {
+        const nextRoutine = plan.routines?.find((r) => r.day_number === checkDay);
+        nextInfo = `Próximo entrenamiento: ${WEEKDAY_NAMES[checkDay]}${nextRoutine ? ` → "${nextRoutine.name}"` : " (sin rutina asignada aún)"}`;
+        break;
+      }
+    }
+
+    const todayStatus = isTrainingDay
+      ? (todayRoutine
+          ? `HOY toca entrenar → rutina: "${todayRoutine.name}"`
+          : "HOY es día de entrenamiento pero aún no tiene rutina asignada.")
+      : "Hoy es día de descanso para este plan.";
+
+    return `Plan "${plan.name}" (${plan.discipline}, id=${plan.id}):
+  - Días de entrenamiento: ${trainingDayNames || "no definidos"}
+  - Rutinas:\n${routinesDesc || "    (sin rutinas cargadas aún)"}
+  - ${todayStatus}
+  - ${nextInfo}`;
+  }).join("\n\n");
+
+  return `[Contexto del alumno] ${name} ${todayStr}\n\n${plansDesc}`;
 }
 
 // ─── Tool/function declarations (formato Gemini) ─────────────────────────────

@@ -60,8 +60,34 @@ USO DE HERRAMIENTAS:
 - Cuando proponés algo, el alumno verá una tarjeta y decidirá si lo crea. NO afirmes que ya creaste nada: decí que se lo dejás propuesto para que confirme.
 - Para rutinas, organizá los ejercicios en bloques con sentido: calentamiento (warmup) primero, después el bloque principal (main), accesorios (accessory), y al final cardio o movilidad si corresponde.
 - Usá descansos realistas: 60-120s para hipertrofia, 120-180s para fuerza, 30-60s para resistencia/circuitos.
+- Al elegir ejercicios, preferí los del catálogo que se te indica más abajo: así el alumno ve la ayuda visual (músculos y técnica). Usá el nombre tal cual aparece en el catálogo. Si necesitás uno que no está, escribí su nombre común en español, pero priorizá los del catálogo.
 
 Respondé siempre en español.`;
+
+// Apéndice con los nombres válidos del catálogo (tabla `exercises`). Espejo de
+// buildExerciseCatalogBlock en lib/agent/prompt.ts.
+function buildExerciseCatalogBlock(exerciseLabels: string[]): string {
+  if (exerciseLabels.length === 0) return "";
+  return `CATÁLOGO DE EJERCICIOS DISPONIBLES (elegí de acá siempre que puedas, usando el nombre exacto):\n${exerciseLabels.join(", ")}.`;
+}
+
+// Trae los labels del catálogo vía REST (la tabla es de lectura pública). Si falla,
+// devuelve [] y el agente sigue funcionando sin la restricción de catálogo.
+async function fetchExerciseLabels(): Promise<string[]> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !key) return [];
+    const res = await fetch(`${url}/rest/v1/exercises?select=label&order=label`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) return [];
+    const rows = (await res.json()) as { label: string }[];
+    return rows.map((r) => r.label);
+  } catch {
+    return [];
+  }
+}
 
 const WEEKDAY_NAMES = ["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
 
@@ -207,8 +233,14 @@ Deno.serve(async (req) => {
       })),
     ];
 
+    // Catálogo de ejercicios válidos, apéndice estable del system prompt.
+    const catalogBlock = buildExerciseCatalogBlock(await fetchExerciseLabels());
+    const systemText = catalogBlock
+      ? `${COACH_SYSTEM_PROMPT}\n\n${catalogBlock}`
+      : COACH_SYSTEM_PROMPT;
+
     const body = {
-      systemInstruction: { parts: [{ text: COACH_SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: systemText }] },
       contents,
       tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }],
     };

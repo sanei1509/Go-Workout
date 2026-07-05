@@ -93,6 +93,13 @@ export interface AgentUserContext {
     date: string;      // "2026-05-24"
   };
   activePlans: AgentActivePlan[];
+  // Modo entrenador: el asistente ayuda a un TRAINER a armar planes para su
+  // alumno. userId/activePlans pasan a referirse al alumno seleccionado.
+  role?: 'student' | 'trainer';
+  student?: {
+    name: string;
+    facts?: string; // resumen del formulario: edad, peso, lesiones, objetivos...
+  };
 }
 
 export interface AgentResponse {

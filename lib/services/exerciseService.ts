@@ -11,6 +11,7 @@ export interface Exercise {
   aliases: string[];
   primary_muscles: MuscleGroup[];
   secondary_muscles: MuscleGroup[];
+  disciplines: string[];
   tip: string | null;
   image_url: string | null;
   video_url: string | null;
@@ -65,6 +66,27 @@ export async function getExerciseBySlug(
 
   if (error) return { exercise: null, error: new Error(error.message) };
   return { exercise: (data as Exercise) ?? null, error: null };
+}
+
+// Ejercicios de una disciplina, opcionalmente filtrados por grupo muscular.
+// Alimenta el picker del editor de rutinas del entrenador.
+export async function getExercisesByDiscipline(
+  discipline: string,
+  muscleGroup?: MuscleGroup
+): Promise<{ exercises: Exercise[]; error: Error | null }> {
+  let query = supabase
+    .from('exercises')
+    .select('*')
+    .contains('disciplines', [discipline])
+    .order('label');
+
+  if (muscleGroup) {
+    query = query.contains('primary_muscles', [muscleGroup]);
+  }
+
+  const { data, error } = await query;
+  if (error) return { exercises: [], error: new Error(error.message) };
+  return { exercises: (data ?? []) as Exercise[], error: null };
 }
 
 // Lista liviana de nombres válidos para inyectar en el system prompt del agente.

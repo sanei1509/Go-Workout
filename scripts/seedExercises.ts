@@ -31,6 +31,41 @@ function toSlug(entry: (typeof EXERCISE_CATALOG)[number]): string {
   return normalizeName(base).replace(/ /g, '-');
 }
 
+// ─── Disciplinas por ejercicio (por label, la clave estable del catálogo) ───
+// Regla base: todo el catálogo actual es programable en Musculación. Los sets
+// suman Calistenia (bodyweight) y Crossfit/Funcional (sección funcional + core
+// dinámico). Ajustable a futuro editando exercises.disciplines en la DB.
+
+const CALISTENIA = new Set([
+  'Dominadas', 'Fondos en paralelas', 'Flexiones de piso', 'Fondos para tríceps',
+  'Plancha', 'Plancha lateral', 'Crunch abdominal', 'Crunch inverso',
+  'Rueda abdominal', 'Dragon flag', 'Mountain climbers', 'Hollow body',
+  'Elevación de piernas', 'Puente de glúteos', 'Sentadilla', 'Zancadas',
+  'Sentadilla búlgara', 'Burpees', 'Box jump',
+]);
+
+const CROSSFIT_FUNCIONAL = new Set([
+  'Thruster', 'Clean (cargada)', 'Snatch (arranque)', 'Burpees',
+  'Kettlebell swing', 'Box jump', 'Wall ball', 'Turkish get up',
+  'Peso muerto sumo', 'Peso muerto', 'Sentadilla frontal', 'Sentadilla',
+]);
+
+const FUNCIONAL_EXTRA = new Set([
+  'Plancha', 'Plancha lateral', 'Mountain climbers', 'Hollow body',
+  'Zancadas', 'Hip thrust', 'Puente de glúteos',
+]);
+
+function disciplinesFor(label: string): string[] {
+  const out = new Set<string>(['Musculación']);
+  if (CALISTENIA.has(label)) out.add('Calistenia');
+  if (CROSSFIT_FUNCIONAL.has(label)) {
+    out.add('Crossfit');
+    out.add('Funcional');
+  }
+  if (FUNCIONAL_EXTRA.has(label)) out.add('Funcional');
+  return [...out];
+}
+
 async function main() {
   const rows = EXERCISE_CATALOG.map((entry) => ({
     slug: toSlug(entry),
@@ -39,6 +74,7 @@ async function main() {
     primary_muscles: entry.primary,
     secondary_muscles: entry.secondary,
     tip: entry.tip,
+    disciplines: disciplinesFor(entry.label),
   }));
 
   // Chequeo de slugs duplicados antes de mandar.

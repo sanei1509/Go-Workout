@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 export interface Plan {
   id: string;
   user_id: string;
+  trainer_id: string | null;       // entrenador que lo asignó; null = plan propio
   name: string;
   discipline: string;
   weekly_frequency: number;
@@ -18,6 +19,7 @@ export interface CreatePlanData {
   discipline: string;
   weekly_frequency: number;
   training_days?: number[];
+  trainer_id?: string;  // lo setea el entrenador al asignar un plan a un alumno
 }
 
 export interface UpdatePlanData {
@@ -27,23 +29,8 @@ export interface UpdatePlanData {
   is_active?: boolean;
 }
 
-// Disciplinas disponibles
-export const DISCIPLINES = [
-  'Musculación',
-  'Crossfit',
-  'Calistenia',
-  'Funcional',
-  'Running',
-  'Natación',
-  'Yoga',
-  'Pilates',
-  'Boxeo',
-  'Artes Marciales',
-  'Ciclismo',
-  'HIIT',
-  'Powerlifting',
-  'Otro',
-];
+// Disciplinas disponibles (fuente canónica en lib/constants/disciplines.ts)
+export { DISCIPLINES } from '@/lib/constants/disciplines';
 
 // Frecuencias con labels
 export const FREQUENCIES = [
@@ -133,6 +120,7 @@ export async function createPlan(
         discipline: data.discipline,
         weekly_frequency: data.weekly_frequency,
         training_days: data.training_days ?? null,
+        trainer_id: data.trainer_id ?? null,
       })
       .select()
       .single();
@@ -224,6 +212,23 @@ export async function deletePlan(planId: string): Promise<{
       error: new Error('Error al eliminar el plan'),
     };
   }
+}
+
+// Planes que un entrenador le asignó a un alumno específico.
+export async function getPlansAssignedByTrainer(
+  trainerId: string,
+  studentId: string
+): Promise<{ plans: Plan[]; error: Error | null }> {
+  const { data, error } = await supabase
+    .from('plans')
+    .select('*')
+    .eq('trainer_id', trainerId)
+    .eq('user_id', studentId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) return { plans: [], error: new Error(error.message) };
+  return { plans: (data ?? []) as Plan[], error: null };
 }
 
 export function getFrequencyLabel(frequency: number): string {

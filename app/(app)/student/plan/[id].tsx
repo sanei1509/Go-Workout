@@ -113,10 +113,13 @@ export default function PlanDetailScreen() {
             <Ionicons name="chevron-back" size={24} color={C.primary} />
           </TouchableOpacity>
         ),
+        // Los planes asignados por un entrenador no se pueden eliminar desde acá
         headerRight: () => (
-          <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
-            <Ionicons name="trash-outline" size={20} color="#f87171" />
-          </TouchableOpacity>
+          plan && !plan.trainer_id ? (
+            <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
+              <Ionicons name="trash-outline" size={20} color="#f87171" />
+            </TouchableOpacity>
+          ) : null
         ),
       }} />
 
@@ -154,6 +157,12 @@ export default function PlanDetailScreen() {
               <View style={s.heroInfo}>
                 <Text style={s.heroName}>{plan.name}</Text>
                 <Text style={s.heroDiscipline}>{plan.discipline}</Text>
+                {plan.trainer_id != null && (
+                  <View style={s.assignedBadge}>
+                    <Ionicons name="person-outline" size={10} color={C.tertiary} />
+                    <Text style={s.assignedText}>PLAN DE TU ENTRENADOR</Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -188,7 +197,7 @@ export default function PlanDetailScreen() {
             {/* ── Rutinas ────────────────────────────────── */}
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>RUTINAS</Text>
-              {routines.length > 0 && (
+              {routines.length > 0 && !plan.trainer_id && (
                 <TouchableOpacity onPress={handleAddRoutine} activeOpacity={0.8} style={s.addBtn}>
                   <Ionicons name="add" size={16} color={C.primary} />
                   <Text style={s.addBtnText}>AGREGAR</Text>
@@ -197,7 +206,19 @@ export default function PlanDetailScreen() {
             </View>
 
             {routines.length === 0 ? (
-              <EmptyRoutines onAdd={handleAddRoutine} frequency={plan.weekly_frequency} />
+              plan.trainer_id ? (
+                <View style={s.emptyCard}>
+                  <View style={s.emptyIconWrap}>
+                    <Ionicons name="hourglass-outline" size={36} color={C.neutral} />
+                  </View>
+                  <Text style={s.emptyTitle}>Rutinas en camino</Text>
+                  <Text style={s.emptyText}>
+                    Tu entrenador todavía no cargó rutinas en este plan.{'\n'}Te van a aparecer acá cuando las asigne.
+                  </Text>
+                </View>
+              ) : (
+                <EmptyRoutines onAdd={handleAddRoutine} frequency={plan.weekly_frequency} />
+              )
             ) : (
               <View style={s.routineList}>
                 {routines.map((routine, idx) => (
@@ -279,6 +300,8 @@ const s = StyleSheet.create({
   heroInfo:       { flex: 1 },
   heroName:       { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
   heroDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+  assignedBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 7, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
+  assignedText:   { color: C.tertiary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
 
   // Stats
   statsRow:    { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 24, overflow: 'hidden' },

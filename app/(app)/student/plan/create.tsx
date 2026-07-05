@@ -96,7 +96,8 @@ export default function CreatePlanScreen() {
 
     if (user?.id) {
       const { plans } = await getUserPlans(user.id);
-      const existing = plans.find(p => p.discipline === d);
+      // Solo planes propios: los asignados por un entrenador no se pueden desactivar
+      const existing = plans.find(p => p.discipline === d && !p.trainer_id);
 
       if (existing) {
         setConflict({ visible: true, discipline: d, existingName: existing.name, existingId: existing.id });

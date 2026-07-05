@@ -203,6 +203,8 @@ export default function RoutineDetailScreen() {
   const { showAlert } = useAlert();
   const [routine, setRoutine]           = useState<Routine | null>(null);
   const [discipline, setDiscipline]     = useState('');
+  // Rutina de un plan asignado por el entrenador: solo lectura + entrenar
+  const [isAssigned, setIsAssigned]     = useState(false);
   const [isLoading, setIsLoading]       = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [isSaving, setIsSaving]         = useState(false);
@@ -238,7 +240,10 @@ export default function RoutineDetailScreen() {
     setRoutine(data);
     // Fetch plan discipline
     const { plan } = await getPlanById(data.plan_id);
-    if (plan) setDiscipline(plan.discipline);
+    if (plan) {
+      setDiscipline(plan.discipline);
+      setIsAssigned(plan.trainer_id != null);
+    }
     setIsLoading(false);
   };
 
@@ -436,14 +441,16 @@ export default function RoutineDetailScreen() {
           </TouchableOpacity>
         ),
         headerRight: () => (
-          <View style={{ flexDirection: 'row', gap: 4, marginRight: 4 }}>
-            <TouchableOpacity onPress={handleDuplicate} style={{ padding: 6 }}>
-              <Ionicons name="copy-outline" size={20} color={C.neutral} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={{ padding: 6 }}>
-              <Ionicons name="trash-outline" size={20} color="#f87171" />
-            </TouchableOpacity>
-          </View>
+          isAssigned ? null : (
+            <View style={{ flexDirection: 'row', gap: 4, marginRight: 4 }}>
+              <TouchableOpacity onPress={handleDuplicate} style={{ padding: 6 }}>
+                <Ionicons name="copy-outline" size={20} color={C.neutral} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} style={{ padding: 6 }}>
+                <Ionicons name="trash-outline" size={20} color="#f87171" />
+              </TouchableOpacity>
+            </View>
+          )
         ),
       }} />
 
@@ -479,14 +486,24 @@ export default function RoutineDetailScreen() {
               {/* Blocks section */}
               <View style={s.sectionHeader}>
                 <Text style={s.sectionTitle}>BLOQUES</Text>
-                <TouchableOpacity onPress={() => setShowBlockModal(true)} style={s.addBlockBtn} activeOpacity={0.8}>
-                  <Ionicons name="add" size={16} color={C.primary} />
-                  <Text style={s.addBlockText}>AGREGAR</Text>
-                </TouchableOpacity>
+                {!isAssigned && (
+                  <TouchableOpacity onPress={() => setShowBlockModal(true)} style={s.addBlockBtn} activeOpacity={0.8}>
+                    <Ionicons name="add" size={16} color={C.primary} />
+                    <Text style={s.addBlockText}>AGREGAR</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Empty blocks state */}
-              {(!routine.blocks || routine.blocks.length === 0) && (
+              {(!routine.blocks || routine.blocks.length === 0) && isAssigned && (
+                <View style={s.emptyCard}>
+                  <Ionicons name="hourglass-outline" size={36} color={C.neutral} style={{ marginBottom: 12 }} />
+                  <Text style={s.emptyTitle}>Rutina en preparación</Text>
+                  <Text style={s.emptyText}>Tu entrenador todavía no cargó los ejercicios de esta rutina.</Text>
+                </View>
+              )}
+
+              {(!routine.blocks || routine.blocks.length === 0) && !isAssigned && (
                 <View style={s.emptyCard}>
                   <Ionicons name="layers-outline" size={36} color={C.neutral} style={{ marginBottom: 12 }} />
                   <Text style={s.emptyTitle}>Sin bloques todavía</Text>
@@ -523,25 +540,35 @@ export default function RoutineDetailScreen() {
                       </View>
                       <Text style={[s.blockLabel, { color }]}>{getBlockLabel(block.block_type)}</Text>
                       <Text style={s.blockCount}>{block.exercises.length} ej.</Text>
-                      <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.blockAddBtn} activeOpacity={0.7}>
-                        <Ionicons name="add-circle" size={22} color={C.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteBlock(block)} style={{ padding: 4 }} activeOpacity={0.7}>
-                        <Ionicons name="trash-outline" size={17} color="#f87171" />
-                      </TouchableOpacity>
+                      {!isAssigned && (
+                        <>
+                          <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.blockAddBtn} activeOpacity={0.7}>
+                            <Ionicons name="add-circle" size={22} color={C.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteBlock(block)} style={{ padding: 4 }} activeOpacity={0.7}>
+                            <Ionicons name="trash-outline" size={17} color="#f87171" />
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
 
                     {/* Exercises */}
                     {block.exercises.length === 0 ? (
-                      <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.emptyExRow} activeOpacity={0.7}>
-                        <Ionicons name="add-circle-outline" size={16} color={C.neutral} />
-                        <Text style={s.emptyExText}>Agregá el primer ejercicio</Text>
-                      </TouchableOpacity>
+                      isAssigned ? (
+                        <View style={s.emptyExRow}>
+                          <Text style={s.emptyExText}>Sin ejercicios en este bloque</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.emptyExRow} activeOpacity={0.7}>
+                          <Ionicons name="add-circle-outline" size={16} color={C.neutral} />
+                          <Text style={s.emptyExText}>Agregá el primer ejercicio</Text>
+                        </TouchableOpacity>
+                      )
                     ) : (
                       block.exercises.map((ex, idx) => (
                         <TouchableOpacity
                           key={ex.id}
-                          onPress={() => openEditorForExercise(block, ex)}
+                          onPress={() => isAssigned ? setHelpExercise(ex.name) : openEditorForExercise(block, ex)}
                           activeOpacity={0.8}
                           style={[s.exRow, idx < block.exercises.length - 1 && s.exRowBorder]}
                         >

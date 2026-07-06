@@ -247,7 +247,9 @@ const FUNCTION_DECLARATIONS = [
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  // supabase-js manda también apikey y x-client-info: sin ellos el preflight
+  // del navegador falla y el agente no funciona en web (en nativo no hay CORS).
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 

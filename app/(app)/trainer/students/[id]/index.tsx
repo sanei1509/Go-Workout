@@ -21,8 +21,12 @@ import {
 import {
   getGeneralStats,
   getWeeklySessionsBars,
+  getAdherenceRate,
+  detectPlateaus,
   GeneralStats,
   WeeklySessionsBar,
+  AdherenceStats,
+  PlateauFlag,
 } from '@/lib/services/progressService';
 import { getPlansAssignedByTrainer, Plan } from '@/lib/services/planService';
 import {
@@ -59,6 +63,8 @@ export default function StudentDetailScreen() {
   const [bars, setBars] = useState<WeeklySessionsBar[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [adherence, setAdherence] = useState<AdherenceStats | null>(null);
+  const [plateaus, setPlateaus] = useState<PlateauFlag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
@@ -68,18 +74,30 @@ export default function StudentDetailScreen() {
     const st = students.find((x) => x.student_id === id) ?? null;
     setStudent(st);
 
-    const [formRes, statsRes, barsRes, plansRes, sessionsRes] = await Promise.all([
+    const [formRes, statsRes, barsRes, plansRes, sessionsRes, plateausRes] = await Promise.all([
       st ? getStudentForm(st.invitation_id) : Promise.resolve({ form: null, error: null }),
       getGeneralStats(id),
       getWeeklySessionsBars(id, 6),
       getPlansAssignedByTrainer(user.id, id),
       getUserSessions(id, 5),
+      detectPlateaus(id),
     ]);
     setForm(formRes.form);
     setStats(statsRes.stats);
     setBars(barsRes.bars);
     setPlans(plansRes.plans);
     setSessions(sessionsRes.sessions.filter((sn) => sn.finished_at));
+    setPlateaus(plateausRes.plateaus);
+
+    // Adherencia sobre el plan asignado más reciente con días definidos
+    const planForAdherence = plansRes.plans.find((p) => p.training_days?.length);
+    if (planForAdherence) {
+      const { stats: adherenceStats } = await getAdherenceRate(id, planForAdherence.id);
+      setAdherence(adherenceStats);
+    } else {
+      setAdherence(null);
+    }
+
     setIsLoading(false);
   }, [user?.id, id]);
 
@@ -203,6 +221,44 @@ export default function StudentDetailScreen() {
                     </View>
                   ))}
                 </View>
+              </View>
+            )}
+
+            {/* Adherencia */}
+            {adherence && (
+              <View style={s.adherenceCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.adherenceTitle}>ADHERENCIA (4 SEM.)</Text>
+                  <Text style={s.adherenceSub}>
+                    {adherence.completedSessions} de {adherence.expectedSessions} sesiones esperadas
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    s.adherenceValue,
+                    { color: adherence.adherenceRate >= 70 ? C.green : adherence.adherenceRate >= 40 ? C.tertiary : '#f87171' },
+                  ]}
+                >
+                  {adherence.adherenceRate}%
+                </Text>
+              </View>
+            )}
+
+            {/* Estancamientos */}
+            {plateaus.length > 0 && (
+              <View style={s.plateauCard}>
+                <View style={s.plateauHeader}>
+                  <Ionicons name="trending-down-outline" size={15} color={C.tertiary} />
+                  <Text style={s.plateauTitle}>SIN PROGRESO RECIENTE</Text>
+                </View>
+                {plateaus.map((p, i) => (
+                  <View key={p.exercise_name} style={[s.plateauRow, i > 0 && s.formRowBorder]}>
+                    <Text style={s.plateauExercise}>{p.exercise_name}</Text>
+                    <Text style={s.plateauMeta}>
+                      hace {p.sessionsSincePR} sesión{p.sessionsSincePR !== 1 ? 'es' : ''}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
 
@@ -341,6 +397,20 @@ const s = StyleSheet.create({
   barCount:  { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', height: 14 },
   bar:       { width: 18, borderRadius: 4 },
   barLabel:  { color: C.neutral, fontSize: 8, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Adherencia
+  adherenceCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, marginTop: 10 },
+  adherenceTitle: { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 3 },
+  adherenceSub:   { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  adherenceValue: { fontSize: 24, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  // Estancamientos
+  plateauCard:     { backgroundColor: '#130d00', borderRadius: 12, borderWidth: 1, borderColor: '#4a3200', padding: 14, marginTop: 10 },
+  plateauHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  plateauTitle:    { color: C.tertiary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  plateauRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
+  plateauExercise: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+  plateauMeta:     { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
   // Form
   formCard:      { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },

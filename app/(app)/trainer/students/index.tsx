@@ -30,6 +30,12 @@ const C = {
   green:      '#4ade80',
 };
 
+const INACTIVITY_THRESHOLD_DAYS = 7;
+
+function daysSince(dateStr: string): number {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export default function StudentsListScreen() {
   const { user } = useAuth();
   const [students, setStudents] = useState<TrainerStudent[]>([]);
@@ -127,18 +133,24 @@ export default function StudentsListScreen() {
                     <Text style={s.tagText}>{st.discipline.toUpperCase()}</Text>
                   </View>
                 </View>
-                <View style={s.lastSessionRow}>
-                  <Ionicons
-                    name={st.last_session_at ? 'time-outline' : 'moon-outline'}
-                    size={11}
-                    color={st.last_session_at ? C.green : C.neutral}
-                  />
-                  <Text style={[s.lastSession, st.last_session_at && { color: C.green }]}>
-                    {st.last_session_at
-                      ? `Entrenó ${formatRelativeDate(st.last_session_at).toLowerCase()}`
-                      : 'Sin entrenamientos todavía'}
-                  </Text>
-                </View>
+                {(() => {
+                  const inactive = st.last_session_at && daysSince(st.last_session_at) >= INACTIVITY_THRESHOLD_DAYS;
+                  const color = !st.last_session_at ? C.neutral : inactive ? C.tertiary : C.green;
+                  return (
+                    <View style={s.lastSessionRow}>
+                      <Ionicons
+                        name={!st.last_session_at ? 'moon-outline' : inactive ? 'alert-circle-outline' : 'time-outline'}
+                        size={11}
+                        color={color}
+                      />
+                      <Text style={[s.lastSession, { color }]}>
+                        {st.last_session_at
+                          ? `Entrenó ${formatRelativeDate(st.last_session_at).toLowerCase()}`
+                          : 'Sin entrenamientos todavía'}
+                      </Text>
+                    </View>
+                  );
+                })()}
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.neutral} />
             </TouchableOpacity>

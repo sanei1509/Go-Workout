@@ -419,6 +419,128 @@ export async function getWeeklySessionsBars(
   }
 }
 
+// ── Seguimiento para el entrenador ────────────────────────────────────────────
+
+export interface AdherenceStats {
+  expectedSessions: number;
+  completedSessions: number;
+  adherenceRate: number; // 0-100
+}
+
+/**
+ * Adherencia de un plan: sesiones completadas vs esperadas según
+ * training_days, en las últimas `weeksBack` semanas.
+ */
+export async function getAdherenceRate(
+  userId: string,
+  planId: string,
+  weeksBack = 4
+): Promise<{ stats: AdherenceStats | null; error: Error | null }> {
+  try {
+    const { data: plan, error: planError } = await supabase
+      .from('plans')
+      .select('training_days')
+      .eq('id', planId)
+      .single();
+    if (planError) return { stats: null, error: new Error(planError.message) };
+
+    const trainingDays = plan?.training_days as number[] | null;
+    if (!trainingDays || trainingDays.length === 0) return { stats: null, error: null };
+
+    const expectedSessions = trainingDays.length * weeksBack;
+
+    const { data: routines, error: routinesError } = await supabase
+      .from('routines')
+      .select('id')
+      .eq('plan_id', planId);
+    if (routinesError) return { stats: null, error: new Error(routinesError.message) };
+
+    const routineIds = (routines ?? []).map((r) => r.id);
+    if (routineIds.length === 0) {
+      return { stats: { expectedSessions, completedSessions: 0, adherenceRate: 0 }, error: null };
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeksBack * 7);
+
+    const { count, error: countError } = await supabase
+      .from('workout_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('routine_id', routineIds)
+      .not('finished_at', 'is', null)
+      .gte('started_at', cutoff.toISOString());
+    if (countError) return { stats: null, error: new Error(countError.message) };
+
+    const completedSessions = count ?? 0;
+    const adherenceRate = Math.min(100, Math.round((completedSessions / expectedSessions) * 100));
+
+    return { stats: { expectedSessions, completedSessions, adherenceRate }, error: null };
+  } catch {
+    return { stats: null, error: new Error('Error al calcular adherencia') };
+  }
+}
+
+export interface PlateauFlag {
+  exercise_name: string;
+  sessionsSincePR: number;
+  lastPrAt: string;
+}
+
+/**
+ * Ejercicios sin mejora reciente: el mejor registro (por rankScore/1RM
+ * estimado) quedó fuera de las últimas `minSessions` veces que se hizo
+ * ese ejercicio.
+ */
+export async function detectPlateaus(
+  userId: string,
+  minSessions = 3
+): Promise<{ plateaus: PlateauFlag[]; error: Error | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select(`
+        actual_value,
+        actual_weight_kg,
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
+        workout_sessions!inner ( started_at, user_id )
+      `)
+      .eq('workout_sessions.user_id', userId)
+      .not('actual_value', 'is', null);
+
+    if (error) return { plateaus: [], error: new Error(error.message) };
+
+    const byExercise = new Map<string, { date: string; score: number }[]>();
+    for (const row of (data ?? []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
+      const name: string = row.block_exercises.name;
+      const score = rankScore(row.block_exercises.exercise_type, row.actual_value, row.actual_weight_kg);
+      if (!byExercise.has(name)) byExercise.set(name, []);
+      byExercise.get(name)!.push({ date: row.workout_sessions.started_at, score });
+    }
+
+    const plateaus: PlateauFlag[] = [];
+    for (const [name, entries] of byExercise) {
+      if (entries.length < minSessions) continue;
+      entries.sort((a, b) => a.date.localeCompare(b.date));
+
+      let bestIdx = 0;
+      for (let i = 1; i < entries.length; i++) {
+        if (entries[i].score > entries[bestIdx].score) bestIdx = i;
+      }
+
+      const sessionsSincePR = entries.length - 1 - bestIdx;
+      if (sessionsSincePR >= minSessions) {
+        plateaus.push({ exercise_name: name, sessionsSincePR, lastPrAt: entries[bestIdx].date });
+      }
+    }
+
+    return { plateaus, error: null };
+  } catch {
+    return { plateaus: [], error: new Error('Error al detectar estancamientos') };
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getISOWeek(date: Date): number {

@@ -389,10 +389,16 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
           {plans.filter(p => p.is_active).map((plan, idx, arr) => (
             <TouchableOpacity key={plan.id} onPress={() => handleOpenPlan(plan.id)} activeOpacity={0.85}>
               <View style={[s.planListItem, idx < arr.length - 1 && s.planListSep]}>
-                <View style={s.planListAccent} />
+                <View style={[s.planListAccent, plan.trainer_id != null && { backgroundColor: C.tertiary }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.planListName}>{plan.name.toUpperCase()}</Text>
                   <Text style={s.planListMeta}>{plan.discipline} · {getFrequencyLabel(plan.weekly_frequency)}</Text>
+                  {plan.trainer_id != null && (
+                    <View style={s.planTrainerChip}>
+                      <Ionicons name="person-outline" size={9} color={C.tertiary} />
+                      <Text style={s.planTrainerChipText}>DE TU ENTRENADOR</Text>
+                    </View>
+                  )}
                 </View>
                 <Ionicons name="chevron-forward" size={14} color={C.secondary} />
               </View>
@@ -857,6 +863,8 @@ const s = StyleSheet.create({
   planListAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.primary },
   planListName:   { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
   planListMeta:   { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  planTrainerChip:     { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
+  planTrainerChipText: { color: C.tertiary, fontSize: 7, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
 
   // Challenge achievement chips (horizontal scroll)
   chCard:     { width: 160, height: 178, borderRadius: 16, borderWidth: 1, padding: 16, overflow: 'hidden', justifyContent: 'flex-start' },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,21 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Modal,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useAlert } from '@/components/AppAlert';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
-import { createPlan, getUserPlans, updatePlan, DISCIPLINES, FREQUENCIES } from '@/lib/services/planService';
+import {
+  createPlan,
+  getPlansAssignedByTrainer,
+  FREQUENCIES,
+} from '@/lib/services/planService';
+import { getProfile } from '@/lib/services/profileService';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -55,28 +59,40 @@ const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-interface ConflictModal {
-  visible: boolean;
-  discipline: string;
-  existingName: string;
-  existingId: string;
-}
-
-export default function CreatePlanScreen() {
-  const { user } = useAuth();
+export default function AssignPlanScreen() {
+  const { id: studentId } = useLocalSearchParams<{ id: string }>();
+  const { user, profile } = useAuth();
   const { showAlert } = useAlert();
+
+  const [studentName, setStudentName] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName]             = useState('');
   const [discipline, setDiscipline] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [step, setStep]             = useState(1);
-  const [conflict, setConflict] = useState<ConflictModal>({
-    visible: false, discipline: '', existingName: '', existingId: '',
-  });
+
+  // Disciplinas del entrenador acotan el paso 2. Si tiene una sola, se saltea.
+  const trainerDisciplines = profile?.disciplines ?? [];
+  const skipDisciplineStep = trainerDisciplines.length === 1;
+
+  useEffect(() => {
+    if (studentId) {
+      getProfile(studentId).then(({ profile: p }) => {
+        setStudentName(p?.full_name || p?.email?.split('@')[0] || 'tu alumno');
+      });
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    if (skipDisciplineStep && !discipline) {
+      setDiscipline(trainerDisciplines[0]);
+    }
+  }, [skipDisciplineStep, discipline, trainerDisciplines]);
 
   const handleGoBack = () => {
-    if (step > 1) setStep(step - 1);
-    else router.navigate('/student');
+    if (step === 3 && skipDisciplineStep) setStep(1);
+    else if (step > 1) setStep(step - 1);
+    else router.navigate(`/trainer/students/${studentId}`);
   };
 
   const canProceed = () => {
@@ -87,41 +103,27 @@ export default function CreatePlanScreen() {
   };
 
   const handleNext = () => {
-    if (step < TOTAL_STEPS) setStep(step + 1);
+    if (step === 1) setStep(skipDisciplineStep ? 3 : 2);
+    else if (step < TOTAL_STEPS) setStep(step + 1);
     else handleSubmit();
   };
 
   const handleSelectDiscipline = async (d: string) => {
     setDiscipline(d);
 
-    if (user?.id) {
-      const { plans } = await getUserPlans(user.id);
-      // Solo planes propios: los asignados por un entrenador no se pueden desactivar
-      const existing = plans.find(p => p.discipline === d && !p.trainer_id);
-
+    // Aviso suave (no bloqueante) si ya le asignó un plan de esta disciplina
+    if (user?.id && studentId) {
+      const { plans } = await getPlansAssignedByTrainer(user.id, studentId);
+      const existing = plans.find((p) => p.discipline === d);
       if (existing) {
-        setConflict({ visible: true, discipline: d, existingName: existing.name, existingId: existing.id });
-        return;
+        showAlert(
+          'Ya tiene un plan de ' + d,
+          `Le asignaste "${existing.name}" de esta disciplina. Podés crear otro igual.`
+        );
       }
     }
 
     setTimeout(() => setStep(3), 200);
-  };
-
-  const handleConflictModify = () => {
-    setConflict(c => ({ ...c, visible: false }));
-    router.replace(`/student/plan/${conflict.existingId}` as any);
-  };
-
-  const handleConflictReplace = async () => {
-    setConflict(c => ({ ...c, visible: false }));
-    await updatePlan(conflict.existingId, { is_active: false });
-    setTimeout(() => setStep(3), 200);
-  };
-
-  const handleConflictCancel = () => {
-    setConflict(c => ({ ...c, visible: false }));
-    setDiscipline(null);
   };
 
   const handleToggleDay = (day: number) => {
@@ -131,33 +133,27 @@ export default function CreatePlanScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!user?.id || !discipline || selectedDays.length === 0) return;
+    if (!user?.id || !studentId || !discipline || selectedDays.length === 0) return;
     setIsSubmitting(true);
     const sorted = [...selectedDays].sort((a, b) => a - b);
-    const { plan, error } = await createPlan(user.id, {
+    const { plan, error } = await createPlan(studentId, {
       name: name.trim(),
       discipline,
       weekly_frequency: selectedDays.length,
       training_days: sorted,
+      trainer_id: user.id,
     });
     setIsSubmitting(false);
     if (error) {
       showAlert('Error', error.message);
       return;
     }
-    router.replace(`/student/plan/${plan?.id}`);
+    router.replace(`/trainer/plan/${plan?.id}`);
   };
 
   return (
     <>
-      <Stack.Screen options={{
-        title: '',
-        headerLeft: () => (
-          <TouchableOpacity onPress={handleGoBack} style={{ marginLeft: 4, padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
-          </TouchableOpacity>
-        ),
-      }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAvoidingView
         style={s.safe}
@@ -169,11 +165,23 @@ export default function CreatePlanScreen() {
           style={s.topLine}
         />
 
+        {/* ── Top bar custom (headerShown false) ────────────── */}
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={handleGoBack} style={{ padding: 4 }}>
+            <Ionicons name="chevron-back" size={24} color={C.primary} />
+          </TouchableOpacity>
+          <View style={s.forBadge}>
+            <Ionicons name="person-outline" size={11} color={C.tertiary} />
+            <Text style={s.forBadgeText}>PARA {studentName.toUpperCase()}</Text>
+          </View>
+          <View style={{ width: 32 }} />
+        </View>
+
         {/* ── Steps indicator ──────────────────────────────── */}
         <View style={s.stepsRow}>
           {Array.from({ length: TOTAL_STEPS }, (_, i) => {
             const n      = i + 1;
-            const done   = n < step;
+            const done   = n < step || (n === 2 && skipDisciplineStep && step === 3);
             const active = n === step;
             return (
               <View key={n} style={s.stepItem}>
@@ -198,12 +206,19 @@ export default function CreatePlanScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {step === 1 && <Step1 name={name} setName={setName} />}
-          {step === 2 && <Step2 discipline={discipline} onSelect={handleSelectDiscipline} />}
+          {step === 1 && <Step1 name={name} setName={setName} studentName={studentName} />}
+          {step === 2 && (
+            <Step2
+              discipline={discipline}
+              options={trainerDisciplines}
+              onSelect={handleSelectDiscipline}
+            />
+          )}
           {step === 3 && (
             <Step3
               name={name}
               discipline={discipline!}
+              studentName={studentName}
               selectedDays={selectedDays}
               onToggleDay={handleToggleDay}
             />
@@ -226,7 +241,7 @@ export default function CreatePlanScreen() {
                   style={s.ctaGrad}
                 >
                   <Text style={s.ctaText}>
-                    {step === TOTAL_STEPS ? 'CREAR PLAN' : 'CONTINUAR'}
+                    {step === TOTAL_STEPS ? 'ASIGNAR PLAN' : 'CONTINUAR'}
                   </Text>
                   <Ionicons
                     name={step === TOTAL_STEPS ? 'checkmark-circle-outline' : 'arrow-forward'}
@@ -239,7 +254,7 @@ export default function CreatePlanScreen() {
                   {isSubmitting
                     ? <ActivityIndicator color={C.primary} />
                     : <Text style={[s.ctaText, { color: C.neutral }]}>
-                        {step === TOTAL_STEPS ? 'CREAR PLAN' : 'CONTINUAR'}
+                        {step === TOTAL_STEPS ? 'ASIGNAR PLAN' : 'CONTINUAR'}
                       </Text>
                   }
                 </View>
@@ -248,57 +263,25 @@ export default function CreatePlanScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-
-      {/* ── Conflict Modal ───────────────────────────────────── */}
-      <Modal visible={conflict.visible} transparent animationType="fade">
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <LinearGradient
-              colors={['transparent', C.tertiary, 'transparent']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={s.modalTopLine}
-            />
-            <View style={s.modalIconWrap}>
-              <Ionicons name="warning-outline" size={28} color={C.tertiary} />
-            </View>
-            <Text style={s.modalTitle}>Plan activo en {conflict.discipline}</Text>
-            <Text style={s.modalDesc}>
-              Ya tenés <Text style={s.modalHighlight}>"{conflict.existingName}"</Text> activo.{'\n'}¿Qué querés hacer?
-            </Text>
-
-            <TouchableOpacity onPress={handleConflictModify} activeOpacity={0.85} style={s.modalBtnPrimary}>
-              <Ionicons name="create-outline" size={18} color={C.primary} />
-              <Text style={s.modalBtnPrimaryText}>MODIFICAR EL EXISTENTE</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleConflictReplace} activeOpacity={0.85} style={s.modalBtnDanger}>
-              <Ionicons name="swap-horizontal-outline" size={18} color="#ff6b6b" />
-              <Text style={s.modalBtnDangerText}>DESACTIVAR Y CREAR NUEVO</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleConflictCancel} activeOpacity={0.7} style={s.modalBtnCancel}>
-              <Text style={s.modalBtnCancelText}>CANCELAR</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
 
 // ─── Step 1: Nombre ───────────────────────────────────────────────────────────
 
-function Step1({ name, setName }: { name: string; setName: (v: string) => void }) {
+function Step1({ name, setName, studentName }: {
+  name: string; setName: (v: string) => void; studentName: string;
+}) {
   return (
     <View>
-      <Text style={s.stepTitle}>¿Cómo se llama{'\n'}tu plan?</Text>
-      <Text style={s.stepSub}>Dale un nombre que te ayude a identificarlo</Text>
+      <Text style={s.stepTitle}>¿Cómo se llama{'\n'}el plan?</Text>
+      <Text style={s.stepSub}>Un nombre claro ayuda a {studentName} a identificarlo</Text>
 
       <View style={s.inputWrap}>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Ej: Rutina de fuerza..."
+          placeholder="Ej: Hipertrofia 4 días..."
           placeholderTextColor={C.neutral}
           style={s.input}
           autoFocus
@@ -311,16 +294,18 @@ function Step1({ name, setName }: { name: string; setName: (v: string) => void }
   );
 }
 
-// ─── Step 2: Disciplina ───────────────────────────────────────────────────────
+// ─── Step 2: Disciplina (acotada a las del entrenador) ───────────────────────
 
-function Step2({ discipline, onSelect }: { discipline: string | null; onSelect: (d: string) => void }) {
+function Step2({ discipline, options, onSelect }: {
+  discipline: string | null; options: string[]; onSelect: (d: string) => void;
+}) {
   return (
     <View>
-      <Text style={s.stepTitle}>¿Qué disciplina{'\n'}vas a entrenar?</Text>
-      <Text style={s.stepSub}>Tocá una para continuar</Text>
+      <Text style={s.stepTitle}>¿Qué disciplina{'\n'}va a entrenar?</Text>
+      <Text style={s.stepSub}>Tus disciplinas declaradas · Tocá una para continuar</Text>
 
       <View style={s.disciplineGrid}>
-        {DISCIPLINES.map((d) => {
+        {options.map((d) => {
           const active = discipline === d;
           return (
             <TouchableOpacity
@@ -344,12 +329,13 @@ function Step2({ discipline, onSelect }: { discipline: string | null; onSelect: 
   );
 }
 
-// ─── Step 3: Frecuencia ───────────────────────────────────────────────────────
+// ─── Step 3: Días ─────────────────────────────────────────────────────────────
 
 function Step3({
-  name, discipline, selectedDays, onToggleDay,
+  name, discipline, studentName, selectedDays, onToggleDay,
 }: {
-  name: string; discipline: string; selectedDays: number[]; onToggleDay: (day: number) => void;
+  name: string; discipline: string; studentName: string;
+  selectedDays: number[]; onToggleDay: (day: number) => void;
 }) {
   const count = selectedDays.length;
   const freqLabel = count > 0
@@ -358,17 +344,17 @@ function Step3({
 
   return (
     <View>
-      <Text style={s.stepTitle}>¿Qué días{'\n'}entrenás?</Text>
+      <Text style={s.stepTitle}>¿Qué días{'\n'}entrena?</Text>
       <Text style={s.stepSub}>Seleccioná uno o varios días</Text>
 
       {/* Resumen */}
       <View style={s.summaryCard}>
-        <Text style={s.summaryLabel}>PLAN</Text>
+        <Text style={s.summaryLabel}>PLAN PARA {studentName.toUpperCase()}</Text>
         <Text style={s.summaryName}>{name}</Text>
         <Text style={s.summaryDiscipline}>{discipline}</Text>
       </View>
 
-      {/* Selector de días independiente */}
+      {/* Selector de días */}
       <View style={s.daySelector}>
         <View style={s.dayDotsRow}>
           {DAY_LABELS.map((label, i) => {
@@ -395,7 +381,7 @@ function Step3({
             <Text style={s.freqResultText}>{freqLabel}</Text>
           </View>
         ) : (
-          <Text style={s.freqHint}>Tocá los días que querés entrenar</Text>
+          <Text style={s.freqHint}>Tocá los días que va a entrenar</Text>
         )}
       </View>
     </View>
@@ -409,7 +395,14 @@ const s = StyleSheet.create({
   topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
   scroll:  { padding: 24, paddingBottom: 16 },
 
-  // ── Steps indicator (centrado con tamaños fijos) ──
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 56, paddingHorizontal: 16,
+  },
+  forBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
+  forBadgeText: { color: C.tertiary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+
+  // ── Steps indicator ──
   stepsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -458,21 +451,6 @@ const s = StyleSheet.create({
   freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
   freqResultText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
   freqHint:       { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
-
-  // ── Conflict Modal ──
-  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalCard:          { width: '100%', backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24 },
-  modalTopLine:       { height: 2, opacity: 0.7, marginBottom: 24 },
-  modalIconWrap:      { width: 52, height: 52, borderRadius: 26, backgroundColor: '#2a1f00', borderWidth: 1, borderColor: C.tertiary, alignItems: 'center', justifyContent: 'center', marginBottom: 16, alignSelf: 'center' },
-  modalTitle:         { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 10 },
-  modalDesc:          { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  modalHighlight:     { color: C.textHi, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  modalBtnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primaryDim, borderRadius: 10, paddingVertical: 14, marginBottom: 10 },
-  modalBtnPrimaryText:{ color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  modalBtnDanger:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2a0f0f', borderRadius: 10, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: '#ff6b6b40' },
-  modalBtnDangerText: { color: '#ff6b6b', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  modalBtnCancel:     { alignItems: 'center', paddingVertical: 12 },
-  modalBtnCancelText: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
   // ── Footer ──
   footer:         { padding: 20, paddingBottom: 32 },

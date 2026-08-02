@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   getRoutinesByPlan,
   Routine,
 } from '@/lib/services/routineService';
+import { getProfile } from '@/lib/services/profileService';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -39,11 +40,12 @@ const C = {
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-export default function PlanDetailScreen() {
+export default function TrainerPlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { showAlert } = useAlert();
   const [plan, setPlan]         = useState<Plan | null>(null);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [studentName, setStudentName] = useState<string>('');
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -54,7 +56,6 @@ export default function PlanDetailScreen() {
 
   const loadData = async () => {
     if (!id) return;
-    setIsLoading(true);
     const [planResult, routinesResult] = await Promise.all([
       getPlanById(id),
       getRoutinesByPlan(id),
@@ -63,6 +64,10 @@ export default function PlanDetailScreen() {
       setError(planResult.error.message);
     } else {
       setPlan(planResult.plan);
+      if (planResult.plan) {
+        const { profile } = await getProfile(planResult.plan.user_id);
+        setStudentName(profile?.full_name || profile?.email?.split('@')[0] || 'Alumno');
+      }
     }
     setRoutines(routinesResult.routines);
     setIsLoading(false);
@@ -74,10 +79,15 @@ export default function PlanDetailScreen() {
     setIsRefreshing(false);
   };
 
+  const backToStudent = () => {
+    if (plan?.user_id) router.navigate(`/trainer/students/${plan.user_id}`);
+    else router.navigate('/trainer/students');
+  };
+
   const handleDelete = () => {
     showAlert(
       'Eliminar plan',
-      '¿Seguro que querés eliminar este plan? Esta acción no se puede deshacer.',
+      `¿Seguro que querés eliminar este plan de ${studentName}? Esta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -88,7 +98,7 @@ export default function PlanDetailScreen() {
             if (err || !success) {
               showAlert('Error', err?.message || 'No se pudo eliminar el plan');
             } else {
-              router.navigate('/student');
+              backToStudent();
             }
           },
         },
@@ -97,11 +107,11 @@ export default function PlanDetailScreen() {
   };
 
   const handleAddRoutine = () => {
-    router.push(`/student/routine/create?planId=${id}`);
+    router.push(`/trainer/routine/create?planId=${id}`);
   };
 
   const handleOpenRoutine = (routineId: string) => {
-    router.push(`/student/routine/${routineId}`);
+    router.push(`/trainer/routine/${routineId}`);
   };
 
   return (
@@ -109,17 +119,14 @@ export default function PlanDetailScreen() {
       <Stack.Screen options={{
         title: plan?.name ?? 'PLAN',
         headerLeft: () => (
-          <TouchableOpacity onPress={() => router.navigate('/student')} style={{ marginLeft: 4, padding: 4 }}>
+          <TouchableOpacity onPress={backToStudent} style={{ marginLeft: 4, padding: 4 }}>
             <Ionicons name="chevron-back" size={24} color={C.primary} />
           </TouchableOpacity>
         ),
-        // Los planes asignados por un entrenador no se pueden eliminar desde acá
         headerRight: () => (
-          plan && !plan.trainer_id ? (
-            <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
-              <Ionicons name="trash-outline" size={20} color="#f87171" />
-            </TouchableOpacity>
-          ) : null
+          <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
+            <Ionicons name="trash-outline" size={20} color="#f87171" />
+          </TouchableOpacity>
         ),
       }} />
 
@@ -138,7 +145,7 @@ export default function PlanDetailScreen() {
           <View style={s.center}>
             <Ionicons name="alert-circle-outline" size={48} color="#f87171" />
             <Text style={s.errorText}>{error ?? 'Plan no encontrado'}</Text>
-            <TouchableOpacity onPress={() => router.navigate('/student')} style={s.errorBtn}>
+            <TouchableOpacity onPress={() => router.navigate('/trainer/students')} style={s.errorBtn}>
               <Text style={s.errorBtnText}>VOLVER</Text>
             </TouchableOpacity>
           </View>
@@ -157,12 +164,10 @@ export default function PlanDetailScreen() {
               <View style={s.heroInfo}>
                 <Text style={s.heroName}>{plan.name}</Text>
                 <Text style={s.heroDiscipline}>{plan.discipline}</Text>
-                {plan.trainer_id != null && (
-                  <View style={s.assignedBadge}>
-                    <Ionicons name="person-outline" size={10} color={C.tertiary} />
-                    <Text style={s.assignedText}>PLAN DE TU ENTRENADOR</Text>
-                  </View>
-                )}
+                <View style={s.assignedBadge}>
+                  <Ionicons name="person-outline" size={10} color={C.tertiary} />
+                  <Text style={s.assignedText}>ASIGNADO A {studentName.toUpperCase()}</Text>
+                </View>
               </View>
             </View>
 
@@ -197,7 +202,7 @@ export default function PlanDetailScreen() {
             {/* ── Rutinas ────────────────────────────────── */}
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>RUTINAS</Text>
-              {routines.length > 0 && !plan.trainer_id && (
+              {routines.length > 0 && (
                 <TouchableOpacity onPress={handleAddRoutine} activeOpacity={0.8} style={s.addBtn}>
                   <Ionicons name="add" size={16} color={C.primary} />
                   <Text style={s.addBtnText}>AGREGAR</Text>
@@ -206,22 +211,10 @@ export default function PlanDetailScreen() {
             </View>
 
             {routines.length === 0 ? (
-              plan.trainer_id ? (
-                <View style={s.emptyCard}>
-                  <View style={s.emptyIconWrap}>
-                    <Ionicons name="hourglass-outline" size={36} color={C.neutral} />
-                  </View>
-                  <Text style={s.emptyTitle}>Rutinas en camino</Text>
-                  <Text style={s.emptyText}>
-                    Tu entrenador todavía no cargó rutinas en este plan.{'\n'}Te van a aparecer acá cuando las asigne.
-                  </Text>
-                </View>
-              ) : (
-                <EmptyRoutines onAdd={handleAddRoutine} frequency={plan.weekly_frequency} />
-              )
+              <EmptyRoutines onAdd={handleAddRoutine} frequency={plan.weekly_frequency} studentName={studentName} />
             ) : (
               <View style={s.routineList}>
-                {routines.map((routine, idx) => (
+                {routines.map((routine) => (
                   <TouchableOpacity
                     key={routine.id}
                     onPress={() => handleOpenRoutine(routine.id)}
@@ -249,7 +242,9 @@ export default function PlanDetailScreen() {
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
-function EmptyRoutines({ onAdd, frequency }: { onAdd: () => void; frequency: number }) {
+function EmptyRoutines({ onAdd, frequency, studentName }: {
+  onAdd: () => void; frequency: number; studentName: string;
+}) {
   return (
     <View style={s.emptyCard}>
       <View style={s.emptyIconWrap}>
@@ -258,7 +253,7 @@ function EmptyRoutines({ onAdd, frequency }: { onAdd: () => void; frequency: num
       <Text style={s.emptyTitle}>Sin rutinas todavía</Text>
       <Text style={s.emptyText}>
         Creá una rutina para cada día de entrenamiento.{'\n'}
-        Tu plan tiene {frequency} día{frequency !== 1 ? 's' : ''} por semana.
+        El plan de {studentName} tiene {frequency} día{frequency !== 1 ? 's' : ''} por semana.
       </Text>
 
       <TouchableOpacity onPress={onAdd} activeOpacity={0.85} style={s.emptyBtn}>
@@ -273,9 +268,9 @@ function EmptyRoutines({ onAdd, frequency }: { onAdd: () => void; frequency: num
       </TouchableOpacity>
 
       <View style={s.tipCard}>
-        <Ionicons name="bulb-outline" size={16} color={C.tertiary} />
+        <Ionicons name="sparkles-outline" size={16} color="#a78bfa" />
         <Text style={s.tipText}>
-          Ejemplo: "Día 1 — Pecho y Tríceps", "Día 2 — Espalda y Bíceps"
+          Dentro de cada rutina podés generar un borrador con IA a partir del perfil del alumno.
         </Text>
       </View>
     </View>
@@ -299,8 +294,8 @@ const s = StyleSheet.create({
   heroIcon:       { width: 52, height: 52, borderRadius: 12, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   heroInfo:       { flex: 1 },
   heroName:       { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
-  heroDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  assignedBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 7, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
+  heroDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 7 },
+  assignedBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
   assignedText:   { color: C.tertiary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
 
   // Stats

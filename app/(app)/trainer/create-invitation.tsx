@@ -6,45 +6,40 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Switch,
   Keyboard,
+  Switch,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { useAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/components/AppAlert';
 import {
   createInvitation,
   findStudentByEmail,
   FormField,
   FORM_FIELD_LABELS,
 } from '@/lib/services/invitationService';
+import { DISCIPLINES } from '@/lib/constants/disciplines';
 
-const DISCIPLINES = [
-  'Musculación',
-  'Crossfit',
-  'Calistenia',
-  'Funcional',
-  'Running',
-  'Natación',
-  'Yoga',
-  'Pilates',
-  'Boxeo',
-  'Artes Marciales',
-  'Otro',
-];
-
-const AVAILABLE_FORM_FIELDS: FormField[] = [
-  'age',
-  'weight',
-  'height',
-  'injuries',
-  'diseases',
-  'goals',
-  'experience',
-];
+const C = {
+  bg:         '#090f12',
+  card:       '#141c1f',
+  cardDeep:   '#1a2123',
+  border:     '#3c494e',
+  primary:    '#00D1FF',
+  primaryDim: '#00566a',
+  tertiary:   '#FEB127',
+  neutral:    '#71787B',
+  textHi:     '#dde3e7',
+  textLo:     '#859399',
+  green:      '#4ade80',
+  red:        '#f87171',
+};
 
 const PLAN_TYPES = [
   'Personalizado',
@@ -64,11 +59,27 @@ const FREQUENCIES = [
   'Todos los días',
 ];
 
+const AVAILABLE_FORM_FIELDS: FormField[] = [
+  'age',
+  'weight',
+  'height',
+  'injuries',
+  'diseases',
+  'goals',
+  'experience',
+];
+
 export default function CreateInvitationScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { showAlert } = useAlert();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Disciplinas del trainer acotan las opciones; si no declaró, lista completa.
+  const disciplineOptions =
+    profile?.disciplines && profile.disciplines.length > 0
+      ? profile.disciplines
+      : [...DISCIPLINES];
 
   // Form state
   const [studentEmail, setStudentEmail] = useState('');
@@ -79,7 +90,7 @@ export default function CreateInvitationScreen() {
   } | null>(null);
   const [studentError, setStudentError] = useState<string | null>(null);
 
-  const [discipline, setDiscipline] = useState<string>(DISCIPLINES[0]);
+  const [discipline, setDiscipline] = useState<string>(disciplineOptions[0]);
   const [planType, setPlanType] = useState<string>(PLAN_TYPES[0]);
   const [frequency, setFrequency] = useState<string>(FREQUENCIES[2]);
   const [termsText, setTermsText] = useState<string>('');
@@ -169,7 +180,7 @@ export default function CreateInvitationScreen() {
 
     setIsSubmitting(true);
 
-    const { invitation, error } = await createInvitation({
+    const { error } = await createInvitation({
       trainer_id: user.id,
       student_id: foundStudent.id,
       discipline,
@@ -200,228 +211,266 @@ export default function CreateInvitationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={handleGoBack} className="p-2 -ml-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
+    <SafeAreaView style={s.safe}>
+      <LinearGradient
+        colors={['transparent', C.primary, 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={s.topLine}
+      />
+
+      {/* ── Top bar ────────────────────────────────────────────────── */}
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={handleGoBack} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={24} color={C.primary} />
         </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900 ml-2">
-          Nueva invitación
-        </Text>
+        <Text style={s.topBarTitle}>Nueva invitación</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-        {/* Búsqueda de alumno */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <Text className="text-gray-500 text-sm mb-2">Email del alumno *</Text>
-
-          {foundStudent ? (
-            // Alumno encontrado
-            <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1">
-                  <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center mr-3">
-                    <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-green-800 font-semibold">
-                      {foundStudent.full_name}
-                    </Text>
-                    <Text className="text-green-600 text-sm">
-                      {foundStudent.email}
-                    </Text>
-                  </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Alumno ─────────────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>ALUMNO</Text>
+          <View style={s.card}>
+            {foundStudent ? (
+              <View style={s.foundRow}>
+                <View style={s.foundIcon}>
+                  <Ionicons name="checkmark" size={18} color={C.green} />
                 </View>
-                <TouchableOpacity
-                  onPress={handleClearStudent}
-                  className="p-2"
-                >
-                  <Ionicons name="close-circle" size={24} color="#6B7280" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.foundName}>{foundStudent.full_name}</Text>
+                  <Text style={s.foundEmail}>{foundStudent.email}</Text>
+                </View>
+                <TouchableOpacity onPress={handleClearStudent} style={s.clearBtn}>
+                  <Ionicons name="close" size={16} color={C.neutral} />
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
-            // Campo de búsqueda
-            <>
-              <View className="flex-row">
-                <TextInput
-                  value={studentEmail}
-                  onChangeText={(text) => {
-                    setStudentEmail(text);
-                    setStudentError(null);
-                  }}
-                  placeholder="alumno@email.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  className="flex-1 border border-gray-200 rounded-l-lg px-4 py-3 text-gray-900"
-                  editable={!isSearching}
-                />
-                <TouchableOpacity
-                  onPress={handleSearchStudent}
-                  disabled={isSearching}
-                  className={`px-4 rounded-r-lg items-center justify-center ${
-                    isSearching ? 'bg-blue-300' : 'bg-blue-500'
-                  }`}
-                >
-                  {isSearching ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <Ionicons name="search" size={20} color="white" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {studentError && (
-                <View className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 flex-row items-center">
-                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                  <Text className="text-red-700 ml-2 flex-1">{studentError}</Text>
+            ) : (
+              <>
+                <View style={s.searchRow}>
+                  <TextInput
+                    value={studentEmail}
+                    onChangeText={setStudentEmail}
+                    placeholder="email@delalumno.com"
+                    placeholderTextColor={C.neutral}
+                    style={s.searchInput}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    returnKeyType="search"
+                    onSubmitEditing={handleSearchStudent}
+                  />
+                  <TouchableOpacity
+                    onPress={handleSearchStudent}
+                    disabled={isSearching}
+                    style={s.searchBtn}
+                    activeOpacity={0.85}
+                  >
+                    {isSearching
+                      ? <ActivityIndicator size="small" color={C.primary} />
+                      : <Ionicons name="search" size={18} color={C.primary} />
+                    }
+                  </TouchableOpacity>
                 </View>
-              )}
-
-              <Text className="text-gray-400 text-xs mt-2">
-                El alumno debe estar registrado en la app para poder invitarlo
-              </Text>
-            </>
-          )}
-        </View>
-
-        {/* Disciplina */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <Text className="text-gray-500 text-sm mb-2">Disciplina *</Text>
-          <View className="border border-gray-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={discipline}
-              onValueChange={setDiscipline}
-            >
-              {DISCIPLINES.map((d) => (
-                <Picker.Item key={d} label={d} value={d} />
-              ))}
-            </Picker>
+                {studentError && (
+                  <View style={s.errorRow}>
+                    <Ionicons name="alert-circle-outline" size={13} color={C.red} />
+                    <Text style={s.errorText}>{studentError}</Text>
+                  </View>
+                )}
+              </>
+            )}
           </View>
-        </View>
 
-        {/* Tipo de plan */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <Text className="text-gray-500 text-sm mb-2">Tipo de plan *</Text>
-          <View className="border border-gray-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={planType}
-              onValueChange={setPlanType}
-            >
-              {PLAN_TYPES.map((p) => (
-                <Picker.Item key={p} label={p} value={p} />
-              ))}
-            </Picker>
+          {/* ── Disciplina ─────────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>DISCIPLINA</Text>
+          <View style={s.chipsWrap}>
+            {disciplineOptions.map((d) => {
+              const active = discipline === d;
+              return (
+                <TouchableOpacity
+                  key={d}
+                  onPress={() => setDiscipline(d)}
+                  style={[s.chip, active && s.chipActive]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, active && s.chipTextActive]}>{d}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
 
-        {/* Frecuencia */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <Text className="text-gray-500 text-sm mb-2">Frecuencia *</Text>
-          <View className="border border-gray-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={frequency}
-              onValueChange={setFrequency}
-            >
-              {FREQUENCIES.map((f) => (
-                <Picker.Item key={f} label={f} value={f} />
-              ))}
-            </Picker>
+          {/* ── Tipo de plan ───────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>TIPO DE PLAN</Text>
+          <View style={s.chipsWrap}>
+            {PLAN_TYPES.map((p) => {
+              const active = planType === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  onPress={() => setPlanType(p)}
+                  style={[s.chip, active && s.chipActive]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, active && s.chipTextActive]}>{p}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
 
-        {/* Términos y condiciones */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <Text className="text-gray-500 text-sm mb-2">
-            Términos y condiciones (opcional)
-          </Text>
-          <TextInput
-            value={termsText}
-            onChangeText={setTermsText}
-            placeholder="Escribí los términos que el alumno debe aceptar..."
-            multiline
-            numberOfLines={4}
-            className="border border-gray-200 rounded-lg p-3 text-gray-900 min-h-[100px]"
-            textAlignVertical="top"
-          />
-        </View>
+          {/* ── Frecuencia ─────────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>FRECUENCIA</Text>
+          <View style={s.chipsWrap}>
+            {FREQUENCIES.map((f) => {
+              const active = frequency === f;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setFrequency(f)}
+                  style={[s.chip, active && s.chipActive]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, active && s.chipTextActive]}>{f}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        {/* Formulario requerido */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1 mr-4">
-              <Text className="text-gray-900 font-medium">
-                Formulario requerido
-              </Text>
-              <Text className="text-gray-500 text-sm mt-1">
-                El alumno deberá completar un formulario al aceptar
+          {/* ── Términos ───────────────────────────────────────────── */}
+          <Text style={s.sectionTitle}>TÉRMINOS Y CONDICIONES (OPCIONAL)</Text>
+          <View style={s.card}>
+            <TextInput
+              value={termsText}
+              onChangeText={setTermsText}
+              placeholder="Condiciones del entrenamiento, pagos, cancelaciones..."
+              placeholderTextColor={C.neutral}
+              style={s.termsInput}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* ── Formulario requerido ───────────────────────────────── */}
+          <View style={s.formToggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.formToggleTitle}>Formulario inicial</Text>
+              <Text style={s.formToggleSub}>
+                Pedile datos al alumno al aceptar la invitación
               </Text>
             </View>
             <Switch
               value={hasRequiredForm}
               onValueChange={handleToggleRequiredForm}
-              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: C.cardDeep, true: C.primaryDim }}
+              thumbColor={hasRequiredForm ? C.primary : C.neutral}
             />
           </View>
 
-          {/* Selección de campos requeridos */}
           {hasRequiredForm && (
-            <View className="mt-4 pt-4 border-t border-gray-100">
-              <Text className="text-gray-700 font-medium mb-3">
-                Seleccioná los datos que necesitás:
-              </Text>
-              {AVAILABLE_FORM_FIELDS.map((field) => (
-                <TouchableOpacity
-                  key={field}
-                  onPress={() => toggleField(field)}
-                  className="flex-row items-center py-2"
-                >
-                  <View
-                    className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${
-                      requiredFields.includes(field)
-                        ? 'bg-blue-500 border-blue-500'
-                        : 'border-gray-300'
-                    }`}
+            <View style={s.chipsWrap}>
+              {AVAILABLE_FORM_FIELDS.map((f) => {
+                const active = requiredFields.includes(f);
+                return (
+                  <TouchableOpacity
+                    key={f}
+                    onPress={() => toggleField(f)}
+                    style={[s.chip, active && s.chipActiveTertiary]}
+                    activeOpacity={0.8}
                   >
-                    {requiredFields.includes(field) && (
-                      <Ionicons name="checkmark" size={16} color="white" />
-                    )}
-                  </View>
-                  <Text className="text-gray-800">
-                    {FORM_FIELD_LABELS[field]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    {active && <Ionicons name="checkmark" size={12} color={C.tertiary} />}
+                    <Text style={[s.chipText, active && { color: C.tertiary }]}>
+                      {FORM_FIELD_LABELS[f]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
+        </ScrollView>
+
+        {/* ── CTA ────────────────────────────────────────────────────── */}
+        <View style={s.footer}>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={isSubmitting || !foundStudent}
+            activeOpacity={0.85}
+            style={s.ctaBtn}
+          >
+            {foundStudent && !isSubmitting ? (
+              <LinearGradient
+                colors={[C.primaryDim, '#003d4d']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.ctaGrad}
+              >
+                <Ionicons name="paper-plane-outline" size={17} color={C.primary} />
+                <Text style={s.ctaText}>ENVIAR INVITACIÓN</Text>
+              </LinearGradient>
+            ) : (
+              <View style={[s.ctaGrad, { backgroundColor: C.cardDeep }]}>
+                {isSubmitting
+                  ? <ActivityIndicator color={C.primary} />
+                  : <Text style={[s.ctaText, { color: C.neutral }]}>ENVIAR INVITACIÓN</Text>
+                }
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-
-        {/* Botón de envío */}
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={isSubmitting || !foundStudent}
-          className={`py-4 rounded-xl flex-row items-center justify-center mt-4 ${
-            isSubmitting || !foundStudent ? 'bg-blue-300' : 'bg-blue-500'
-          }`}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Ionicons name="send" size={20} color="white" />
-              <Text className="text-white font-semibold text-lg ml-2">
-                Enviar invitación
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Espacio extra al final */}
-        <View className="h-8" />
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe:    { flex: 1, backgroundColor: C.bg },
+  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+
+  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  topBarTitle: { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
+
+  card: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+
+  // Búsqueda
+  searchRow:   { flexDirection: 'row', gap: 10 },
+  searchInput: { flex: 1, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
+  searchBtn:   { width: 46, borderRadius: 10, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
+  errorRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+  errorText:   { color: C.red, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Alumno encontrado
+  foundRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  foundIcon:  { width: 36, height: 36, borderRadius: 18, backgroundColor: '#0a1f10', borderWidth: 1, borderColor: C.green, alignItems: 'center', justifyContent: 'center' },
+  foundName:  { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+  foundEmail: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  clearBtn:   { width: 30, height: 30, borderRadius: 8, backgroundColor: C.cardDeep, alignItems: 'center', justifyContent: 'center' },
+
+  // Chips
+  chipsWrap:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:               { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  chipActive:         { backgroundColor: C.primaryDim, borderColor: C.primary },
+  chipActiveTertiary: { backgroundColor: '#130d00', borderColor: C.tertiary },
+  chipText:           { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+  chipTextActive:     { color: C.primary },
+
+  // Términos
+  termsInput: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', minHeight: 90, lineHeight: 19 },
+
+  // Toggle formulario
+  formToggleRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 24, marginBottom: 12 },
+  formToggleTitle: { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+  formToggleSub:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+
+  // Footer
+  footer:  { padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.bg },
+  ctaBtn:  { borderRadius: 12, overflow: 'hidden' },
+  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 15 },
+  ctaText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+});

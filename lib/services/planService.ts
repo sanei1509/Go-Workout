@@ -9,6 +9,9 @@ export interface Plan {
   weekly_frequency: number;
   training_days: number[] | null;  // [1,2,4] = lunes, martes, jueves
   is_active: boolean;
+  // Para planes de entrenador: false = borrador, invisible para el alumno
+  // (RLS lo exige). Los planes propios del alumno siempre son true.
+  is_published: boolean;
   created_at: string;
   updated_at: string;
   routines_count?: number;
@@ -121,6 +124,8 @@ export async function createPlan(
         weekly_frequency: data.weekly_frequency,
         training_days: data.training_days ?? null,
         trainer_id: data.trainer_id ?? null,
+        // Un plan de entrenador nace en borrador: se publica cuando tiene contenido.
+        is_published: !data.trainer_id,
       })
       .select()
       .single();
@@ -142,6 +147,51 @@ export async function createPlan(
       error: new Error('Error al crear el plan'),
     };
   }
+}
+
+// Un plan de entrenador solo puede publicarse si ya tiene contenido real:
+// al menos una rutina con al menos un ejercicio.
+export async function canPublishPlan(planId: string): Promise<{
+  canPublish: boolean;
+  error: Error | null;
+}> {
+  const { data: routines, error: routinesError } = await supabase
+    .from('routines')
+    .select('id')
+    .eq('plan_id', planId);
+
+  if (routinesError) return { canPublish: false, error: new Error(routinesError.message) };
+  if (!routines || routines.length === 0) return { canPublish: false, error: null };
+
+  const { count, error: countError } = await supabase
+    .from('block_exercises')
+    .select('id, routine_blocks!inner(routine_id)', { count: 'exact', head: true })
+    .in('routine_blocks.routine_id', routines.map((r) => r.id));
+
+  if (countError) return { canPublish: false, error: new Error(countError.message) };
+  return { canPublish: (count ?? 0) > 0, error: null };
+}
+
+export async function publishPlan(planId: string): Promise<{
+  success: boolean;
+  error: Error | null;
+}> {
+  const { canPublish, error: checkError } = await canPublishPlan(planId);
+  if (checkError) return { success: false, error: checkError };
+  if (!canPublish) {
+    return {
+      success: false,
+      error: new Error('Agregá al menos una rutina con ejercicios antes de publicar'),
+    };
+  }
+
+  const { error } = await supabase
+    .from('plans')
+    .update({ is_published: true, updated_at: new Date().toISOString() })
+    .eq('id', planId);
+
+  if (error) return { success: false, error: new Error(error.message) };
+  return { success: true, error: null };
 }
 
 export async function updatePlan(

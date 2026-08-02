@@ -242,7 +242,14 @@ export default function StudentDetailScreen() {
                   >
                     <View style={s.planAccent} />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.planName}>{p.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.planName}>{p.name}</Text>
+                        {!p.is_published && (
+                          <View style={s.draftTag}>
+                            <Text style={s.draftTagText}>BORRADOR</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={s.planMeta}>
                         {p.discipline} · {p.weekly_frequency} días/semana
                       </Text>
@@ -354,6 +361,8 @@ const s = StyleSheet.create({
   planAccent:     { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.primary },
   planName:       { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
   planMeta:       { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+  draftTag:       { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
+  draftTagText:   { color: C.neutral, fontSize: 7, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
   // Sessions
   sessionRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },

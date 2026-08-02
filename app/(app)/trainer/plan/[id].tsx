@@ -16,6 +16,8 @@ import {
   getPlanById,
   deletePlan,
   getFrequencyLabel,
+  canPublishPlan,
+  publishPlan,
   Plan,
 } from '@/lib/services/planService';
 import {
@@ -49,6 +51,8 @@ export default function TrainerPlanDetailScreen() {
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [canPublish, setCanPublish]   = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   useFocusEffect(
     useCallback(() => { loadData(); }, [id])
@@ -67,10 +71,26 @@ export default function TrainerPlanDetailScreen() {
       if (planResult.plan) {
         const { profile } = await getProfile(planResult.plan.user_id);
         setStudentName(profile?.full_name || profile?.email?.split('@')[0] || 'Alumno');
+        if (!planResult.plan.is_published) {
+          const { canPublish: ok } = await canPublishPlan(planResult.plan.id);
+          setCanPublish(ok);
+        }
       }
     }
     setRoutines(routinesResult.routines);
     setIsLoading(false);
+  };
+
+  const handlePublish = async () => {
+    if (!id) return;
+    setIsPublishing(true);
+    const { success, error: err } = await publishPlan(id);
+    setIsPublishing(false);
+    if (!success) {
+      showAlert('Error', err?.message ?? 'No se pudo publicar el plan');
+      return;
+    }
+    setPlan((prev) => (prev ? { ...prev, is_published: true } : prev));
   };
 
   const onRefresh = async () => {
@@ -164,9 +184,17 @@ export default function TrainerPlanDetailScreen() {
               <View style={s.heroInfo}>
                 <Text style={s.heroName}>{plan.name}</Text>
                 <Text style={s.heroDiscipline}>{plan.discipline}</Text>
-                <View style={s.assignedBadge}>
-                  <Ionicons name="person-outline" size={10} color={C.tertiary} />
-                  <Text style={s.assignedText}>ASIGNADO A {studentName.toUpperCase()}</Text>
+                <View style={s.badgeRow}>
+                  <View style={s.assignedBadge}>
+                    <Ionicons name="person-outline" size={10} color={C.tertiary} />
+                    <Text style={s.assignedText}>ASIGNADO A {studentName.toUpperCase()}</Text>
+                  </View>
+                  {!plan.is_published && (
+                    <View style={s.draftBadge}>
+                      <Ionicons name="eye-off-outline" size={10} color={C.neutral} />
+                      <Text style={s.draftText}>BORRADOR</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
@@ -233,6 +261,42 @@ export default function TrainerPlanDetailScreen() {
                 ))}
               </View>
             )}
+
+            {!plan.is_published && (
+              <View style={s.publishSection}>
+                <TouchableOpacity
+                  onPress={handlePublish}
+                  disabled={!canPublish || isPublishing}
+                  activeOpacity={0.85}
+                >
+                  {canPublish ? (
+                    <LinearGradient
+                      colors={[C.primaryDim, '#003d4d']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={s.publishBtn}
+                    >
+                      {isPublishing ? (
+                        <ActivityIndicator color={C.primary} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle-outline" size={18} color={C.primary} />
+                          <Text style={s.publishBtnText}>PUBLICAR PLAN</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  ) : (
+                    <View style={[s.publishBtn, s.publishBtnDisabled]}>
+                      <Text style={[s.publishBtnText, { color: C.neutral }]}>PUBLICAR PLAN</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <Text style={s.publishHint}>
+                  {canPublish
+                    ? `${studentName} todavía no ve este plan. Publicalo cuando esté listo.`
+                    : 'Agregá al menos una rutina con ejercicios antes de publicar.'}
+                </Text>
+              </View>
+            )}
           </ScrollView>
         )}
       </View>
@@ -295,8 +359,11 @@ const s = StyleSheet.create({
   heroInfo:       { flex: 1 },
   heroName:       { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
   heroDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 7 },
+  badgeRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   assignedBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
   assignedText:   { color: C.tertiary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
+  draftBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
+  draftText:      { color: C.neutral, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
 
   // Stats
   statsRow:    { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 24, overflow: 'hidden' },
@@ -330,4 +397,11 @@ const s = StyleSheet.create({
   emptyBtnText:  { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
   tipCard:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: C.cardDeep, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12 },
   tipText:       { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, lineHeight: 18 },
+
+  // Publish
+  publishSection:    { marginTop: 24 },
+  publishBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 12 },
+  publishBtnDisabled: { backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
+  publishBtnText:     { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  publishHint:        { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginTop: 10, lineHeight: 17 },
 });

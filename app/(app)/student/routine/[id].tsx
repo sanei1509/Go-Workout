@@ -15,6 +15,7 @@ import {
   formatExerciseValue, CreateExerciseData,
 } from '@/lib/services/routineService';
 import { getPlanById } from '@/lib/services/planService';
+import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -208,6 +209,9 @@ export default function RoutineDetailScreen() {
 
   // Block modal
   const [showBlockModal, setShowBlockModal] = useState(false);
+
+  // Exercise help modal
+  const [helpExercise, setHelpExercise] = useState<string | null>(null);
 
   // Exercise modal state
   const [showExModal, setShowExModal]       = useState(false);
@@ -551,6 +555,13 @@ export default function RoutineDetailScreen() {
                               {ex.rest_seconds > 0 ? ` · ${ex.rest_seconds}s desc.` : ''}
                             </Text>
                           </View>
+                          <TouchableOpacity
+                            onPress={(e) => { e.stopPropagation(); setHelpExercise(ex.name); }}
+                            hitSlop={10}
+                            style={{ marginRight: 6 }}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={C.neutral} />
+                          </TouchableOpacity>
                           <Ionicons name="chevron-forward" size={16} color={C.border} />
                         </TouchableOpacity>
                       ))
@@ -781,6 +792,11 @@ export default function RoutineDetailScreen() {
           )}
         </KeyboardAvoidingView>
       </Modal>
+
+      <ExerciseHelpModal
+        exerciseName={helpExercise}
+        onClose={() => setHelpExercise(null)}
+      />
     </>
   );
 }

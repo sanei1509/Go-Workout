@@ -30,6 +30,8 @@ import {
   clearActiveSnapshot,
   ExerciseProgressSnapshot,
 } from '@/lib/services/activeSessionService';
+import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
+import { lookupExercise } from '@/lib/exercises/lookup';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -77,6 +79,9 @@ export default function WorkoutScreen() {
 
   const [progress, setProgress] = useState<Map<string, ExerciseProgress>>(new Map());
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+
+  // Exercise help modal
+  const [helpExercise, setHelpExercise] = useState<string | null>(null);
 
   // Rest timer
   const [isResting, setIsResting] = useState(false);
@@ -462,6 +467,16 @@ export default function WorkoutScreen() {
           <Text style={s.exDetail}>
             {currentExercise.sets} series × {formatExerciseValue(currentExercise.exercise_type as any, currentExercise.value)}
           </Text>
+          {lookupExercise(currentExercise.name) && (
+            <TouchableOpacity
+              onPress={() => setHelpExercise(currentExercise.name)}
+              style={s.techBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="information-circle-outline" size={14} color={C.neutral} />
+              <Text style={s.techBtnText}>Ver técnica</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Sets bubbles */}
           <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
@@ -551,6 +566,11 @@ export default function WorkoutScreen() {
           )}
         </View>
       </View>
+
+      <ExerciseHelpModal
+        exerciseName={helpExercise}
+        onClose={() => setHelpExercise(null)}
+      />
     </>
   );
 }
@@ -603,7 +623,9 @@ const s = StyleSheet.create({
   blockBadgeText:{ fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 0.5 },
 
   exName:   { color: C.textHi, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', lineHeight: 36, marginBottom: 8 },
-  exDetail: { color: C.textLo, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 28 },
+  exDetail: { color: C.textLo, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
+  techBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'center', marginBottom: 20, opacity: 0.6 },
+  techBtnText: { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
   setsCard:  { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, padding: 20, marginBottom: 16 },
   setsLabel: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 16, textAlign: 'center' },

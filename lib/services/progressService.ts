@@ -541,6 +541,57 @@ export async function detectPlateaus(
   }
 }
 
+/**
+ * Resumen compacto de desempeño real para inyectar en el prompt del
+ * asistente IA al generar una rutina: PRs recientes (con 1RM estimado
+ * cuando hay peso), estancamientos y adherencia — así "Generar con IA"
+ * propone progresiones basadas en lo que el alumno realmente hizo, no en
+ * una estimación genérica.
+ */
+export async function buildPerformanceSummary(
+  userId: string,
+  planId?: string
+): Promise<string> {
+  const [{ records }, { plateaus }] = await Promise.all([
+    getAllPersonalRecords(userId),
+    detectPlateaus(userId),
+  ]);
+
+  const parts: string[] = [];
+
+  if (records.length > 0) {
+    const top = [...records]
+      .sort((a, b) => (b.estimated_1rm ?? b.best_value) - (a.estimated_1rm ?? a.best_value))
+      .slice(0, 6);
+    const prLines = top.map((r) =>
+      r.estimated_1rm && r.best_weight_kg
+        ? `${r.exercise_name}: ${r.best_sets}×${r.best_value} @ ${r.best_weight_kg}kg (1RM≈${Math.round(r.estimated_1rm)}kg)`
+        : `${r.exercise_name}: mejor ${formatProgressValue(r.best_value, r.exercise_type)}`
+    );
+    parts.push(`Récords recientes del alumno: ${prLines.join('; ')}.`);
+  }
+
+  if (plateaus.length > 0) {
+    const plateauLines = plateaus.map(
+      (p) => `${p.exercise_name} (sin mejora hace ${p.sessionsSincePR} sesiones)`
+    );
+    parts.push(
+      `Sin progreso reciente en: ${plateauLines.join(', ')}. Considerá variar el estímulo o ajustar volumen/intensidad ahí.`
+    );
+  }
+
+  if (planId) {
+    const { stats: adherence } = await getAdherenceRate(userId, planId);
+    if (adherence) {
+      parts.push(
+        `Adherencia últimas 4 semanas: ${adherence.completedSessions}/${adherence.expectedSessions} sesiones (${adherence.adherenceRate}%).`
+      );
+    }
+  }
+
+  return parts.join(' ');
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getISOWeek(date: Date): number {

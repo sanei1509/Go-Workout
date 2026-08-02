@@ -21,6 +21,7 @@ import {
 } from '@/lib/services/exerciseService';
 import type { MuscleGroup } from '@/lib/exercises/catalog';
 import { getTrainerStudents, getStudentForm, StudentForm } from '@/lib/services/trainerService';
+import { buildPerformanceSummary } from '@/lib/services/progressService';
 import { getAgentBackend } from '@/lib/agent/backend';
 import type { RoutineProposal, ProposedBlock } from '@/lib/agent/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -203,6 +204,11 @@ export default function TrainerRoutineEditorScreen() {
         const facts = buildStudentFacts(form);
         if (facts) prefill += ` Alumno: ${facts}.`;
       }
+      // Desempeño real (PRs, estancamientos, adherencia) — no solo el
+      // formulario estático, así la IA propone progresiones basadas en
+      // lo que el alumno realmente hizo.
+      const performance = await buildPerformanceSummary(plan.user_id, plan.id);
+      if (performance) prefill += ` ${performance}`;
     }
     setAiObjective(prefill);
     setShowAiModal(true);

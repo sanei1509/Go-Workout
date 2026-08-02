@@ -63,6 +63,7 @@ type FlatExercise = {
   value: number;
   exercise_type: string;
   rest_seconds: number;
+  target_weight_kg?: number | null;
   notes?: string | null;
   blockType: string;
 };
@@ -79,6 +80,9 @@ export default function WorkoutScreen() {
 
   const [progress, setProgress] = useState<Map<string, ExerciseProgress>>(new Map());
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  // Peso de hoy para el ejercicio actual — precargado con el objetivo, editable
+  // por si el alumno levantó distinto. Se resetea al pasar de ejercicio.
+  const [currentWeight, setCurrentWeight] = useState(0);
 
   // Exercise help modal
   const [helpExercise, setHelpExercise] = useState<string | null>(null);
@@ -100,6 +104,10 @@ export default function WorkoutScreen() {
 
   const currentExercise = allExercises[currentExerciseIndex];
   const totalExercises = allExercises.length;
+
+  useEffect(() => {
+    setCurrentWeight(currentExercise?.target_weight_kg ?? 0);
+  }, [currentExercise?.id]);
 
   useEffect(() => {
     loadRoutineAndStart();
@@ -236,6 +244,8 @@ export default function WorkoutScreen() {
           exercise_id: currentExercise.id,
           sets_completed: currentExercise.sets,
           actual_value: currentExercise.value,
+          actual_weight_kg:
+            currentExercise.exercise_type === 'reps' && currentWeight > 0 ? currentWeight : null,
         });
       }
       if (currentExerciseIndex < totalExercises - 1) {
@@ -504,6 +514,30 @@ export default function WorkoutScreen() {
             </View>
           </View>
 
+          {/* Peso de hoy (solo si el ejercicio trackea peso) */}
+          {currentExercise.exercise_type === 'reps' && currentExercise.target_weight_kg != null && (
+            <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
+              <Text style={s.setsLabel}>PESO DE HOY (KG)</Text>
+              <View style={s.weightRow}>
+                <TouchableOpacity
+                  onPress={() => setCurrentWeight(w => Math.max(0, w - 2.5))}
+                  style={s.weightBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={20} color={blockColor} />
+                </TouchableOpacity>
+                <Text style={s.weightValue}>{currentWeight}</Text>
+                <TouchableOpacity
+                  onPress={() => setCurrentWeight(w => Math.min(500, w + 2.5))}
+                  style={s.weightBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={20} color={blockColor} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Notes */}
           {currentExercise.notes ? (
             <View style={s.notesCard}>
@@ -633,6 +667,10 @@ const s = StyleSheet.create({
   setBubble: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
   setBubbleDone: { backgroundColor: C.green, borderColor: C.green },
   setBubbleNum:  { color: C.neutral, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  weightRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
+  weightBtn:   { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
+  weightValue: { color: C.textHi, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold', minWidth: 56, textAlign: 'center' },
 
   notesCard: { flexDirection: 'row', gap: 10, backgroundColor: C.cardDeep, borderRadius: 12, padding: 14, marginBottom: 12 },
   notesText: { flex: 1, color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },

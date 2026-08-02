@@ -16,6 +16,7 @@ export interface ExerciseLog {
   exercise_id: string;
   sets_completed: number;
   actual_value?: number;
+  actual_weight_kg?: number | null;
   notes?: string;
   completed_at: string;
 }
@@ -30,6 +31,7 @@ export interface CreateExerciseLogData {
   exercise_id: string;
   sets_completed: number;
   actual_value?: number;
+  actual_weight_kg?: number | null;
   notes?: string;
 }
 
@@ -101,6 +103,7 @@ export async function logExercise(data: CreateExerciseLogData): Promise<{
         exercise_id: data.exercise_id,
         sets_completed: data.sets_completed,
         actual_value: data.actual_value,
+        actual_weight_kg: data.actual_weight_kg ?? null,
         notes: data.notes?.trim() || null,
       })
       .select()

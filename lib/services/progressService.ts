@@ -7,23 +7,48 @@ export interface ExerciseHistoryEntry {
   date: string;           // ISO date of the session
   sets_completed: number;
   actual_value: number;
+  actual_weight_kg: number | null;
   exercise_type: 'reps' | 'time' | 'distance';
 }
 
 export interface PersonalRecord {
   exercise_name: string;
   exercise_type: 'reps' | 'time' | 'distance';
-  best_value: number;     // max actual_value across all logs
-  best_sets: number;      // sets_completed on the best session
-  achieved_at: string;    // date of the PR
+  best_value: number;         // max actual_value del mejor registro
+  best_sets: number;          // sets_completed en el mejor registro
+  best_weight_kg: number | null;  // peso en el mejor registro, si se trackeó
+  estimated_1rm: number | null;   // fórmula de Epley, solo si hay peso
+  achieved_at: string;        // date of the PR
 }
 
 export interface VolumeEntry {
   period: string;         // 'YYYY-WW' for week, 'YYYY-MM' for month
   exercise_name: string;
   exercise_type: 'reps' | 'time' | 'distance';
-  total_volume: number;   // SUM(sets_completed × actual_value)
+  total_volume: number;   // SUM(sets × reps × peso) si hay peso, si no SUM(sets × valor)
   sessions_count: number;
+}
+
+// Estimación de 1RM (fórmula de Epley) — usada para rankear PRs cuando hay
+// peso registrado: una serie pesada de pocas reps puede representar más
+// fuerza que una liviana de muchas, algo que comparar solo actual_value no captura.
+function estimate1RM(weightKg: number, reps: number): number {
+  return weightKg * (1 + reps / 30);
+}
+
+// Score para decidir "el mejor" registro de un ejercicio: 1RM estimado si
+// hay peso (solo tiene sentido para exercise_type='reps'), si no el valor crudo.
+function rankScore(exerciseType: string, actualValue: number, weightKg: number | null): number {
+  if (exerciseType === 'reps' && weightKg) return estimate1RM(weightKg, actualValue);
+  return actualValue;
+}
+
+// Volumen de una serie: sets × reps × peso cuando hay peso registrado (kg reales),
+// si no sets × valor (reps/seg/mts, como antes — unidades no comparables entre sí,
+// limitación preexistente al sumar ejercicios de distinto tipo en un mismo total).
+function rowVolume(exerciseType: string, setsCompleted: number, actualValue: number, weightKg: number | null): number {
+  if (exerciseType === 'reps' && weightKg) return setsCompleted * actualValue * weightKg;
+  return setsCompleted * actualValue;
 }
 
 // ── Funciones ────────────────────────────────────────────────────────────────
@@ -44,6 +69,7 @@ export async function getExerciseHistory(
         session_id,
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
@@ -62,6 +88,7 @@ export async function getExerciseHistory(
         date: row.workout_sessions.started_at,
         sets_completed: row.sets_completed,
         actual_value: row.actual_value,
+        actual_weight_kg: row.actual_weight_kg ?? null,
         exercise_type: row.block_exercises.exercise_type,
       }));
 
@@ -85,19 +112,23 @@ export async function getPersonalRecord(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
       .eq('block_exercises.name', exerciseName)
-      .not('actual_value', 'is', null)
-      .order('actual_value', { ascending: false });
+      .not('actual_value', 'is', null);
 
     if (error) return { pr: null, error: new Error(error.message) };
 
-    const best = (data || []).find(
-      (row: any) => row.block_exercises.routine_blocks.block_type !== 'warmup'
-    ) as any;
+    let best: any = null;
+    let bestScore = -Infinity;
+    for (const row of (data || []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
+      const score = rankScore(row.block_exercises.exercise_type, row.actual_value, row.actual_weight_kg);
+      if (score > bestScore) { bestScore = score; best = row; }
+    }
 
     if (!best) return { pr: null, error: null };
 
@@ -106,6 +137,10 @@ export async function getPersonalRecord(
       exercise_type: best.block_exercises.exercise_type,
       best_value: best.actual_value,
       best_sets: best.sets_completed,
+      best_weight_kg: best.actual_weight_kg ?? null,
+      estimated_1rm: best.block_exercises.exercise_type === 'reps' && best.actual_weight_kg
+        ? estimate1RM(best.actual_weight_kg, best.actual_value)
+        : null,
       achieved_at: best.workout_sessions.started_at,
     };
 
@@ -128,32 +163,44 @@ export async function getAllPersonalRecords(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
-      .not('actual_value', 'is', null)
-      .order('actual_value', { ascending: false });
+      .not('actual_value', 'is', null);
 
     if (error) return { records: [], error: new Error(error.message) };
 
-    // Quedarse con el mejor por nombre de ejercicio, excluyendo calentamiento
-    const best = new Map<string, PersonalRecord>();
+    // Quedarse con el mejor por nombre de ejercicio (por rankScore, no por
+    // actual_value crudo), excluyendo calentamiento.
+    const best = new Map<string, PersonalRecord & { _score: number }>();
     for (const row of (data || []) as any[]) {
       if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const name: string = row.block_exercises.name;
-      if (!best.has(name)) {
+      const exerciseType = row.block_exercises.exercise_type;
+      const score = rankScore(exerciseType, row.actual_value, row.actual_weight_kg);
+      const current = best.get(name);
+      if (!current || score > current._score) {
         best.set(name, {
           exercise_name: name,
-          exercise_type: row.block_exercises.exercise_type,
+          exercise_type: exerciseType,
           best_value: row.actual_value,
           best_sets: row.sets_completed,
+          best_weight_kg: row.actual_weight_kg ?? null,
+          estimated_1rm: exerciseType === 'reps' && row.actual_weight_kg
+            ? estimate1RM(row.actual_weight_kg, row.actual_value)
+            : null,
           achieved_at: row.workout_sessions.started_at,
+          _score: score,
         });
       }
     }
 
-    return { records: Array.from(best.values()), error: null };
+    return {
+      records: Array.from(best.values()).map(({ _score, ...pr }) => pr),
+      error: null,
+    };
   } catch {
     return { records: [], error: new Error('Error al obtener récords personales') };
   }
@@ -177,6 +224,7 @@ export async function getVolumeStats(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
@@ -211,7 +259,12 @@ export async function getVolumeStats(
       }
 
       const entry = map.get(key)!;
-      entry.total_volume += row.sets_completed * (row.actual_value ?? 0);
+      entry.total_volume += rowVolume(
+        row.block_exercises.exercise_type,
+        row.sets_completed,
+        row.actual_value ?? 0,
+        row.actual_weight_kg ?? null
+      );
       entry.sessions_count += 1;
     }
 
@@ -260,7 +313,8 @@ export async function getGeneralStats(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, routine_blocks!inner ( block_type ) ),
+        actual_weight_kg,
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -290,7 +344,12 @@ export async function getGeneralStats(
     for (const row of (data || []) as any[]) {
       if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const date = new Date(row.workout_sessions.started_at);
-      const vol = row.sets_completed * (row.actual_value ?? 0);
+      const vol = rowVolume(
+        row.block_exercises.exercise_type,
+        row.sets_completed,
+        row.actual_value ?? 0,
+        row.actual_weight_kg ?? null
+      );
       if (date >= thisMonday) {
         volumeThisWeek += vol;
         totalSets += row.sets_completed;

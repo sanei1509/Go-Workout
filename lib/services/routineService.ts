@@ -26,6 +26,7 @@ export interface Exercise {
   sets: number;
   value: number;
   rest_seconds: number;
+  target_weight_kg?: number | null;
   notes?: string;
   position: number;
 }
@@ -62,6 +63,7 @@ export interface CreateExerciseData {
   sets: number;
   value: number;
   rest_seconds: number;
+  target_weight_kg?: number | null;
   notes?: string;
 }
 
@@ -356,6 +358,7 @@ export async function addExercise(
         sets: data.sets,
         value: data.value,
         rest_seconds: data.rest_seconds,
+        target_weight_kg: data.target_weight_kg ?? null,
         notes: data.notes?.trim() || null,
         position: nextPosition,
       })
@@ -470,6 +473,7 @@ export async function duplicateRoutine(routineId: string): Promise<{
             sets: ex.sets,
             value: ex.value,
             rest_seconds: ex.rest_seconds,
+            target_weight_kg: ex.target_weight_kg ?? null,
             notes: ex.notes || null,
             position: ex.position,
           }))

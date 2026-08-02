@@ -228,6 +228,7 @@ export default function RoutineDetailScreen() {
   const [exSets, setExSets]         = useState(3);
   const [exValue, setExValue]       = useState(10);
   const [exRest, setExRest]         = useState(60);
+  const [exWeight, setExWeight]     = useState(0); // 0 = sin peso registrado
   const [exNotes, setExNotes]       = useState('');
 
   useFocusEffect(useCallback(() => { loadRoutine(); }, [id]));
@@ -294,6 +295,7 @@ export default function RoutineDetailScreen() {
     setExSets(defaults.sets);
     setExValue(defaults.value);
     setExRest(defaults.rest);
+    setExWeight(0);
     setExName('');
     setExNotes('');
     setExModalStep('pick');
@@ -308,6 +310,7 @@ export default function RoutineDetailScreen() {
     setExSets(exercise.sets);
     setExValue(exercise.value);
     setExRest(exercise.rest_seconds);
+    setExWeight(exercise.target_weight_kg ?? 0);
     setExNotes(exercise.notes || '');
     setExModalStep('config');
     setShowExModal(true);
@@ -329,6 +332,7 @@ export default function RoutineDetailScreen() {
       sets: exSets,
       value: exValue,
       rest_seconds: exRest,
+      target_weight_kg: exType === 'reps' && exWeight > 0 ? exWeight : null,
       notes: exNotes.trim() || undefined,
     };
     setIsSaving(true);
@@ -769,6 +773,18 @@ export default function RoutineDetailScreen() {
                     />
                   </View>
                 </View>
+
+                {/* Peso objetivo (opcional, solo para reps) */}
+                {exType === 'reps' && (
+                  <>
+                    <Text style={s.configLabel}>PESO (KG) — OPCIONAL</Text>
+                    <Stepper
+                      value={exWeight}
+                      onDec={() => setExWeight(Math.max(0, exWeight - 2.5))}
+                      onInc={() => setExWeight(Math.min(500, exWeight + 2.5))}
+                    />
+                  </>
+                )}
 
                 {/* Rest presets */}
                 <Text style={s.configLabel}>DESCANSO</Text>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   Modal, StyleSheet, Vibration,
@@ -19,18 +19,27 @@ import {
 import {
   startWorkoutSession,
   finishWorkoutSession,
-  logExercise,
   deleteSession,
   WorkoutSession,
 } from '@/lib/services/workoutService';
+import { aggregateSessionExerciseLogs } from '@/lib/services/setLogService';
+import {
+  enqueueSetLog,
+  flushSyncQueue,
+  processSyncQueue,
+  getPendingSyncCount,
+  type SyncStatus,
+} from '@/lib/services/workoutSyncQueue';
 import { setupWorkoutReminder, hasActiveReminder } from '@/lib/services/notificationService';
 import {
   getActiveSnapshot,
   saveActiveSnapshot,
   clearActiveSnapshot,
-  ExerciseProgressSnapshot,
+  type SetLogSnapshot,
 } from '@/lib/services/activeSessionService';
 import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
+import { SetCompleteModal, type SetCompletePayload } from '@/components/workout/SetCompleteModal';
+import { SubstituteExerciseModal } from '@/components/workout/SubstituteExerciseModal';
 import { lookupExercise } from '@/lib/exercises/lookup';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeTokens } from '@/constants/theme';
@@ -71,6 +80,14 @@ export default function WorkoutScreen() {
   // Peso de hoy para el ejercicio actual — precargado con el objetivo, editable
   // por si el alumno levantó distinto. Se resetea al pasar de ejercicio.
   const [currentWeight, setCurrentWeight] = useState(0);
+  const [exerciseWeights, setExerciseWeights] = useState<Map<string, number>>(new Map());
+  const [setLogs, setSetLogs] = useState<SetLogSnapshot[]>([]);
+  const [substitutions, setSubstitutions] = useState<Map<string, string>>(new Map());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+  const [pendingSync, setPendingSync] = useState(0);
+
+  const [showSetModal, setShowSetModal] = useState(false);
+  const [showSubstituteModal, setShowSubstituteModal] = useState(false);
 
   // Exercise help modal
   const [helpExercise, setHelpExercise] = useState<string | null>(null);
@@ -94,7 +111,20 @@ export default function WorkoutScreen() {
   const totalExercises = allExercises.length;
 
   useEffect(() => {
-    setCurrentWeight(currentExercise?.target_weight_kg ?? 0);
+    if (!currentExercise) return;
+    setCurrentWeight(
+      exerciseWeights.get(currentExercise.id) ?? currentExercise.target_weight_kg ?? 0
+    );
+  }, [currentExercise?.id]);
+
+  const updateCurrentWeight = useCallback((updater: number | ((prev: number) => number)) => {
+    setCurrentWeight(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (currentExercise) {
+        setExerciseWeights(m => new Map(m).set(currentExercise.id, next));
+      }
+      return next;
+    });
   }, [currentExercise?.id]);
 
   useEffect(() => {
@@ -125,8 +155,23 @@ export default function WorkoutScreen() {
       startedAt: session.started_at,
       currentExerciseIndex,
       progress: Array.from(progress.values()),
+      setLogs,
+      substitutions: Object.fromEntries(substitutions),
     });
-  }, [progress, currentExerciseIndex, session, user?.id, routineId, isLoading]);
+  }, [progress, currentExerciseIndex, session, user?.id, routineId, isLoading, setLogs, substitutions]);
+
+  useEffect(() => {
+    getPendingSyncCount().then(setPendingSync);
+  }, [setLogs]);
+
+  const refreshSyncStatus = async () => {
+    setSyncStatus('syncing');
+    const { status, pending } = await processSyncQueue();
+    setSyncStatus(status);
+    setPendingSync(pending);
+  };
+
+  const displayName = (ex: FlatExercise) => substitutions.get(ex.id) ?? ex.name;
 
   const loadRoutineAndStart = async () => {
     if (!routineId || !user?.id) return;
@@ -175,7 +220,10 @@ export default function WorkoutScreen() {
         created_at: snapshot.startedAt,
       });
       setStartedAtMs(new Date(snapshot.startedAt).getTime());
+      setSetLogs(snapshot.setLogs ?? []);
+      setSubstitutions(new Map(Object.entries(snapshot.substitutions ?? {})));
       setIsLoading(false);
+      refreshSyncStatus();
       return;
     }
 
@@ -204,6 +252,8 @@ export default function WorkoutScreen() {
       startedAt: newSession.started_at,
       currentExerciseIndex: 0,
       progress: Array.from(initialProgress.values()),
+      setLogs: [],
+      substitutions: {},
     });
 
     setIsLoading(false);
@@ -212,7 +262,52 @@ export default function WorkoutScreen() {
   const handleCompleteSet = () => {
     if (!currentExercise) return;
     const cur = progress.get(currentExercise.id);
+    if (cur?.isComplete) return;
+    setShowSetModal(true);
+  };
+
+  const handleSetConfirm = async (payload: SetCompletePayload) => {
+    if (!currentExercise || !session) return;
+    setShowSetModal(false);
+
+    const cur = progress.get(currentExercise.id);
     if (!cur) return;
+
+    const setNumber = cur.setsCompleted + 1;
+    const performedName = substitutions.get(currentExercise.id) ?? null;
+
+    const snapshot: SetLogSnapshot = {
+      exerciseId: currentExercise.id,
+      setNumber,
+      repsCompleted: currentExercise.exercise_type === 'reps' ? payload.reps : null,
+      actualValue: currentExercise.exercise_type !== 'reps' ? payload.reps : null,
+      weightKg: payload.skipped ? null : (payload.weightKg > 0 ? payload.weightKg : null),
+      rir: payload.rir,
+      skipped: payload.skipped,
+      performedName,
+    };
+
+    setSetLogs(prev => [...prev.filter(l =>
+      !(l.exerciseId === snapshot.exerciseId && l.setNumber === snapshot.setNumber)
+    ), snapshot]);
+
+    if (!payload.skipped && payload.weightKg > 0) {
+      updateCurrentWeight(payload.weightKg);
+    }
+
+    await enqueueSetLog({
+      session_id: session.id,
+      exercise_id: currentExercise.id,
+      set_number: setNumber,
+      reps_completed: snapshot.repsCompleted,
+      actual_value: snapshot.actualValue,
+      weight_kg: snapshot.weightKg,
+      rir: snapshot.rir,
+      skipped: snapshot.skipped,
+      performed_name: performedName,
+    });
+
+    refreshSyncStatus();
 
     const newSets = cur.setsCompleted + 1;
     const isComplete = newSets >= currentExercise.sets;
@@ -223,23 +318,17 @@ export default function WorkoutScreen() {
       return m;
     });
 
-    if (!isComplete && currentExercise.rest_seconds > 0) {
+    if (!isComplete && !payload.skipped && currentExercise.rest_seconds > 0) {
       startRestTimer(currentExercise.rest_seconds);
-    } else if (isComplete) {
-      if (session) {
-        logExercise({
-          session_id: session.id,
-          exercise_id: currentExercise.id,
-          sets_completed: currentExercise.sets,
-          actual_value: currentExercise.value,
-          actual_weight_kg:
-            currentExercise.exercise_type === 'reps' && currentWeight > 0 ? currentWeight : null,
-        });
-      }
-      if (currentExerciseIndex < totalExercises - 1) {
-        setTimeout(() => setCurrentExerciseIndex(prev => prev + 1), 600);
-      }
+    } else if (isComplete && currentExerciseIndex < totalExercises - 1) {
+      setTimeout(() => setCurrentExerciseIndex(prev => prev + 1), 600);
     }
+  };
+
+  const handleSubstitute = (name: string) => {
+    if (!currentExercise) return;
+    setSubstitutions(prev => new Map(prev).set(currentExercise.id, name));
+    setHelpExercise(name);
   };
 
   const startRestTimer = (seconds: number) => {
@@ -269,23 +358,45 @@ export default function WorkoutScreen() {
 
   const handleFinishWorkout = () => {
     const completedCount = Array.from(progress.values()).filter(p => p.isComplete).length;
+    const loggedCount = Array.from(progress.values()).filter(p => p.setsCompleted > 0).length;
     const allDone = completedCount === totalExercises;
     showAlert(
       'Finalizar entrenamiento',
       allDone
         ? `¡Excelente! Completaste todos los ejercicios.\n\n¿Querés terminar?`
-        : `Completaste ${completedCount} de ${totalExercises} ejercicios.\n\n¿Querés terminar?`,
+        : `Registraste progreso en ${loggedCount} de ${totalExercises} ejercicios.\n\n¿Querés terminar y guardar?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Finalizar',
           onPress: async () => {
-            if (session) {
-              await finishWorkoutSession(session.id);
-              if (user?.id) {
-                const active = await hasActiveReminder();
-                if (active) setupWorkoutReminder(user.id);
-              }
+            if (!session) return;
+            setSyncStatus('syncing');
+            const { success, error: syncError } = await flushSyncQueue();
+            if (!success) {
+              setSyncStatus('error');
+              showAlert(
+                'Error de sincronización',
+                syncError?.message ?? 'No se guardaron todos los registros. Reintentá.',
+                [{ text: 'OK' }]
+              );
+              return;
+            }
+            const { error: aggError } = await aggregateSessionExerciseLogs(session.id);
+            if (aggError) {
+              showAlert('Error', aggError.message);
+              setSyncStatus('error');
+              return;
+            }
+            const { error: finishError } = await finishWorkoutSession(session.id);
+            if (finishError) {
+              showAlert('Error', finishError.message);
+              setSyncStatus('error');
+              return;
+            }
+            if (user?.id) {
+              const active = await hasActiveReminder();
+              if (active) setupWorkoutReminder(user.id);
             }
             await clearActiveSnapshot();
             router.back();
@@ -398,7 +509,23 @@ export default function WorkoutScreen() {
 
           <View style={s.topBarCenter}>
             <Text style={s.topBarTitle} numberOfLines={1}>{routine.name}</Text>
-            <Text style={s.topBarTime}>{formatTime(elapsedTime)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <Text style={s.topBarTime}>{formatTime(elapsedTime)}</Text>
+              {pendingSync > 0 || syncStatus === 'error' ? (
+                <TouchableOpacity onPress={refreshSyncStatus} style={s.syncBadge}>
+                  <Ionicons
+                    name={syncStatus === 'error' ? 'cloud-offline-outline' : 'cloud-upload-outline'}
+                    size={12}
+                    color={syncStatus === 'error' ? '#f87171' : T.attention}
+                  />
+                  <Text style={[s.syncText, syncStatus === 'error' && { color: '#f87171' }]}>
+                    {syncStatus === 'syncing' ? '...' : pendingSync}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name="cloud-done-outline" size={14} color={T.done} />
+              )}
+            </View>
           </View>
 
           <TouchableOpacity onPress={handleFinishWorkout} style={s.topBarBtn}>
@@ -465,20 +592,29 @@ export default function WorkoutScreen() {
           </View>
 
           {/* Exercise name */}
-          <Text style={s.exName}>{currentExercise.name}</Text>
+          <Text style={s.exName}>{displayName(currentExercise)}</Text>
+          {substitutions.has(currentExercise.id) && (
+            <Text style={s.substitutedFrom}>En lugar de: {currentExercise.name}</Text>
+          )}
           <Text style={s.exDetail}>
             {currentExercise.sets} series × {formatExerciseValue(currentExercise.exercise_type as any, currentExercise.value)}
           </Text>
-          {lookupExercise(currentExercise.name) && (
-            <TouchableOpacity
-              onPress={() => setHelpExercise(currentExercise.name)}
-              style={s.techBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="information-circle-outline" size={14} color={T.textSecondary} />
-              <Text style={s.techBtnText}>Ver técnica</Text>
+          <View style={s.actionLinks}>
+            {lookupExercise(displayName(currentExercise)) && (
+              <TouchableOpacity
+                onPress={() => setHelpExercise(displayName(currentExercise))}
+                style={s.techBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="information-circle-outline" size={14} color={T.textSecondary} />
+                <Text style={s.techBtnText}>Técnica</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => setShowSubstituteModal(true)} style={s.techBtn} activeOpacity={0.7}>
+              <Ionicons name="swap-horizontal-outline" size={14} color={T.action} />
+              <Text style={[s.techBtnText, { color: T.action }]}>Sustituir</Text>
             </TouchableOpacity>
-          )}
+          </View>
 
           {/* Sets bubbles */}
           <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
@@ -505,30 +641,6 @@ export default function WorkoutScreen() {
               })}
             </View>
           </View>
-
-          {/* Peso de hoy (solo si el ejercicio trackea peso) */}
-          {currentExercise.exercise_type === 'reps' && currentExercise.target_weight_kg != null && (
-            <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
-              <Text style={s.setsLabel}>PESO DE HOY (KG)</Text>
-              <View style={s.weightRow}>
-                <TouchableOpacity
-                  onPress={() => setCurrentWeight(w => Math.max(0, w - 2.5))}
-                  style={s.weightBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="remove" size={20} color={blockColor} />
-                </TouchableOpacity>
-                <Text style={s.weightValue}>{currentWeight}</Text>
-                <TouchableOpacity
-                  onPress={() => setCurrentWeight(w => Math.min(500, w + 2.5))}
-                  style={s.weightBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={20} color={blockColor} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
           {/* Notes */}
           {currentExercise.notes ? (
@@ -593,6 +705,25 @@ export default function WorkoutScreen() {
         </View>
       </View>
 
+      <SetCompleteModal
+        visible={showSetModal}
+        setNumber={setsCompleted + 1}
+        totalSets={currentExercise.sets}
+        exerciseName={displayName(currentExercise)}
+        exerciseType={currentExercise.exercise_type}
+        defaultReps={currentExercise.value}
+        defaultWeight={currentWeight}
+        onConfirm={handleSetConfirm}
+        onClose={() => setShowSetModal(false)}
+      />
+
+      <SubstituteExerciseModal
+        visible={showSubstituteModal}
+        exerciseName={currentExercise.name}
+        onSelect={handleSubstitute}
+        onClose={() => setShowSubstituteModal(false)}
+      />
+
       <ExerciseHelpModal
         exerciseName={helpExercise}
         onClose={() => setHelpExercise(null)}
@@ -630,7 +761,9 @@ function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
     topBarBtn:    { padding: 8 },
     topBarCenter: { flex: 1, alignItems: 'center' },
     topBarTitle:  { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
-    topBarTime:   { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
+    topBarTime:   { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    syncBadge:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: T.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+    syncText:     { color: T.attention, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold' },
 
     // ── Progress ──
     progressWrap:  { paddingHorizontal: 20, marginBottom: 8 },
@@ -649,9 +782,11 @@ function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
     blockBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
     blockBadgeText:{ fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 0.5 },
 
-    exName:   { color: T.textPrimary, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', lineHeight: 36, marginBottom: 8 },
+    exName:   { color: T.textPrimary, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', lineHeight: 36, marginBottom: 4 },
+    substitutedFrom: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
     exDetail: { color: T.textSecondary, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
-    techBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'center', marginBottom: 20, opacity: 0.6 },
+    actionLinks: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 20 },
+    techBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
     techBtnText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
     setsCard:  { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, borderLeftWidth: 3, padding: 20, marginBottom: 16 },
@@ -661,6 +796,7 @@ function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
     setBubbleDone: { backgroundColor: T.done, borderColor: T.done },
     setBubbleNum:  { color: T.textSecondary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
 
+    weightHint:  { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginBottom: 12, opacity: 0.8 },
     weightRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
     weightBtn:   { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.border },
     weightValue: { color: T.textPrimary, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold', minWidth: 56, textAlign: 'center' },

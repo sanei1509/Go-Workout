@@ -24,6 +24,7 @@ import {
 } from '@/lib/services/routineService';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeTokens } from '@/constants/theme';
+import { getCurrentDayOfWeek } from '@/lib/services/todayService';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,13 @@ export default function PlanDetailScreen() {
     router.push(`/student/routine/${routineId}`);
   };
 
+  const handleTrainRoutine = (routineId: string, e?: { stopPropagation?: () => void }) => {
+    e?.stopPropagation?.();
+    router.push(`/student/workout/${routineId}`);
+  };
+
+  const todayDay = getCurrentDayOfWeek();
+
   return (
     <>
       <Stack.Screen options={{
@@ -108,9 +116,14 @@ export default function PlanDetailScreen() {
         // Los planes asignados por un entrenador no se pueden eliminar desde acá
         headerRight: () => (
           plan && !plan.trainer_id ? (
-            <TouchableOpacity onPress={handleDelete} style={{ marginRight: 4, padding: 4 }}>
-              <Ionicons name="trash-outline" size={20} color="#f87171" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 4, marginRight: 4 }}>
+              <TouchableOpacity onPress={() => router.push(`/student/plan/edit/${id}`)} style={{ padding: 6 }}>
+                <Ionicons name="create-outline" size={20} color={T.action} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} style={{ padding: 6 }}>
+                <Ionicons name="trash-outline" size={20} color="#f87171" />
+              </TouchableOpacity>
+            </View>
           ) : null
         ),
       }} />
@@ -213,20 +226,30 @@ export default function PlanDetailScreen() {
               )
             ) : (
               <View style={s.routineList}>
-                {routines.map((routine, idx) => (
+                {routines.map((routine) => (
                   <TouchableOpacity
                     key={routine.id}
                     onPress={() => handleOpenRoutine(routine.id)}
                     activeOpacity={0.85}
                     style={s.routineCard}
                   >
-                    <View style={s.routineDayBadge}>
+                    <View style={[s.routineDayBadge, routine.day_number === todayDay && s.routineDayBadgeToday]}>
                       <Text style={s.routineDayNum}>{routine.day_number}</Text>
                       <Text style={s.routineDayLabel}>DÍA</Text>
                     </View>
                     <View style={s.routineInfo}>
                       <Text style={s.routineName}>{routine.name}</Text>
+                      {routine.day_number === todayDay && (
+                        <Text style={s.routineTodayTag}>HOY</Text>
+                      )}
                     </View>
+                    <TouchableOpacity
+                      onPress={(e) => handleTrainRoutine(routine.id, e)}
+                      activeOpacity={0.85}
+                      style={s.trainBtn}
+                    >
+                      <Ionicons name="play" size={14} color={T.done} />
+                    </TouchableOpacity>
                     <Ionicons name="chevron-forward" size={18} color={T.border} />
                   </TouchableOpacity>
                 ))}
@@ -318,8 +341,11 @@ function createStyles(T: ThemeTokens, actionDimBg: string) {
     routineDayBadge: { width: 44, height: 44, borderRadius: 10, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     routineDayNum:   { color: T.action, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 20 },
     routineDayLabel: { color: T.action, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, opacity: 0.7 },
-    routineInfo:     { flex: 1 },
-    routineName:     { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    routineInfo:          { flex: 1 },
+    routineName:          { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    routineTodayTag:      { color: T.action, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, marginTop: 2 },
+    routineDayBadgeToday: { borderWidth: 1.5, borderColor: T.action },
+    trainBtn:             { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1a4d2e', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
 
     // Empty
     emptyCard:     { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 28, alignItems: 'center' },

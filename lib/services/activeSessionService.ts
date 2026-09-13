@@ -8,6 +8,17 @@ export interface ExerciseProgressSnapshot {
   isComplete: boolean;
 }
 
+export interface SetLogSnapshot {
+  exerciseId: string;
+  setNumber: number;
+  repsCompleted: number | null;
+  actualValue: number | null;
+  weightKg: number | null;
+  rir: number | null;
+  skipped: boolean;
+  performedName: string | null;
+}
+
 export interface ActiveWorkoutSnapshot {
   userId: string;
   routineId: string;
@@ -15,6 +26,8 @@ export interface ActiveWorkoutSnapshot {
   startedAt: string;
   currentExerciseIndex: number;
   progress: ExerciseProgressSnapshot[];
+  setLogs: SetLogSnapshot[];
+  substitutions: Record<string, string>;
   updatedAt: string;
 }
 
@@ -24,7 +37,11 @@ export async function getActiveSnapshot(userId: string): Promise<ActiveWorkoutSn
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ActiveWorkoutSnapshot;
     if (parsed.userId !== userId) return null;
-    return parsed;
+    return {
+      ...parsed,
+      setLogs: parsed.setLogs ?? [],
+      substitutions: parsed.substitutions ?? {},
+    };
   } catch {
     return null;
   }
@@ -32,7 +49,12 @@ export async function getActiveSnapshot(userId: string): Promise<ActiveWorkoutSn
 
 export async function saveActiveSnapshot(snapshot: Omit<ActiveWorkoutSnapshot, 'updatedAt'>): Promise<void> {
   try {
-    const payload: ActiveWorkoutSnapshot = { ...snapshot, updatedAt: new Date().toISOString() };
+    const payload: ActiveWorkoutSnapshot = {
+      setLogs: [],
+      substitutions: {},
+      ...snapshot,
+      updatedAt: new Date().toISOString(),
+    };
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
   }

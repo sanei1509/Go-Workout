@@ -21,13 +21,21 @@ import {
   getTodayRoutine,
   getWeeklyStats,
   getWeeklyCompletedDays,
+  getWeekAgenda,
   TodayRoutineResult,
   TodayRoutineItem,
   WeeklyStats,
+  WeekAgendaItem,
   WEEKDAYS,
   getDayLabel,
+  getDayShort,
   getCurrentDayOfWeek,
 } from '@/lib/services/todayService';
+import {
+  getPrimaryRecommendation,
+  type WorkoutRecommendation,
+} from '@/lib/services/progressionService';
+import { NextStepCard } from '@/components/NextStepCard';
 import { Profile } from '@/lib/services/profileService';
 import {
   getActiveSnapshot,
@@ -67,6 +75,8 @@ export default function StudentHome() {
   const [todayData, setTodayData] = useState<TodayRoutineResult | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null);
   const [weeklyCompletedDays, setWeeklyCompletedDays] = useState<number[]>([]);
+  const [weekAgenda, setWeekAgenda] = useState<WeekAgendaItem[]>([]);
+  const [recommendation, setRecommendation] = useState<WorkoutRecommendation | null>(null);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSnapshot, setActiveSnapshot] = useState<ActiveWorkoutSnapshot | null>(null);
@@ -104,16 +114,22 @@ export default function StudentHome() {
     if (!user?.id) return;
     setIsLoadingPlans(true);
     try {
-      const [plansResult, todayResult, statsResult, completedDaysResult] = await Promise.all([
+      const [plansResult, todayResult, statsResult, completedDaysResult, agendaResult] = await Promise.all([
         getUserPlans(user.id),
         getTodayRoutine(user.id),
         getWeeklyStats(user.id),
         getWeeklyCompletedDays(user.id),
+        getWeekAgenda(user.id),
       ]);
       setPlans(plansResult.plans);
       setTodayData(todayResult.result);
       setWeeklyStats(statsResult.stats);
       setWeeklyCompletedDays(completedDaysResult.days);
+      setWeekAgenda(agendaResult.items);
+
+      const todayRoutineIds = (todayResult.result?.items ?? []).map(i => i.routine.id);
+      const { recommendation: rec } = await getPrimaryRecommendation(user.id, todayRoutineIds);
+      setRecommendation(rec);
     } catch {
     } finally {
       setIsLoadingPlans(false);
@@ -215,12 +231,12 @@ export default function StudentHome() {
               hasTrainers={hasTrainers}
               todayData={todayData}
               weeklyStats={weeklyStats}
-              weeklyCompletedDays={weeklyCompletedDays}
+              weekAgenda={weekAgenda}
+              recommendation={recommendation}
               profile={profile}
               T={T}
               s={s}
               actionDimBg={actionDimBg}
-              isDark={activeTheme === 'dark'}
             />
           ) : (
             <TrainerView
@@ -290,30 +306,29 @@ function getGreeting(): string {
   return 'Buenas noches';
 }
 
-function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStats, weeklyCompletedDays, profile, T, s, actionDimBg, isDark }: {
+function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStats, weekAgenda, recommendation, profile, T, s, actionDimBg }: {
   plans: Plan[];
   isLoading: boolean;
   hasTrainers: boolean;
   todayData: TodayRoutineResult | null;
   weeklyStats: WeeklyStats | null;
-  weeklyCompletedDays: number[];
+  weekAgenda: WeekAgendaItem[];
+  recommendation: WorkoutRecommendation | null;
   profile: Profile | null;
   T: ThemeTokens;
   s: ReturnType<typeof createStyles>;
   actionDimBg: string;
-  isDark: boolean;
 }) {
-  const handleCreatePlan = () => router.push('/student/plan/create');
+  const handleCreatePlan = () => router.push('/student/plan/setup');
   const handleOpenPlan = (id: string) => router.push(`/student/plan/${id}`);
   const dayLabel = getDayLabel(getCurrentDayOfWeek());
 
   const firstName = profile?.full_name?.split(' ')[0] ?? '';
   const greeting = getGreeting();
 
-  // Union of all active plans' training days
-  const trainingDays = Array.from(new Set(
-    plans.filter(p => p.is_active).flatMap(p => p.training_days ?? [])
-  ));
+  const pendingSessions = weekAgenda.filter(
+    d => d.isTrainingDay && !d.completed && d.routines.length > 0 && !d.isToday
+  );
 
   return (
     <View>
@@ -325,15 +340,17 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
       </View>
 
       {/* ── Weekly mini calendar ────────────────────────────────── */}
-      {plans.length > 0 && (
+      {plans.length > 0 && weekAgenda.length > 0 && (
         <WeeklyCalendar
-          trainingDays={trainingDays}
-          completedDays={weeklyCompletedDays}
-          todayDay={getCurrentDayOfWeek()}
+          weekAgenda={weekAgenda}
           T={T}
           s={s}
           actionDimBg={actionDimBg}
         />
+      )}
+
+      {recommendation && plans.length > 0 && (
+        <NextStepCard recommendation={recommendation} />
       )}
 
       {/* ── Today hero ──────────────────────────────────────────── */}
@@ -382,6 +399,10 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
             </View>
           )}
         </View>
+      )}
+
+      {pendingSessions.length > 0 && (
+        <WeekPendingSection items={pendingSessions} T={T} s={s} actionDimBg={actionDimBg} />
       )}
 
       {/* ── Plans header ────────────────────────────────────────── */}
@@ -434,11 +455,6 @@ function PersonalPlanView({ plans, isLoading, hasTrainers, todayData, weeklyStat
         </View>
       )}
 
-      {/* ── Retos ───────────────────────────────────────────────── */}
-      <ChallengesSection T={T} s={s} isDark={isDark} />
-
-      {/* ── Para vos ────────────────────────────────────────────── */}
-      <FeedSection s={s} />
     </View>
   );
 }
@@ -619,57 +635,142 @@ function FeedSection({ s }: { s: ReturnType<typeof createStyles> }) {
 
 // ─── Weekly Calendar ─────────────────────────────────────────────────────────
 
-function WeeklyCalendar({ trainingDays, completedDays, todayDay, T, s, actionDimBg }: {
-  trainingDays: number[];
-  completedDays: number[];
-  todayDay: number;
+function WeeklyCalendar({ weekAgenda, T, s, actionDimBg }: {
+  weekAgenda: WeekAgendaItem[];
   T: ThemeTokens;
   s: ReturnType<typeof createStyles>;
   actionDimBg: string;
 }) {
+  const handleDayPress = (item: WeekAgendaItem) => {
+    const routine = item.routines[0];
+    if (!routine) return;
+    if (item.isToday && !item.completed) {
+      router.push(`/student/workout/${routine.id}`);
+    } else {
+      router.push(`/student/routine/${routine.id}`);
+    }
+  };
+
+  const agendaByDay = new Map(weekAgenda.map(d => [d.dayNumber, d]));
+  const todayDay = getCurrentDayOfWeek();
+
   return (
     <View style={s.calendarWrap}>
       {WEEKDAYS.map(({ value, short }) => {
-        const isToday = value === todayDay;
-        const isCompleted = completedDays.includes(value);
-        const isTraining = trainingDays.includes(value);
+        const item = agendaByDay.get(value) ?? {
+          dayNumber: value,
+          dayShort: short,
+          isToday: value === todayDay,
+          isPast: value < todayDay,
+          isTrainingDay: false,
+          completed: false,
+          routines: [],
+        };
+
+        const isPending = item.isTrainingDay && !item.completed && item.isPast;
+        const canTap = item.routines.length > 0;
+        const dayLetter = getDayShort(value).charAt(0);
 
         let circleStyle: object = s.calDayCircle;
         let letterStyle: object = s.calDayLetter;
         let showDot = false;
         let dotColor = T.action;
 
-        if (isToday && isCompleted) {
+        if (item.isToday && item.completed) {
           circleStyle = [s.calDayCircle, s.calDayCircleGreen];
           letterStyle = [s.calDayLetter, s.calDayLetterOnAction];
-        } else if (isToday && isTraining) {
+        } else if (item.isToday && item.isTrainingDay) {
           circleStyle = [s.calDayCircle, s.calDayCirclePrimary];
           letterStyle = [s.calDayLetter, s.calDayLetterOnAction];
-        } else if (isToday) {
+        } else if (item.isToday) {
           circleStyle = [s.calDayCircle, s.calDayCircleToday];
           letterStyle = [s.calDayLetter, { color: T.action }];
-        } else if (isCompleted) {
+        } else if (item.completed) {
           showDot = true;
           dotColor = T.done;
           letterStyle = [s.calDayLetter, { color: T.textPrimary }];
-        } else if (isTraining) {
+        } else if (isPending) {
+          showDot = true;
+          dotColor = T.attention;
+          letterStyle = [s.calDayLetter, { color: T.attention }];
+        } else if (item.isTrainingDay) {
           showDot = true;
           dotColor = actionDimBg;
         }
 
-        return (
-          <View key={value} style={s.calDayCol}>
+        const col = (
+          <View style={s.calDayCol}>
             <View style={circleStyle}>
-              {isToday && isCompleted ? (
+              {item.isToday && item.completed ? (
                 <Ionicons name="checkmark" size={14} color="#fff" />
               ) : (
-                <Text style={letterStyle}>{short.charAt(0)}</Text>
+                <Text style={letterStyle}>{dayLetter}</Text>
               )}
             </View>
             <View style={[s.calDot, { backgroundColor: showDot ? dotColor : 'transparent' }]} />
           </View>
         );
+
+        return canTap ? (
+          <TouchableOpacity key={value} onPress={() => handleDayPress(item)} activeOpacity={0.7}>
+            {col}
+          </TouchableOpacity>
+        ) : (
+          <View key={value}>{col}</View>
+        );
       })}
+    </View>
+  );
+}
+
+function WeekPendingSection({ items, T, s, actionDimBg }: {
+  items: WeekAgendaItem[];
+  T: ThemeTokens;
+  s: ReturnType<typeof createStyles>;
+  actionDimBg: string;
+}) {
+  const sorted = [...items].sort((a, b) => {
+    if (a.isToday !== b.isToday) return a.isToday ? -1 : 1;
+    if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
+    return a.dayNumber - b.dayNumber;
+  });
+
+  return (
+    <View style={{ marginBottom: 28 }}>
+      <View style={s.sectionRow}>
+        <Text style={s.sectionTitle}>PENDIENTES ESTA SEMANA</Text>
+      </View>
+      <View style={{ gap: 8 }}>
+        {sorted.map(day => day.routines.map(routine => (
+          <View key={routine.id} style={s.pendingRow}>
+            <View style={[s.pendingDayBadge, day.isPast && { backgroundColor: '#130d00', borderColor: '#4a3200' }]}>
+              <Text style={[s.pendingDayLetter, day.isPast && { color: T.attention }]}>
+                {getDayShort(day.dayNumber).charAt(0)}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pendingRoutineName} numberOfLines={1}>{routine.name}</Text>
+              <Text style={s.pendingMeta}>
+                {day.isToday ? 'Hoy' : day.isPast ? 'Pendiente' : getDayShort(day.dayNumber)} · {routine.planName}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push(`/student/workout/${routine.id}`)}
+              activeOpacity={0.85}
+              style={s.pendingTrainBtn}
+            >
+              <LinearGradient
+                colors={[actionDimBg, '#003d4d']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.pendingTrainGrad}
+              >
+                <Ionicons name="play" size={12} color={T.action} />
+                <Text style={s.pendingTrainText}>ENTRENAR</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )))}
+      </View>
     </View>
   );
 }
@@ -749,6 +850,13 @@ function RestCard({ dayLabel, T, s }: { dayLabel: string; T: ThemeTokens; s: Ret
 
 // ─── Empty Plans ──────────────────────────────────────────────────────────────
 
+const ONBOARDING_STEPS = [
+  { icon: 'clipboard-outline' as const, label: 'Armá tu plan', desc: 'Objetivo, días y plantilla en minutos' },
+  { icon: 'list-outline' as const, label: 'Armá una rutina', desc: 'Agregá bloques y ejercicios del catálogo' },
+  { icon: 'barbell-outline' as const, label: 'Entrená en vivo', desc: 'Marcá series, peso y descansos' },
+  { icon: 'trending-up-outline' as const, label: 'Seguí tu progreso', desc: 'Historial, racha y records personales' },
+];
+
 function EmptyPlans({ onCreatePlan, T, s, actionDimBg }: {
   onCreatePlan: () => void;
   T: ThemeTokens;
@@ -760,11 +868,37 @@ function EmptyPlans({ onCreatePlan, T, s, actionDimBg }: {
       <View style={s.emptyIcon}>
         <Ionicons name="barbell-outline" size={36} color={T.action} />
       </View>
-      <Text style={s.emptyTitle}>SIN PLANES AÚN</Text>
-      <Text style={s.emptyDesc}>Creá tu primer plan para comenzar a entrenar.</Text>
+      <Text style={s.emptyTitle}>EMPEZÁ A ENTRENAR</Text>
+      <Text style={s.emptyDesc}>Seguí estos pasos para armar tu rutina y registrar tu primer entrenamiento.</Text>
+
+      <View style={s.onboardSteps}>
+        {ONBOARDING_STEPS.map((step, idx) => (
+          <View key={step.label} style={s.onboardStep}>
+            <View style={s.onboardStepLeft}>
+              <View style={s.onboardStepNum}>
+                <Text style={s.onboardStepNumText}>{idx + 1}</Text>
+              </View>
+              {idx < ONBOARDING_STEPS.length - 1 && <View style={s.onboardStepLine} />}
+            </View>
+            <View style={s.onboardStepBody}>
+              <View style={s.onboardStepTitleRow}>
+                <Ionicons name={step.icon} size={14} color={T.action} />
+                <Text style={s.onboardStepTitle}>{step.label}</Text>
+              </View>
+              <Text style={s.onboardStepDesc}>{step.desc}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
       <TouchableOpacity onPress={onCreatePlan} style={s.addBtn} activeOpacity={0.85}>
         <Ionicons name="add" size={16} color={actionDimBg} />
-        <Text style={s.addBtnText}>CREAR PLAN</Text>
+        <Text style={s.addBtnText}>ARMAR MI PLAN</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push('/student/plan/create')} style={{ marginTop: 12, padding: 8 }}>
+        <Text style={{ color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' }}>
+          Configurar manualmente
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -941,6 +1075,16 @@ function createStyles(T: ThemeTokens, actionDimBg = '#00566a', isDark = true) {
     calDayLetterOnAction:{ color: T.actionFg },
     calDot:              { width: 5, height: 5, borderRadius: 3 },
 
+    // Week pending
+    pendingRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 12 },
+    pendingDayBadge:   { width: 36, height: 36, borderRadius: 8, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: T.border },
+    pendingDayLetter:  { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+    pendingRoutineName:{ color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    pendingMeta:       { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 2 },
+    pendingTrainBtn:   { borderRadius: 8, overflow: 'hidden' },
+    pendingTrainGrad:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 8 },
+    pendingTrainText:  { color: T.action, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
     // Plan selector
     planSelectorWrap:    { overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: T.border },
     planSelectorContent: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
@@ -987,6 +1131,16 @@ function createStyles(T: ThemeTokens, actionDimBg = '#00566a', isDark = true) {
     emptyTitle:{ color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 8 },
     emptyDesc: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
 
+    onboardSteps:     { alignSelf: 'stretch', marginBottom: 24 },
+    onboardStep:      { flexDirection: 'row', gap: 12, marginBottom: 4 },
+    onboardStepLeft:  { alignItems: 'center', width: 28 },
+    onboardStepNum:   { width: 28, height: 28, borderRadius: 14, backgroundColor: actionDimBg, borderWidth: 1, borderColor: T.action, alignItems: 'center', justifyContent: 'center' },
+    onboardStepNumText:{ color: T.action, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+    onboardStepLine:  { flex: 1, width: 2, minHeight: 16, backgroundColor: T.border, marginVertical: 4 },
+    onboardStepBody:  { flex: 1, paddingBottom: 14 },
+    onboardStepTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+    onboardStepTitle: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    onboardStepDesc:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17 },
 
     // Nudge
     nudgeCard:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.textSecondary, padding: 14, marginTop: 8, marginBottom: 24 },

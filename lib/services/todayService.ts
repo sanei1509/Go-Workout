@@ -364,6 +364,85 @@ export async function getWeeklyCompletedDays(userId: string): Promise<{
   }
 }
 
+export interface WeekAgendaItem {
+  dayNumber: number;
+  dayShort: string;
+  isToday: boolean;
+  isPast: boolean;
+  isTrainingDay: boolean;
+  completed: boolean;
+  routines: { id: string; name: string; planId: string; planName: string }[];
+}
+
+/** Agenda L–D: días de entrenamiento, completados y rutinas asignadas. */
+export async function getWeekAgenda(userId: string): Promise<{
+  items: WeekAgendaItem[];
+  error: Error | null;
+}> {
+  try {
+    const today = getCurrentDayOfWeek();
+    const weekStart = getWeekStart();
+    const weekStartStr = weekStart.toISOString();
+
+    const { data: plans, error: plansError } = await supabase
+      .from('plans')
+      .select('id, name, training_days')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (plansError) return { items: [], error: new Error(plansError.message) };
+    if (!plans?.length) return { items: [], error: null };
+
+    const planIds = plans.map(p => p.id);
+    const { data: routines, error: routinesError } = await supabase
+      .from('routines')
+      .select('id, name, day_number, plan_id')
+      .in('plan_id', planIds);
+
+    if (routinesError) return { items: [], error: new Error(routinesError.message) };
+
+    const { data: sessions } = await supabase
+      .from('workout_sessions')
+      .select('routine_id, started_at')
+      .eq('user_id', userId)
+      .gte('started_at', weekStartStr)
+      .not('finished_at', 'is', null);
+
+    const completedRoutineIds = new Set((sessions ?? []).map(s => s.routine_id));
+    const planMap = new Map(plans.map(p => [p.id, p]));
+
+    const trainingDaysUnion = new Set<number>();
+    for (const p of plans) {
+      for (const d of p.training_days ?? []) trainingDaysUnion.add(d);
+    }
+
+    const items: WeekAgendaItem[] = WEEKDAYS.map(({ value, short }) => {
+      const dayRoutines = (routines ?? []).filter(r => r.day_number === value);
+      const isTrainingDay = trainingDaysUnion.has(value) || dayRoutines.length > 0;
+      const completed = dayRoutines.some(r => completedRoutineIds.has(r.id));
+
+      return {
+        dayNumber: value,
+        dayShort: short,
+        isToday: value === today,
+        isPast: value < today,
+        isTrainingDay,
+        completed,
+        routines: dayRoutines.map(r => ({
+          id: r.id,
+          name: r.name,
+          planId: r.plan_id,
+          planName: planMap.get(r.plan_id)?.name ?? 'Plan',
+        })),
+      };
+    });
+
+    return { items, error: null };
+  } catch {
+    return { items: [], error: new Error('Error al obtener agenda semanal') };
+  }
+}
+
 // Helper: Formatear duración en minutos
 export function formatDurationMinutes(startedAt: string, finishedAt: string): number {
   const start = new Date(startedAt);

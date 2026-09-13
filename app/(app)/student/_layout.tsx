@@ -123,6 +123,8 @@ export default function StudentLayout() {
       <Tabs.Screen name="invitations"         options={{ href: null }} />
       <Tabs.Screen name="invitation/[id]"     options={{ href: null }} />
       <Tabs.Screen name="plan/create"         options={{ href: null }} />
+      <Tabs.Screen name="plan/setup"          options={{ href: null }} />
+      <Tabs.Screen name="plan/edit/[id]"       options={{ href: null }} />
       <Tabs.Screen name="plan/[id]"           options={{ href: null }} />
       <Tabs.Screen name="routine/create"      options={{ href: null }} />
       <Tabs.Screen name="routine/[id]"        options={{ href: null }} />

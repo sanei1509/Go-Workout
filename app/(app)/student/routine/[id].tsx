@@ -21,8 +21,11 @@ import {
 } from '@/lib/services/exerciseService';
 import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
 import { ExercisePickerStep } from '@/components/ExercisePickerStep';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeTokens } from '@/constants/theme';
+import { getRecommendationForRoutine, type WorkoutRecommendation } from '@/lib/services/progressionService';
+import { NextStepCard } from '@/components/NextStepCard';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
@@ -68,6 +71,7 @@ const REST_PRESETS = [
 
 export default function RoutineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const [routine, setRoutine]           = useState<Routine | null>(null);
   const [discipline, setDiscipline]     = useState('');
@@ -77,6 +81,7 @@ export default function RoutineDetailScreen() {
   const [error, setError]               = useState<string | null>(null);
   const [isSaving, setIsSaving]         = useState(false);
   const [catalog, setCatalog]           = useState<CatalogExercise[]>([]);
+  const [recommendation, setRecommendation] = useState<WorkoutRecommendation | null>(null);
 
   // Block modal
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -118,6 +123,12 @@ export default function RoutineDetailScreen() {
       setIsAssigned(plan.trainer_id != null);
       const { exercises } = await getExercisesByDiscipline(plan.discipline);
       setCatalog(exercises);
+    }
+    if (user?.id && id) {
+      const { recommendation: rec } = await getRecommendationForRoutine(user.id, id);
+      setRecommendation(rec);
+    } else {
+      setRecommendation(null);
     }
     setIsLoading(false);
   };
@@ -358,6 +369,10 @@ export default function RoutineDetailScreen() {
                   {routine.notes ? <Text style={s.routineNotes}>{routine.notes}</Text> : null}
                 </View>
               </View>
+
+              {recommendation && (
+                <NextStepCard recommendation={recommendation} compact />
+              )}
 
               {/* Blocks section */}
               <View style={s.sectionHeader}>

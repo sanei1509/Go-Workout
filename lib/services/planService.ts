@@ -29,6 +29,7 @@ export interface UpdatePlanData {
   name?: string;
   discipline?: string;
   weekly_frequency?: number;
+  training_days?: number[];
   is_active?: boolean;
 }
 

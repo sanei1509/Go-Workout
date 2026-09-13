@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,28 +17,17 @@ import { useAgentChat } from '@/lib/agent/useAgentChat';
 import { getBlockLabel, getBlockIcon, formatExerciseValue } from '@/lib/services/routineService';
 import { getFrequencyLabel } from '@/lib/services/planService';
 import type { AgentProposal, ChatMessage, ProposalStatus } from '@/lib/agent/types';
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  success:    '#10B981',
-  danger:     '#EF4444',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 export default function CoachScreen() {
   const { messages, isSending, error, proposalStatus, canSend, sendMessage, confirmProposal } =
     useAgentChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   const handleSend = () => {
     if (!input.trim() || isSending) return;
@@ -52,11 +41,11 @@ export default function CoachScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={24} color={C.primary} />
+          <Ionicons name="chevron-back" size={24} color={T.action} />
         </TouchableOpacity>
         <View style={s.headerCenter}>
           <View style={s.headerAvatar}>
-            <Ionicons name="barbell" size={16} color={C.bg} />
+            <Ionicons name="barbell" size={16} color={T.surface} />
           </View>
           <View>
             <Text style={s.headerTitle}>ENTRENADOR IA</Text>
@@ -87,12 +76,12 @@ export default function CoachScreen() {
           ))}
           {isSending && (
             <View style={[s.bubble, s.bubbleAgent]}>
-              <ActivityIndicator size="small" color={C.primary} />
+              <ActivityIndicator size="small" color={T.action} />
             </View>
           )}
           {error && (
             <View style={s.errorBox}>
-              <Ionicons name="alert-circle" size={16} color={C.danger} />
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
               <Text style={s.errorText}>{error}</Text>
             </View>
           )}
@@ -103,7 +92,7 @@ export default function CoachScreen() {
           <TextInput
             style={s.input}
             placeholder={canSend ? 'Escribile a tu entrenador…' : 'Cargando…'}
-            placeholderTextColor={C.neutral}
+            placeholderTextColor={T.textSecondary}
             value={input}
             onChangeText={setInput}
             multiline
@@ -115,7 +104,7 @@ export default function CoachScreen() {
             onPress={handleSend}
             disabled={!input.trim() || isSending}
           >
-            <Ionicons name="arrow-up" size={20} color={C.bg} />
+            <Ionicons name="arrow-up" size={20} color={T.surface} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -134,6 +123,9 @@ function MessageBubble({
   proposalStatus: Record<string, ProposalStatus>;
   onConfirm: (p: AgentProposal) => Promise<{ ok: boolean }>;
 }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const isUser = message.role === 'user';
   return (
     <View style={{ alignItems: isUser ? 'flex-end' : 'flex-start' }}>
@@ -163,6 +155,9 @@ function ProposalCard({
   status: ProposalStatus;
   onConfirm: (p: AgentProposal) => Promise<{ ok: boolean }>;
 }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const created = status === 'created';
   const creating = status === 'creating';
 
@@ -171,7 +166,7 @@ function ProposalCard({
       {proposal.kind === 'plan' ? (
         <>
           <View style={s.proposalHead}>
-            <Ionicons name="albums" size={16} color={C.primary} />
+            <Ionicons name="albums" size={16} color={T.action} />
             <Text style={s.proposalKind}>PLAN PROPUESTO</Text>
           </View>
           <Text style={s.proposalTitle}>{proposal.data.name}</Text>
@@ -182,14 +177,14 @@ function ProposalCard({
       ) : (
         <>
           <View style={s.proposalHead}>
-            <Ionicons name="list" size={16} color={C.primary} />
+            <Ionicons name="list" size={16} color={T.action} />
             <Text style={s.proposalKind}>RUTINA PROPUESTA</Text>
           </View>
           <Text style={s.proposalTitle}>{proposal.name}</Text>
           {proposal.blocks.map((b, bi) => (
             <View key={bi} style={s.blockRow}>
               <View style={s.blockHead}>
-                <Ionicons name={getBlockIcon(b.block_type) as any} size={13} color={C.tertiary} />
+                <Ionicons name={getBlockIcon(b.block_type) as any} size={13} color={T.attention} />
                 <Text style={s.blockLabel}>{getBlockLabel(b.block_type)}</Text>
               </View>
               {b.exercises.map((ex, ei) => (
@@ -208,10 +203,10 @@ function ProposalCard({
         disabled={created || creating}
       >
         {creating ? (
-          <ActivityIndicator size="small" color={C.bg} />
+          <ActivityIndicator size="small" color={T.surface} />
         ) : created ? (
           <>
-            <Ionicons name="checkmark-circle" size={16} color={C.bg} />
+            <Ionicons name="checkmark-circle" size={16} color={T.surface} />
             <Text style={s.confirmText}>
               {proposal.kind === 'plan' ? 'Plan creado' : 'Rutina creada'}
             </Text>
@@ -226,69 +221,71 @@ function ProposalCard({
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerAvatar: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  headerSub: { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: T.surface },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: T.border,
+    },
+    headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headerAvatar: {
+      width: 32, height: 32, borderRadius: 16, backgroundColor: T.action,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    headerTitle: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    headerSub: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  messagesWrap: { padding: 16, gap: 10 },
-  bubble: { maxWidth: '85%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: C.primaryDim, borderBottomRightRadius: 4 },
-  bubbleAgent: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 4 },
-  bubbleTextUser: { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
-  bubbleTextAgent: { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
+    messagesWrap: { padding: 16, gap: 10 },
+    bubble: { maxWidth: '85%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+    bubbleUser: { backgroundColor: actionDimBg, borderBottomRightRadius: 4 },
+    bubbleAgent: { backgroundColor: T.surfaceElevated, borderWidth: 1, borderColor: T.border, borderBottomLeftRadius: 4 },
+    bubbleTextUser: { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
+    bubbleTextAgent: { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
 
-  proposalCard: {
-    maxWidth: '90%', backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.primaryDim,
-    borderRadius: 14, padding: 14, marginTop: 8, gap: 8,
-  },
-  proposalHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  proposalKind: { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
-  proposalTitle: { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
-  proposalMeta: { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    proposalCard: {
+      maxWidth: '90%', backgroundColor: T.border, borderWidth: 1, borderColor: actionDimBg,
+      borderRadius: 14, padding: 14, marginTop: 8, gap: 8,
+    },
+    proposalHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    proposalKind: { color: T.action, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.2 },
+    proposalTitle: { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
+    proposalMeta: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  blockRow: { marginTop: 4, gap: 2 },
-  blockHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  blockLabel: { color: C.tertiary, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', letterSpacing: 0.5 },
-  exLine: { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', marginLeft: 4 },
+    blockRow: { marginTop: 4, gap: 2 },
+    blockHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    blockLabel: { color: T.attention, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', letterSpacing: 0.5 },
+    exLine: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', marginLeft: 4 },
 
-  confirmBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: C.primary, borderRadius: 10, paddingVertical: 10, marginTop: 6,
-  },
-  confirmBtnDone: { backgroundColor: C.success },
-  confirmText: { color: C.bg, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    confirmBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      backgroundColor: T.action, borderRadius: 10, paddingVertical: 10, marginTop: 6,
+    },
+    confirmBtnDone: { backgroundColor: T.done },
+    confirmText: { color: T.surface, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  errorText: { color: C.danger, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1 },
+    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
+    errorText: { color: '#EF4444', fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1 },
 
-  inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.card,
-  },
-  input: {
-    flex: 1, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular',
-    backgroundColor: C.cardDeep, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    maxHeight: 120, borderWidth: 1, borderColor: C.border,
-  },
-  sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  sendBtnOff: { backgroundColor: C.primaryDim, opacity: 0.5 },
-});
+    inputBar: {
+      flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+      paddingHorizontal: 14, paddingVertical: 10,
+      borderTopWidth: 1, borderTopColor: T.border, backgroundColor: T.surfaceElevated,
+    },
+    input: {
+      flex: 1, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular',
+      backgroundColor: T.border, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
+      maxHeight: 120, borderWidth: 1, borderColor: T.border,
+    },
+    sendBtn: {
+      width: 40, height: 40, borderRadius: 20, backgroundColor: T.action,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    sendBtnOff: { backgroundColor: actionDimBg, opacity: 0.5 },
+  });
+}

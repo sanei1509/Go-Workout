@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 import { useAlert } from '@/components/AppAlert';
 import {
   createInvitation,
@@ -25,21 +27,6 @@ import {
   FORM_FIELD_LABELS,
 } from '@/lib/services/invitationService';
 import { DISCIPLINES } from '@/lib/constants/disciplines';
-
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-  red:        '#f87171',
-};
 
 const PLAN_TYPES = [
   'Personalizado',
@@ -72,6 +59,12 @@ const AVAILABLE_FORM_FIELDS: FormField[] = [
 export default function CreateInvitationScreen() {
   const { user, profile } = useAuth();
   const { showAlert } = useAlert();
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const ctaGradient = activeTheme === 'dark'
+    ? ['#00566a', '#003d4d'] as const
+    : [T.border, T.surfaceElevated] as const;
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -213,7 +206,7 @@ export default function CreateInvitationScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <LinearGradient
-        colors={['transparent', C.primary, 'transparent']}
+        colors={['transparent', T.action, 'transparent']}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={s.topLine}
       />
@@ -221,7 +214,7 @@ export default function CreateInvitationScreen() {
       {/* ── Top bar ────────────────────────────────────────────────── */}
       <View style={s.topBar}>
         <TouchableOpacity onPress={handleGoBack} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={C.primary} />
+          <Ionicons name="chevron-back" size={24} color={T.action} />
         </TouchableOpacity>
         <Text style={s.topBarTitle}>Nueva invitación</Text>
         <View style={{ width: 32 }} />
@@ -242,14 +235,14 @@ export default function CreateInvitationScreen() {
             {foundStudent ? (
               <View style={s.foundRow}>
                 <View style={s.foundIcon}>
-                  <Ionicons name="checkmark" size={18} color={C.green} />
+                  <Ionicons name="checkmark" size={18} color={T.done} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.foundName}>{foundStudent.full_name}</Text>
                   <Text style={s.foundEmail}>{foundStudent.email}</Text>
                 </View>
                 <TouchableOpacity onPress={handleClearStudent} style={s.clearBtn}>
-                  <Ionicons name="close" size={16} color={C.neutral} />
+                  <Ionicons name="close" size={16} color={T.textSecondary} />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -259,7 +252,7 @@ export default function CreateInvitationScreen() {
                     value={studentEmail}
                     onChangeText={setStudentEmail}
                     placeholder="email@delalumno.com"
-                    placeholderTextColor={C.neutral}
+                    placeholderTextColor={T.textSecondary}
                     style={s.searchInput}
                     autoCapitalize="none"
                     keyboardType="email-address"
@@ -273,14 +266,14 @@ export default function CreateInvitationScreen() {
                     activeOpacity={0.85}
                   >
                     {isSearching
-                      ? <ActivityIndicator size="small" color={C.primary} />
-                      : <Ionicons name="search" size={18} color={C.primary} />
+                      ? <ActivityIndicator size="small" color={T.action} />
+                      : <Ionicons name="search" size={18} color={T.action} />
                     }
                   </TouchableOpacity>
                 </View>
                 {studentError && (
                   <View style={s.errorRow}>
-                    <Ionicons name="alert-circle-outline" size={13} color={C.red} />
+                    <Ionicons name="alert-circle-outline" size={13} color={'#EF4444'} />
                     <Text style={s.errorText}>{studentError}</Text>
                   </View>
                 )}
@@ -349,7 +342,7 @@ export default function CreateInvitationScreen() {
               value={termsText}
               onChangeText={setTermsText}
               placeholder="Condiciones del entrenamiento, pagos, cancelaciones..."
-              placeholderTextColor={C.neutral}
+              placeholderTextColor={T.textSecondary}
               style={s.termsInput}
               multiline
               numberOfLines={4}
@@ -368,8 +361,8 @@ export default function CreateInvitationScreen() {
             <Switch
               value={hasRequiredForm}
               onValueChange={handleToggleRequiredForm}
-              trackColor={{ false: C.cardDeep, true: C.primaryDim }}
-              thumbColor={hasRequiredForm ? C.primary : C.neutral}
+              trackColor={{ false: T.border, true: actionDimBg }}
+              thumbColor={hasRequiredForm ? T.action : T.textSecondary}
             />
           </View>
 
@@ -384,8 +377,8 @@ export default function CreateInvitationScreen() {
                     style={[s.chip, active && s.chipActiveTertiary]}
                     activeOpacity={0.8}
                   >
-                    {active && <Ionicons name="checkmark" size={12} color={C.tertiary} />}
-                    <Text style={[s.chipText, active && { color: C.tertiary }]}>
+                    {active && <Ionicons name="checkmark" size={12} color={T.attention} />}
+                    <Text style={[s.chipText, active && { color: T.attention }]}>
                       {FORM_FIELD_LABELS[f]}
                     </Text>
                   </TouchableOpacity>
@@ -405,18 +398,18 @@ export default function CreateInvitationScreen() {
           >
             {foundStudent && !isSubmitting ? (
               <LinearGradient
-                colors={[C.primaryDim, '#003d4d']}
+                colors={ctaGradient}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={s.ctaGrad}
               >
-                <Ionicons name="paper-plane-outline" size={17} color={C.primary} />
+                <Ionicons name="paper-plane-outline" size={17} color={T.action} />
                 <Text style={s.ctaText}>ENVIAR INVITACIÓN</Text>
               </LinearGradient>
             ) : (
-              <View style={[s.ctaGrad, { backgroundColor: C.cardDeep }]}>
+              <View style={[s.ctaGrad, { backgroundColor: T.border }]}>
                 {isSubmitting
-                  ? <ActivityIndicator color={C.primary} />
-                  : <Text style={[s.ctaText, { color: C.neutral }]}>ENVIAR INVITACIÓN</Text>
+                  ? <ActivityIndicator color={T.action} />
+                  : <Text style={[s.ctaText, { color: T.textSecondary }]}>ENVIAR INVITACIÓN</Text>
                 }
               </View>
             )}
@@ -427,50 +420,52 @@ export default function CreateInvitationScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
 
-  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  topBarTitle: { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold' },
+    topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+    topBarTitle: { color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
+    sectionTitle: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
 
-  card: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+    card: { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 14 },
 
-  // Búsqueda
-  searchRow:   { flexDirection: 'row', gap: 10 },
-  searchInput: { flex: 1, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
-  searchBtn:   { width: 46, borderRadius: 10, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  errorRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  errorText:   { color: C.red, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Búsqueda
+    searchRow:   { flexDirection: 'row', gap: 10 },
+    searchInput: { flex: 1, backgroundColor: T.border, borderWidth: 1, borderColor: T.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
+    searchBtn:   { width: 46, borderRadius: 10, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    errorRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+    errorText:   { color: '#EF4444', fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Alumno encontrado
-  foundRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  foundIcon:  { width: 36, height: 36, borderRadius: 18, backgroundColor: '#0a1f10', borderWidth: 1, borderColor: C.green, alignItems: 'center', justifyContent: 'center' },
-  foundName:  { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
-  foundEmail: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
-  clearBtn:   { width: 30, height: 30, borderRadius: 8, backgroundColor: C.cardDeep, alignItems: 'center', justifyContent: 'center' },
+    // Alumno encontrado
+    foundRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    foundIcon:  { width: 36, height: 36, borderRadius: 18, backgroundColor: '#0a1f10', borderWidth: 1, borderColor: T.done, alignItems: 'center', justifyContent: 'center' },
+    foundName:  { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+    foundEmail: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    clearBtn:   { width: 30, height: 30, borderRadius: 8, backgroundColor: T.border, alignItems: 'center', justifyContent: 'center' },
 
-  // Chips
-  chipsWrap:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:               { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  chipActive:         { backgroundColor: C.primaryDim, borderColor: C.primary },
-  chipActiveTertiary: { backgroundColor: '#130d00', borderColor: C.tertiary },
-  chipText:           { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  chipTextActive:     { color: C.primary },
+    // Chips
+    chipsWrap:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip:               { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: T.surfaceElevated, borderWidth: 1, borderColor: T.border },
+    chipActive:         { backgroundColor: actionDimBg, borderColor: T.action },
+    chipActiveTertiary: { backgroundColor: '#130d00', borderColor: T.attention },
+    chipText:           { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    chipTextActive:     { color: T.action },
 
-  // Términos
-  termsInput: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', minHeight: 90, lineHeight: 19 },
+    // Términos
+    termsInput: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', minHeight: 90, lineHeight: 19 },
 
-  // Toggle formulario
-  formToggleRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 24, marginBottom: 12 },
-  formToggleTitle: { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  formToggleSub:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Toggle formulario
+    formToggleRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 14, marginTop: 24, marginBottom: 12 },
+    formToggleTitle: { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    formToggleSub:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Footer
-  footer:  { padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.bg },
-  ctaBtn:  { borderRadius: 12, overflow: 'hidden' },
-  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 15 },
-  ctaText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-});
+    // Footer
+    footer:  { padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: T.border, backgroundColor: T.surface },
+    ctaBtn:  { borderRadius: 12, overflow: 'hidden' },
+    ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 15 },
+    ctaText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  });
+}

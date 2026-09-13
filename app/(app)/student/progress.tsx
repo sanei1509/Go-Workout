@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 import {
   getExerciseHistory,
   getAllPersonalRecords,
@@ -22,24 +24,13 @@ import {
   ExerciseHistoryEntry,
 } from '@/lib/services/progressService';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
-
 const CHART_W = Dimensions.get('window').width - 80;
 
 export default function ProgressScreen() {
   const { user } = useAuth();
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<PersonalRecord | null>(null);
   const [history, setHistory] = useState<ExerciseHistoryEntry[]>([]);
@@ -113,14 +104,14 @@ export default function ProgressScreen() {
               onPress={() => router.navigate('/student/analytics' as any)}
               style={{ marginLeft: 4, padding: 4 }}
             >
-              <Ionicons name="chevron-back" size={26} color={C.primary} />
+              <Ionicons name="chevron-back" size={26} color={T.action} />
             </TouchableOpacity>
           ),
         }}
       />
       <View style={s.container}>
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
@@ -131,11 +122,11 @@ export default function ProgressScreen() {
         >
           {/* ── Buscador ──────────────────────────────────────────── */}
           <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={18} color={C.neutral} />
+            <Ionicons name="search-outline" size={18} color={T.textSecondary} />
             <TextInput
               style={s.searchInput}
               placeholder="Buscar ejercicio..."
-              placeholderTextColor={C.neutral}
+              placeholderTextColor={T.textSecondary}
               value={search}
               onChangeText={text => {
                 setSearch(text);
@@ -147,7 +138,7 @@ export default function ProgressScreen() {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={clearSelection}>
-                <Ionicons name="close-circle" size={18} color={C.neutral} />
+                <Ionicons name="close-circle" size={18} color={T.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -157,12 +148,12 @@ export default function ProgressScreen() {
             <>
               {isLoadingRecords ? (
                 <View style={s.centeredState}>
-                  <ActivityIndicator size="large" color={C.primary} />
+                  <ActivityIndicator size="large" color={T.action} />
                 </View>
               ) : records.length === 0 ? (
                 <View style={s.centeredState}>
                   <View style={s.emptyIcon}>
-                    <Ionicons name="barbell-outline" size={32} color={C.primary} />
+                    <Ionicons name="barbell-outline" size={32} color={T.action} />
                   </View>
                   <Text style={s.emptyTitle}>SIN DATOS AÚN</Text>
                   <Text style={s.emptyDesc}>
@@ -200,7 +191,7 @@ export default function ProgressScreen() {
                           <Text style={s.exercisePr}>
                             {formatProgressValue(item.best_value, item.exercise_type)}
                           </Text>
-                          <Ionicons name="chevron-forward" size={14} color={C.border} style={{ marginLeft: 6 }} />
+                          <Ionicons name="chevron-forward" size={14} color={T.border} style={{ marginLeft: 6 }} />
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -221,13 +212,13 @@ export default function ProgressScreen() {
               {/* PR Card */}
               <View style={s.prCard}>
                 <LinearGradient
-                  colors={['transparent', C.tertiary, 'transparent']}
+                  colors={['transparent', T.attention, 'transparent']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={s.prTopLine}
                 />
                 <View style={s.prHeader}>
                   <View style={s.prTrophyWrap}>
-                    <Ionicons name="trophy" size={22} color={C.tertiary} />
+                    <Ionicons name="trophy" size={22} color={T.attention} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.prLabel}>RÉCORD PERSONAL</Text>
@@ -261,11 +252,11 @@ export default function ProgressScreen() {
                 <Text style={s.sectionTitle}>EVOLUCIÓN</Text>
                 {isLoadingHistory ? (
                   <View style={s.chartPlaceholder}>
-                    <ActivityIndicator size="small" color={C.primary} />
+                    <ActivityIndicator size="small" color={T.action} />
                   </View>
                 ) : history.length < 2 ? (
                   <View style={s.chartPlaceholder}>
-                    <Ionicons name="analytics-outline" size={28} color={C.border} />
+                    <Ionicons name="analytics-outline" size={28} color={T.border} />
                     <Text style={s.emptyDesc}>
                       Necesitás al menos 2 sesiones para ver la evolución.
                     </Text>
@@ -276,14 +267,14 @@ export default function ProgressScreen() {
                     width={CHART_W}
                     height={180}
                     chartConfig={{
-                      backgroundColor: C.card,
-                      backgroundGradientFrom: C.card,
-                      backgroundGradientTo: C.cardDeep,
+                      backgroundColor: T.surfaceElevated,
+                      backgroundGradientFrom: T.surfaceElevated,
+                      backgroundGradientTo: T.border,
                       decimalPlaces: 0,
                       color: (opacity = 1) => `rgba(0, 209, 255, ${opacity})`,
-                      labelColor: () => C.textLo,
-                      propsForDots: { r: '5', strokeWidth: '2', stroke: C.primary, fill: C.primaryDim },
-                      propsForBackgroundLines: { stroke: C.border, strokeDasharray: '' },
+                      labelColor: () => T.textSecondary,
+                      propsForDots: { r: '5', strokeWidth: '2', stroke: T.action, fill: actionDimBg },
+                      propsForBackgroundLines: { stroke: T.border, strokeDasharray: '' },
                     }}
                     bezier
                     style={{ borderRadius: 8, marginLeft: -10 }}
@@ -311,19 +302,19 @@ export default function ProgressScreen() {
                           style={[s.historyRow, idx < history.length - 1 && s.historyBorder]}
                         >
                           <View style={[s.historyNum, isPR && { backgroundColor: '#2a1f00' }]}>
-                            <Text style={[s.historyNumText, isPR && { color: C.tertiary }]}>
+                            <Text style={[s.historyNumText, isPR && { color: T.attention }]}>
                               {history.length - idx}
                             </Text>
                           </View>
                           <Text style={s.historyDate}>{formatDateLong(entry.date)}</Text>
                           <View style={s.historyRight}>
-                            <Text style={[s.historyValue, isPR && { color: C.tertiary }]}>
+                            <Text style={[s.historyValue, isPR && { color: T.attention }]}>
                               {formatProgressValue(entry.actual_value, entry.exercise_type)}
                             </Text>
                             <Text style={s.historySets}>× {entry.sets_completed} series</Text>
                           </View>
                           {isPR && (
-                            <Ionicons name="trophy" size={14} color={C.tertiary} style={{ marginLeft: 8 }} />
+                            <Ionicons name="trophy" size={14} color={T.attention} style={{ marginLeft: 8 }} />
                           )}
                         </View>
                       );
@@ -341,63 +332,65 @@ export default function ProgressScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  topLine:   { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:    { padding: 20, paddingBottom: 48 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: T.surface },
+    topLine:   { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:    { padding: 20, paddingBottom: 48 },
 
-  // Section
-  sectionTitle:   { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
-  sectionRow:     { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 24 },
-  countBadge:     { marginLeft: 10, backgroundColor: C.primaryDim, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  countBadgeText: { color: C.primary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+    // Section
+    sectionTitle:   { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
+    sectionRow:     { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 24 },
+    countBadge:     { marginLeft: 10, backgroundColor: actionDimBg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+    countBadgeText: { color: T.action, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  // Search
-  searchBox:   { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, gap: 10, marginBottom: 20 },
-  searchInput: { flex: 1, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Search
+    searchBox:   { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.border, paddingHorizontal: 14, paddingVertical: 12, gap: 10, marginBottom: 20 },
+    searchInput: { flex: 1, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // States
-  centeredState: { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  emptyIcon:     { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle:    { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
-  emptyDesc:     { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20 },
+    // States
+    centeredState: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+    emptyIcon:     { width: 64, height: 64, borderRadius: 32, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    emptyTitle:    { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    emptyDesc:     { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20 },
 
-  // Exercise list
-  exerciseList:   { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 8 },
-  exerciseRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13 },
-  exerciseBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-  exerciseRank:   { width: 28, alignItems: 'center', marginRight: 12 },
-  exerciseRankNum:{ color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
-  exerciseName:   { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 2 },
-  exerciseDate:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
-  exercisePr:     { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    // Exercise list
+    exerciseList:   { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden', marginBottom: 8 },
+    exerciseRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13 },
+    exerciseBorder: { borderBottomWidth: 1, borderBottomColor: T.border },
+    exerciseRank:   { width: 28, alignItems: 'center', marginRight: 12 },
+    exerciseRankNum:{ color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+    exerciseName:   { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 2 },
+    exerciseDate:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    exercisePr:     { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  // PR card
-  prCard:       { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.tertiary, marginBottom: 16, overflow: 'hidden' },
-  prTopLine:    { height: 2, opacity: 0.7 },
-  prHeader:     { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 12, gap: 12 },
-  prTrophyWrap: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#2a1f00', alignItems: 'center', justifyContent: 'center' },
-  prLabel:      { color: C.tertiary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 3 },
-  prExercise:   { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.3 },
-  prStats:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border },
-  prStatMain:   { flex: 2, alignItems: 'center', paddingVertical: 14 },
-  prStatSide:   { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  prStatDivider:{ width: 1, backgroundColor: C.border },
-  prStatValue:  { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
-  prStatLabel:  { color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    // PR card
+    prCard:       { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.attention, marginBottom: 16, overflow: 'hidden' },
+    prTopLine:    { height: 2, opacity: 0.7 },
+    prHeader:     { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 12, gap: 12 },
+    prTrophyWrap: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#2a1f00', alignItems: 'center', justifyContent: 'center' },
+    prLabel:      { color: T.attention, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 3 },
+    prExercise:   { color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.3 },
+    prStats:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: T.border },
+    prStatMain:   { flex: 2, alignItems: 'center', paddingVertical: 14 },
+    prStatSide:   { flex: 1, alignItems: 'center', paddingVertical: 14 },
+    prStatDivider:{ width: 1, backgroundColor: T.border },
+    prStatValue:  { color: T.textPrimary, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+    prStatLabel:  { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
 
-  // Chart
-  chartCard:            { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 4, overflow: 'hidden' },
-  chartPlaceholder:     { height: 120, alignItems: 'center', justifyContent: 'center', gap: 10 },
+    // Chart
+    chartCard:            { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, padding: 20, marginBottom: 4, overflow: 'hidden' },
+    chartPlaceholder:     { height: 120, alignItems: 'center', justifyContent: 'center', gap: 10 },
 
-  // History
-  historyList:   { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  historyRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
-  historyBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-  historyNum:    { width: 28, height: 28, borderRadius: 6, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  historyNumText:{ color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
-  historyDate:   { flex: 1, color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
-  historyRight:  { alignItems: 'flex-end' },
-  historyValue:  { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
-  historySets:   { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 1 },
-});
+    // History
+    historyList:   { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    historyRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
+    historyBorder: { borderBottomWidth: 1, borderBottomColor: T.border },
+    historyNum:    { width: 28, height: 28, borderRadius: 6, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    historyNumText:{ color: T.action, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+    historyDate:   { flex: 1, color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    historyRight:  { alignItems: 'flex-end' },
+    historyValue:  { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+    historySets:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 1 },
+  });
+}

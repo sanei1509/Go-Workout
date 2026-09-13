@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,20 +21,8 @@ import {
   FREQUENCIES,
 } from '@/lib/services/planService';
 import { getProfile } from '@/lib/services/profileService';
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 const TOTAL_STEPS = 3;
 
@@ -70,6 +58,10 @@ export default function AssignPlanScreen() {
   const [discipline, setDiscipline] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [step, setStep]             = useState(1);
+
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   // Disciplinas del entrenador acotan el paso 2. Si tiene una sola, se saltea.
   const trainerDisciplines = profile?.disciplines ?? [];
@@ -160,7 +152,7 @@ export default function AssignPlanScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
@@ -168,10 +160,10 @@ export default function AssignPlanScreen() {
         {/* ── Top bar custom (headerShown false) ────────────── */}
         <View style={s.topBar}>
           <TouchableOpacity onPress={handleGoBack} style={{ padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
+            <Ionicons name="chevron-back" size={24} color={T.action} />
           </TouchableOpacity>
           <View style={s.forBadge}>
-            <Ionicons name="person-outline" size={11} color={C.tertiary} />
+            <Ionicons name="person-outline" size={11} color={T.attention} />
             <Text style={s.forBadgeText}>PARA {studentName.toUpperCase()}</Text>
           </View>
           <View style={{ width: 32 }} />
@@ -187,8 +179,8 @@ export default function AssignPlanScreen() {
               <View key={n} style={s.stepItem}>
                 <View style={[s.stepDot, active && s.stepDotActive, done && s.stepDotDone]}>
                   {done
-                    ? <Ionicons name="checkmark" size={13} color={C.bg} />
-                    : <Text style={[s.stepNum, (active || done) && { color: C.bg }]}>{n}</Text>
+                    ? <Ionicons name="checkmark" size={13} color={T.surface} />
+                    : <Text style={[s.stepNum, (active || done) && { color: T.surface }]}>{n}</Text>
                   }
                 </View>
                 {n < TOTAL_STEPS && (
@@ -236,7 +228,7 @@ export default function AssignPlanScreen() {
             >
               {canProceed() && !isSubmitting ? (
                 <LinearGradient
-                  colors={[C.primaryDim, '#003d4d']}
+                  colors={[actionDimBg, '#003d4d']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={s.ctaGrad}
                 >
@@ -246,14 +238,14 @@ export default function AssignPlanScreen() {
                   <Ionicons
                     name={step === TOTAL_STEPS ? 'checkmark-circle-outline' : 'arrow-forward'}
                     size={18}
-                    color={C.primary}
+                    color={T.action}
                   />
                 </LinearGradient>
               ) : (
                 <View style={[s.ctaGrad, s.ctaGradDisabled]}>
                   {isSubmitting
-                    ? <ActivityIndicator color={C.primary} />
-                    : <Text style={[s.ctaText, { color: C.neutral }]}>
+                    ? <ActivityIndicator color={T.action} />
+                    : <Text style={[s.ctaText, { color: T.textSecondary }]}>
                         {step === TOTAL_STEPS ? 'ASIGNAR PLAN' : 'CONTINUAR'}
                       </Text>
                   }
@@ -272,23 +264,24 @@ export default function AssignPlanScreen() {
 function Step1({ name, setName, studentName }: {
   name: string; setName: (v: string) => void; studentName: string;
 }) {
+  const { T } = useTheme();
   return (
     <View>
-      <Text style={s.stepTitle}>¿Cómo se llama{'\n'}el plan?</Text>
-      <Text style={s.stepSub}>Un nombre claro ayuda a {studentName} a identificarlo</Text>
+      <Text style={s1.stepTitle(T)}>¿Cómo se llama{'\n'}el plan?</Text>
+      <Text style={s1.stepSub(T)}>Un nombre claro ayuda a {studentName} a identificarlo</Text>
 
-      <View style={s.inputWrap}>
+      <View style={s1.inputWrap(T)}>
         <TextInput
           value={name}
           onChangeText={setName}
           placeholder="Ej: Hipertrofia 4 días..."
-          placeholderTextColor={C.neutral}
-          style={s.input}
+          placeholderTextColor={T.textSecondary}
+          style={s1.input(T)}
           autoFocus
           maxLength={50}
           returnKeyType="next"
         />
-        <Text style={s.charCount}>{name.length}/50</Text>
+        <Text style={s1.charCount(T)}>{name.length}/50</Text>
       </View>
     </View>
   );
@@ -299,12 +292,13 @@ function Step1({ name, setName, studentName }: {
 function Step2({ discipline, options, onSelect }: {
   discipline: string | null; options: string[]; onSelect: (d: string) => void;
 }) {
+  const { T } = useTheme();
   return (
     <View>
-      <Text style={s.stepTitle}>¿Qué disciplina{'\n'}va a entrenar?</Text>
-      <Text style={s.stepSub}>Tus disciplinas declaradas · Tocá una para continuar</Text>
+      <Text style={s1.stepTitle(T)}>¿Qué disciplina{'\n'}va a entrenar?</Text>
+      <Text style={s1.stepSub(T)}>Tus disciplinas declaradas · Tocá una para continuar</Text>
 
-      <View style={s.disciplineGrid}>
+      <View style={s1.disciplineGrid}>
         {options.map((d) => {
           const active = discipline === d;
           return (
@@ -312,15 +306,15 @@ function Step2({ discipline, options, onSelect }: {
               key={d}
               onPress={() => onSelect(d)}
               activeOpacity={0.75}
-              style={[s.disciplineChip, active && s.disciplineChipActive]}
+              style={[s1.disciplineChip(T), active && s1.disciplineChipActive(T)]}
             >
               <Ionicons
                 name={(DISCIPLINE_ICONS[d] ?? 'apps-outline') as any}
                 size={18}
-                color={active ? C.bg : C.neutral}
+                color={active ? T.surface : T.textSecondary}
                 style={{ marginBottom: 5 }}
               />
-              <Text style={[s.disciplineText, active && s.disciplineTextActive]}>{d}</Text>
+              <Text style={[s1.disciplineText(T), active && s1.disciplineTextActive(T)]}>{d}</Text>
             </TouchableOpacity>
           );
         })}
@@ -337,6 +331,8 @@ function Step3({
   name: string; discipline: string; studentName: string;
   selectedDays: number[]; onToggleDay: (day: number) => void;
 }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
   const count = selectedDays.length;
   const freqLabel = count > 0
     ? FREQUENCIES.find(f => f.value === count)?.label ?? `${count} días por semana`
@@ -344,19 +340,19 @@ function Step3({
 
   return (
     <View>
-      <Text style={s.stepTitle}>¿Qué días{'\n'}entrena?</Text>
-      <Text style={s.stepSub}>Seleccioná uno o varios días</Text>
+      <Text style={s1.stepTitle(T)}>¿Qué días{'\n'}entrena?</Text>
+      <Text style={s1.stepSub(T)}>Seleccioná uno o varios días</Text>
 
       {/* Resumen */}
-      <View style={s.summaryCard}>
-        <Text style={s.summaryLabel}>PLAN PARA {studentName.toUpperCase()}</Text>
-        <Text style={s.summaryName}>{name}</Text>
-        <Text style={s.summaryDiscipline}>{discipline}</Text>
+      <View style={s1.summaryCard(T, actionDimBg)}>
+        <Text style={s1.summaryLabel(T)}>PLAN PARA {studentName.toUpperCase()}</Text>
+        <Text style={s1.summaryName(T)}>{name}</Text>
+        <Text style={s1.summaryDiscipline(T)}>{discipline}</Text>
       </View>
 
       {/* Selector de días */}
-      <View style={s.daySelector}>
-        <View style={s.dayDotsRow}>
+      <View style={s1.daySelector(T)}>
+        <View style={s1.dayDotsRow}>
           {DAY_LABELS.map((label, i) => {
             const dayNum  = i + 1;
             const active  = selectedDays.includes(dayNum);
@@ -365,9 +361,9 @@ function Step3({
                 key={label}
                 onPress={() => onToggleDay(dayNum)}
                 activeOpacity={0.7}
-                style={[s.dayDot, active && s.dayDotActive]}
+                style={[s1.dayDot(T), active && s1.dayDotActive(T)]}
               >
-                <Text style={[s.dayLabel, active && s.dayLabelActive]}>
+                <Text style={[s1.dayLabel(T), active && s1.dayLabelActive(T)]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -376,86 +372,81 @@ function Step3({
         </View>
 
         {freqLabel ? (
-          <View style={s.freqResult}>
-            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-            <Text style={s.freqResultText}>{freqLabel}</Text>
+          <View style={s1.freqResult}>
+            <Ionicons name="checkmark-circle" size={16} color={T.action} />
+            <Text style={s1.freqResultText(T)}>{freqLabel}</Text>
           </View>
         ) : (
-          <Text style={s.freqHint}>Tocá los días que va a entrenar</Text>
+          <Text style={s1.freqHint(T)}>Tocá los días que va a entrenar</Text>
         )}
       </View>
     </View>
   );
 }
 
+// ─── Inline style helpers for sub-components ─────────────────────────────────
+
+const s1 = {
+  stepTitle:            (T: ThemeTokens) => ({ color: T.textPrimary, fontSize: 28, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 34, marginBottom: 8 } as const),
+  stepSub:              (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 28 } as const),
+  inputWrap:            (T: ThemeTokens) => ({ backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1.5, borderColor: T.border, overflow: 'hidden' as const }),
+  input:                (T: ThemeTokens) => ({ color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 20, paddingVertical: 18 } as const),
+  charCount:            (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'right' as const, paddingHorizontal: 16, paddingBottom: 10 }),
+  disciplineGrid:       { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 10 },
+  disciplineChip:       (T: ThemeTokens) => ({ width: '30%' as any, flexGrow: 1, alignItems: 'center' as const, paddingVertical: 14, paddingHorizontal: 8, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border }),
+  disciplineChipActive: (T: ThemeTokens) => ({ backgroundColor: T.action, borderColor: T.action }),
+  disciplineText:       (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center' as const }),
+  disciplineTextActive: (T: ThemeTokens) => ({ color: T.surface }),
+  summaryCard:          (T: ThemeTokens, actionDimBg: string) => ({ backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: actionDimBg, padding: 16, marginBottom: 24 }),
+  summaryLabel:         (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 4 } as const),
+  summaryName:          (T: ThemeTokens) => ({ color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' } as const),
+  summaryDiscipline:    (T: ThemeTokens) => ({ color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginTop: 2 } as const),
+  daySelector:          (T: ThemeTokens) => ({ backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 20, alignItems: 'center' as const }),
+  dayDotsRow:           { flexDirection: 'row' as const, gap: 8, marginBottom: 20 },
+  dayDot:               (T: ThemeTokens) => ({ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: T.border, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: T.border }),
+  dayDotActive:         (T: ThemeTokens) => ({ backgroundColor: T.action, borderColor: T.action }),
+  dayLabel:             (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' } as const),
+  dayLabelActive:       (T: ThemeTokens) => ({ color: T.surface }),
+  freqResult:           { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
+  freqResultText:       (T: ThemeTokens) => ({ color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' } as const),
+  freqHint:             (T: ThemeTokens) => ({ color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' } as const),
+};
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:  { padding: 24, paddingBottom: 16 },
+function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:  { padding: 24, paddingBottom: 16 },
 
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 56, paddingHorizontal: 16,
-  },
-  forBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
-  forBadgeText: { color: C.tertiary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    topBar: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingTop: 56, paddingHorizontal: 16,
+    },
+    forBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#130d00', borderWidth: 1, borderColor: '#4a3200' },
+    forBadgeText: { color: T.attention, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
 
-  // ── Steps indicator ──
-  stepsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  stepItem:       { flexDirection: 'row', alignItems: 'center' },
-  stepDot:        { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
-  stepDotActive:  { borderColor: C.primary, backgroundColor: C.primary },
-  stepDotDone:    { borderColor: C.primary, backgroundColor: C.primary },
-  stepNum:        { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
-  stepLine:       { width: 48, height: 1.5, backgroundColor: C.border, marginHorizontal: 6 },
-  stepLineDone:   { backgroundColor: C.primary },
+    // ── Steps indicator ──
+    stepsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+    },
+    stepItem:       { flexDirection: 'row', alignItems: 'center' },
+    stepDot:        { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surfaceElevated },
+    stepDotActive:  { borderColor: T.action, backgroundColor: T.action },
+    stepDotDone:    { borderColor: T.action, backgroundColor: T.action },
+    stepNum:        { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    stepLine:       { width: 48, height: 1.5, backgroundColor: T.border, marginHorizontal: 6 },
+    stepLineDone:   { backgroundColor: T.action },
 
-  // ── Step content ──
-  stepTitle: { color: C.textHi, fontSize: 28, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 34, marginBottom: 8 },
-  stepSub:   { color: C.textLo, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 28 },
-
-  // ── Step 1 ──
-  inputWrap:  { backgroundColor: C.card, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, overflow: 'hidden' },
-  input:      { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 20, paddingVertical: 18 },
-  charCount:  { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'right', paddingHorizontal: 16, paddingBottom: 10 },
-
-  // ── Step 2 ──
-  disciplineGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  disciplineChip:      { width: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border },
-  disciplineChipActive:{ backgroundColor: C.primary, borderColor: C.primary },
-  disciplineText:      { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center' },
-  disciplineTextActive:{ color: C.bg },
-
-  // ── Step 3 ──
-  summaryCard:       { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.primaryDim, padding: 16, marginBottom: 24 },
-  summaryLabel:      { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 4 },
-  summaryName:       { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
-  summaryDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginTop: 2 },
-
-  daySelector: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center' },
-  dayDotsRow:  { flexDirection: 'row', gap: 8, marginBottom: 20 },
-
-  dayDot:       { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
-  dayDotActive: { backgroundColor: C.primary, borderColor: C.primary },
-
-  dayLabel:       { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
-  dayLabelActive: { color: C.bg },
-
-  freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  freqResultText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
-  freqHint:       { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
-
-  // ── Footer ──
-  footer:         { padding: 20, paddingBottom: 32 },
-  ctaBtn:         { borderRadius: 14, overflow: 'hidden' },
-  ctaGrad:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
-  ctaGradDisabled:{ backgroundColor: C.cardDeep },
-  ctaText:        { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-});
+    // ── Footer ──
+    footer:         { padding: 20, paddingBottom: 32 },
+    ctaBtn:         { borderRadius: 14, overflow: 'hidden' },
+    ctaGrad:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
+    ctaGradDisabled:{ backgroundColor: T.border },
+    ctaText:        { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  });
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,26 +15,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeMode, ThemeTokens } from '@/constants/theme';
 import { useAlert } from '@/components/AppAlert';
 import { updateProfile, uploadAvatar } from '@/lib/services/profileService';
 import { DISCIPLINES, MAX_TRAINER_DISCIPLINES } from '@/lib/constants/disciplines';
 
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
-
 export default function TrainerProfileScreen() {
   const { profile, user, signOut, refreshProfile } = useAuth();
   const { showAlert } = useAlert();
+  const { T, activeTheme, themeMode, setThemeMode } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const actionGradient = activeTheme === 'dark'
+    ? ['#00566a', '#003d4d'] as const
+    : [T.border, T.surfaceElevated] as const;
+  const avatarGradient = activeTheme === 'dark'
+    ? ['#00566a', '#002d3d'] as const
+    : [T.border, T.surfaceElevated] as const;
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -140,7 +138,7 @@ export default function TrainerProfileScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <LinearGradient
-        colors={['transparent', C.primary, 'transparent']}
+        colors={['transparent', T.action, 'transparent']}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={s.topLine}
       />
@@ -158,7 +156,7 @@ export default function TrainerProfileScreen() {
               <Image source={{ uri: profile.avatar_url }} style={s.avatar} />
             ) : (
               <LinearGradient
-                colors={[C.primaryDim, '#002d3d']}
+                colors={avatarGradient}
                 style={s.avatarPlaceholder}
               >
                 <Text style={s.avatarInitial}>{initial}</Text>
@@ -166,8 +164,8 @@ export default function TrainerProfileScreen() {
             )}
             <View style={s.cameraBtn}>
               {isUploadingPhoto
-                ? <ActivityIndicator size="small" color={C.primary} />
-                : <Ionicons name="camera" size={14} color={C.primary} />
+                ? <ActivityIndicator size="small" color={T.action} />
+                : <Ionicons name="camera" size={14} color={T.action} />
               }
             </View>
           </TouchableOpacity>
@@ -181,7 +179,7 @@ export default function TrainerProfileScreen() {
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={handleSaveName}
-                placeholderTextColor={C.neutral}
+                placeholderTextColor={T.textSecondary}
               />
               <View style={s.editNameBtns}>
                 <TouchableOpacity onPress={() => setIsEditingName(false)} style={s.cancelBtn}>
@@ -193,7 +191,7 @@ export default function TrainerProfileScreen() {
                   style={s.saveBtn}
                 >
                   {isSavingName
-                    ? <ActivityIndicator size="small" color={C.primaryDim} />
+                    ? <ActivityIndicator size="small" color={actionDimBg} />
                     : <Text style={s.saveBtnText}>GUARDAR</Text>
                   }
                 </TouchableOpacity>
@@ -206,15 +204,34 @@ export default function TrainerProfileScreen() {
               activeOpacity={0.8}
             >
               <Text style={s.displayName}>{displayName}</Text>
-              <Ionicons name="pencil-outline" size={15} color={C.neutral} style={{ marginLeft: 8 }} />
+              <Ionicons name="pencil-outline" size={15} color={T.textSecondary} style={{ marginLeft: 8 }} />
             </TouchableOpacity>
           )}
 
           <Text style={s.emailText}>{user?.email}</Text>
           <View style={s.roleBadge}>
-            <Ionicons name="barbell-outline" size={11} color={C.primary} />
+            <Ionicons name="barbell-outline" size={11} color={T.action} />
             <Text style={s.roleBadgeText}>ENTRENADOR</Text>
           </View>
+        </View>
+
+        {/* ── Tema ─────────────────────────────────────────────────── */}
+        <Text style={s.sectionTitle}>APARIENCIA</Text>
+        <View style={s.themeRow}>
+          {(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => {
+            const active = themeMode === mode;
+            const label = mode === 'auto' ? 'AUTO' : mode === 'light' ? 'CLARO' : 'OSCURO';
+            return (
+              <TouchableOpacity
+                key={mode}
+                onPress={() => setThemeMode(mode)}
+                activeOpacity={0.85}
+                style={[s.themeChip, active && s.themeChipActive]}
+              >
+                <Text style={[s.themeChipText, active && s.themeChipTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── Disciplinas ───────────────────────────────────────────── */}
@@ -233,7 +250,7 @@ export default function TrainerProfileScreen() {
                   onPress={() => toggleDiscipline(d)}
                   activeOpacity={0.8}
                 >
-                  {active && <Ionicons name="checkmark" size={12} color={C.primary} />}
+                  {active && <Ionicons name="checkmark" size={12} color={T.action} />}
                   <Text style={[s.chipText, active && s.chipTextActive]}>{d}</Text>
                 </TouchableOpacity>
               );
@@ -247,12 +264,12 @@ export default function TrainerProfileScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#00566a', '#003d4d']}
+                colors={actionGradient}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={[s.saveDisciplinesBtn, selectedDisciplines.length === 0 && { opacity: 0.5 }]}
               >
                 {isSavingDisciplines
-                  ? <ActivityIndicator size="small" color={C.primary} />
+                  ? <ActivityIndicator size="small" color={T.action} />
                   : (
                     <Text style={s.saveDisciplinesText}>
                       {selectedDisciplines.length === 0 ? 'ELEGÍ AL MENOS UNA' : 'GUARDAR DISCIPLINAS'}
@@ -279,48 +296,57 @@ export default function TrainerProfileScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:     { flex: 1, backgroundColor: C.bg },
-  topLine:  { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:   { padding: 20, paddingBottom: 48 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe:     { flex: 1, backgroundColor: T.surface },
+    topLine:  { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:   { padding: 20, paddingBottom: 48 },
 
-  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
+    sectionTitle: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
 
-  // Hero card
-  heroCard:         { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', marginBottom: 24 },
-  avatarWrap:       { marginBottom: 16, position: 'relative' },
-  avatar:           { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: C.primary },
-  avatarPlaceholder:{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.primary },
-  avatarInitial:    { color: C.primary, fontSize: 36, fontFamily: 'SpaceGrotesk_700Bold' },
-  cameraBtn:        { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1.5, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  nameRow:          { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  displayName:      { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.3 },
-  emailText:        { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
-  roleBadge:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: C.primaryDim },
-  roleBadgeText:    { color: C.primary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    // Hero card
+    heroCard:         { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 28, alignItems: 'center', marginBottom: 24 },
+    avatarWrap:       { marginBottom: 16, position: 'relative' },
+    avatar:           { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: T.action },
+    avatarPlaceholder:{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: T.action },
+    avatarInitial:    { color: T.action, fontSize: 36, fontFamily: 'SpaceGrotesk_700Bold' },
+    cameraBtn:        { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: T.surface, borderWidth: 1.5, borderColor: T.action, alignItems: 'center', justifyContent: 'center' },
+    nameRow:          { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    displayName:      { color: T.textPrimary, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -0.3 },
+    emailText:        { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    roleBadge:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: actionDimBg },
+    roleBadgeText:    { color: T.action, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
 
-  // Edit name
-  editNameWrap: { width: '100%', marginBottom: 8 },
-  nameInput:    { backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
-  editNameBtns: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
-  cancelBtn:    { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  cancelBtnText:{ color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  saveBtn:      { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: C.primary },
-  saveBtnText:  { color: C.primaryDim, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    // Edit name
+    editNameWrap: { width: '100%', marginBottom: 8 },
+    nameInput:    { backgroundColor: T.border, borderWidth: 1, borderColor: T.action, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
+    editNameBtns: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+    cancelBtn:    { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: T.border },
+    cancelBtnText:{ color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    saveBtn:      { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: T.action },
+    saveBtnText:  { color: actionDimBg, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // Disciplinas
-  disciplinesCard: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 24 },
-  disciplinesHint: { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17, marginBottom: 14 },
-  chipsWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:            { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 8, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
-  chipActive:      { backgroundColor: C.primaryDim, borderColor: C.primary },
-  chipText:        { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  chipTextActive:  { color: C.primary },
-  saveDisciplinesBtn:  { alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 10, marginTop: 16 },
-  saveDisciplinesText: { color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    // Theme picker
+    themeRow:            { flexDirection: 'row', gap: 8, marginBottom: 24 },
+    themeChip:           { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: T.border, backgroundColor: T.surfaceElevated },
+    themeChipActive:     { borderColor: T.action, backgroundColor: actionDimBg },
+    themeChipText:       { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    themeChipTextActive: { color: T.action },
 
-  // Logout
-  logoutBtn:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: '#3d1515', padding: 14 },
-  logoutIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: '#1a0808', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  logoutText: { color: '#f87171', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-});
+    // Disciplinas
+    disciplinesCard: { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16, marginBottom: 24 },
+    disciplinesHint: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17, marginBottom: 14 },
+    chipsWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip:            { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 8, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    chipActive:      { backgroundColor: actionDimBg, borderColor: T.action },
+    chipText:        { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    chipTextActive:  { color: T.action },
+    saveDisciplinesBtn:  { alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 10, marginTop: 16 },
+    saveDisciplinesText: { color: T.action, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+
+    // Logout
+    logoutBtn:  { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: '#3d1515', padding: 14 },
+    logoutIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: '#1a0808', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    logoutText: { color: '#f87171', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  });
+}

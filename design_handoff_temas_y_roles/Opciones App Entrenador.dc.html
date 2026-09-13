@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#05090b;font-family:'Space Grotesk',system-ui,sans-serif}a{color:#00D1FF;text-decoration:none}a:hover{color:#7ee7ff}.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(255,255,255,.07);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#E8EDEF;color:#090f12;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF}.dv-opts{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(255,255,255,.1);color:#E8EDEF;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:9px;font:400 11.5px/1.35 'Space Grotesk',sans-serif;color:rgba(232,237,239,.5);max-width:390px}.dv-opt:target .dv-oid{background:#00D1FF;color:#050b0d}.dv-next{margin:26px 0 0;font:12px/1.6 'Space Grotesk',sans-serif;color:rgba(232,237,239,.42)}</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Un sistema, dos temas — sigue la configuración del teléfono</span></div>
+
+<div style="display:flex;align-items:center;gap:14px;margin:-6px 0 22px;flex-wrap:wrap">
+<div style="display:flex;gap:5px;padding:4px;border-radius:11px;background:#0d1417;border:1px solid rgba(255,255,255,.08)">
+<div style="{{ btnAuto }}" onClick="{{ setAuto }}">Automático</div>
+<div style="{{ btnLight }}" onClick="{{ setLight }}">Claro</div>
+<div style="{{ btnDark }}" onClick="{{ setDark }}">Oscuro</div>
+</div>
+<div style="font:400 11.5px/1.4 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);max-width:420px">{{ modeNote }}</div>
+</div>
+
+<div class="dv-opts">
+
+<div style="flex:none;width:300px;background:#0d1417;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:20px;color:#E8EDEF">
+<div style="font:600 9.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:rgba(232,237,239,.4);margin-bottom:14px">LOS PARES DE TOKENS</div>
+<div style="font:400 12.5px/1.5 'Space Grotesk',sans-serif;color:rgba(232,237,239,.62);margin-bottom:18px">Nueve variables, dos valores cada una. Ningún componente conoce un color: solo su rol.</div>
+<div style="display:flex;flex-direction:column;gap:0;font:400 11px/1 ui-monospace,Menlo,monospace">
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1;color:rgba(232,237,239,.5)">bg</span><span style="width:16px;height:16px;border-radius:4px;background:#090f12;border:1px solid rgba(255,255,255,.15)"></span><span style="width:16px;height:16px;border-radius:4px;background:#F3F1EC"></span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1;color:rgba(232,237,239,.5)">surface</span><span style="width:16px;height:16px;border-radius:4px;background:#141d21;border:1px solid rgba(255,255,255,.15)"></span><span style="width:16px;height:16px;border-radius:4px;background:#FBFAF8"></span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1;color:rgba(232,237,239,.5)">text</span><span style="width:16px;height:16px;border-radius:4px;background:#E8EDEF"></span><span style="width:16px;height:16px;border-radius:4px;background:#0b1114"></span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1;color:#00D1FF">action</span><span style="width:16px;height:16px;border-radius:4px;background:#00D1FF"></span><span style="width:16px;height:16px;border-radius:4px;background:#0b1114"></span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1;color:#4ade80">done</span><span style="width:16px;height:16px;border-radius:4px;background:#4ade80"></span><span style="width:16px;height:16px;border-radius:4px;background:#2C8C4E"></span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 0"><span style="flex:1;color:#FEB127">attention</span><span style="width:16px;height:16px;border-radius:4px;background:#FEB127"></span><span style="width:16px;height:16px;border-radius:4px;background:#B8791A"></span></div>
+</div>
+<div style="height:1px;background:rgba(255,255,255,.07);margin:16px 0 14px"></div>
+<div style="font:400 12.5px/1.5 'Space Grotesk',sans-serif;color:rgba(232,237,239,.62)">El cyan no viaja al claro: sobre <span style="color:#E8EDEF">#F3F1EC</span> pierde contraste y se vuelve decorativo. En claro, la acción es el carbón — que es exactamente lo que te gustó.</div>
+</div>
+
+<div class="dv-opt" id="4a">
+<div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Alumno.</b> Misma jerarquía de <a class="dv-oid" href="#1a">1a</a>, ahora sobre tokens. Cambiá el switch de arriba.</span></div>
+<div style="{{ sPhone }}">
+<div style="{{ sStatus }}"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:14px 22px 0;display:flex;align-items:center;justify-content:space-between">
+<div><div style="{{ sEyebrow }}">MARTES 25 AGO</div><div style="{{ sGreet }}">Hola, Martina</div></div>
+<div style="{{ sAvatar }}">C</div>
+</div>
+<div style="{{ sHero }}">
+<div style="{{ sLive }}"><span style="{{ sLiveDot }}"></span>EN CURSO · 14 MIN</div>
+<div style="{{ sHeroTitle }}">Día A<br>Empujón</div>
+<div style="{{ sHeroMeta }}"><span>8 ejercicios</span><span>3 bloques</span><span>~55 min</span></div>
+<div style="display:flex;gap:4px;margin-top:20px">
+<sc-for list="{{ prog }}" as="p" hint-placeholder-count="8"><div style="{{ p.s }}"></div></sc-for>
+</div>
+<div style="{{ sHeroNext }}">Siguiente: Press de banca · serie 3 de 4</div>
+<div style="{{ sCta }}">Continuar entrenamiento <span style="font-size:17px">→</span></div>
+</div>
+<div style="margin:26px 22px 0">
+<div style="{{ sSection }}">SEMANA</div>
+<div style="display:flex;justify-content:space-between;margin-top:14px">
+<sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="{{ d.circle }}">{{ d.l }}</div><div style="{{ d.cap }}">{{ d.n }}</div></div>
+</sc-for>
+</div>
+<div style="{{ sWeekSum }}"><b style="{{ sWeekNum }}">2</b> de 5 sesiones<span style="opacity:.4">·</span><b style="{{ sWeekNum }}">73</b> min</div>
+</div>
+<div style="margin:24px 22px 0">
+<div style="{{ sHr }}"></div>
+<div style="display:flex;align-items:center;gap:12px;padding:15px 0;cursor:pointer"><div style="{{ sDotWarn }}"></div><div style="flex:1;min-width:0"><div style="{{ sRowTitle }}">Carlos te dejó una nota</div><div style="{{ sRowSubEllipsis }}">“Subí el banca a 80 si las 4 series salen limpias”</div></div><span style="{{ sChev }}">›</span></div>
+<div style="{{ sHr }}"></div>
+<div style="display:flex;align-items:center;gap:12px;padding:15px 0;cursor:pointer"><div style="{{ sDotOk }}"></div><div style="flex:1"><div style="{{ sRowTitle }}">Récord nuevo · Press de banca</div><div style="{{ sRowSub }}">102,5 kg · hace 4 días</div></div><span style="{{ sChev }}">›</span></div>
+</div>
+<div style="{{ sTabbar }}">
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOn }}"></div><div style="{{ sTabLabelOn }}">HOY</div></div>
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOff }}"></div><div style="{{ sTabLabelOff }}">PROGRESO</div></div>
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOffRound }}"></div><div style="{{ sTabLabelOff }}">PERFIL</div></div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="4b">
+<div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Entrenador.</b> Los mismos tokens con densidad de consola: dos productos, un sistema.</span></div>
+<div style="{{ sPhone }}">
+<div style="{{ sStatus }}"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="{{ sTrHead }}">
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div><div style="{{ sEyebrow }}">MARTES 25 AGOSTO</div><div style="{{ sTrTitle }}">18 alumnos</div></div>
+<div style="{{ sAvatarSolid }}">CD</div>
+</div>
+<div style="{{ sStatStrip }}">
+<div style="{{ sStatCell }}"><div style="{{ sStatNum }}">11<span style="{{ sStatOf }}">/18</span></div><div style="{{ sStatCap }}">HOY</div></div>
+<div style="{{ sStatCell }}"><div style="{{ sStatNum }}">86<span style="{{ sStatOf }}">%</span></div><div style="{{ sStatCap }}">ADHEREN.</div></div>
+<div style="{{ sStatCellLast }}"><div style="{{ sStatNum }}">$412<span style="{{ sStatOf }}">k</span></div><div style="{{ sStatCap }}">MES</div></div>
+</div>
+</div>
+<div style="{{ sSecRow }}"><div style="{{ sSecLabel }}">REQUIEREN ACCIÓN</div><div style="{{ sSecLine }}"></div><div style="{{ sSecCount }}">3</div></div>
+<div style="padding:0 20px;display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ alerts }}" as="a" hint-placeholder-count="3">
+<div style="{{ sAlert }}"><div style="flex:1"><div style="{{ sAlertName }}">{{ a.name }}</div><div style="{{ sAlertWhy }}">{{ a.why }}</div></div><div style="{{ sAlertBtn }}">{{ a.action }}</div></div>
+</sc-for>
+</div>
+<div style="{{ sSecRow2 }}"><div style="{{ sSecLabel }}">TODOS</div><div style="{{ sSecLine }}"></div><div style="{{ sSortLabel }}">Adherencia ↓</div></div>
+<div style="flex:1;overflow:hidden;padding:0 20px">
+<sc-for list="{{ roster }}" as="r" hint-placeholder-count="5">
+<div style="{{ sRosterRow }}"><div style="flex:1;min-width:0"><div style="{{ sRosterName }}">{{ r.name }}</div><div style="{{ sRosterMeta }}">{{ r.meta }}</div></div><div style="{{ sBarTrack }}"><div style="{{ r.bar }}"></div></div><div style="{{ sPct }}">{{ r.pct }}</div></div>
+</sc-for>
+</div>
+<div style="{{ sTabbar }}">
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOn }}"></div><div style="{{ sTabLabelOn }}">DÍA</div></div>
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOff }}"></div><div style="{{ sTabLabelOff }}">ALUMNOS</div></div>
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOff }}"></div><div style="{{ sTabLabelOff }}">PLANES</div></div>
+<div style="{{ sTabWrap }}"><div style="{{ sTabIconOffRound }}"></div><div style="{{ sTabLabelOff }}">NEGOCIO</div></div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Probá: “mostrame la sesión en curso en los dos temas” · “el tema claro del alumno más cálido” · “agregá un ajuste manual de tema en Perfil”</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Lado entrenador, consola clara — lista completa y constructor</span></div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Alumnos.</b> Una tabla, no tarjetas: nombre, adherencia, última sesión y cuota en una línea escaneable. El ámbar solo marca lo que frena.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.14);background:#F3F1EC;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:12px 20px 0;display:flex;align-items:flex-start;justify-content:space-between">
+<div><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(9,15,18,.42)">CARTERA</div><div style="font:700 25px/1.1 'Space Grotesk',sans-serif;color:#0b1114;margin-top:7px;letter-spacing:-.025em">Alumnos</div></div>
+<div style="height:36px;padding:0 14px;border-radius:10px;background:#0b1114;display:flex;align-items:center;gap:7px;font:600 12.5px/1 'Space Grotesk',sans-serif;color:#F3F1EC;cursor:pointer"><span style="font-size:15px;line-height:1">+</span>Invitar</div>
+</div>
+<div style="padding:18px 20px 0"><div style="height:42px;border-radius:11px;background:#FBFAF8;border:1px solid rgba(9,15,18,.1);display:flex;align-items:center;padding:0 14px;gap:10px"><span style="font-size:13px;color:rgba(9,15,18,.35)">⌕</span><span style="font:400 13.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.35)">Buscar por nombre o plan…</span></div></div>
+<div style="display:flex;gap:7px;padding:14px 20px 0;overflow:hidden">
+<div style="height:30px;padding:0 12px;border-radius:8px;background:#0b1114;display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#F3F1EC;flex:none">18 activos</div>
+<div style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(9,15,18,.14);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.5);flex:none">Fuerza 11</div>
+<div style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(9,15,18,.14);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.5);flex:none">Running 5</div>
+<div style="height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(9,15,18,.14);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.5);flex:none">Crossfit 2</div>
+</div>
+<div style="display:flex;align-items:center;gap:0;padding:20px 20px 8px;border-bottom:1px solid rgba(9,15,18,.14)">
+<div style="flex:1;font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.12em;color:rgba(9,15,18,.42)">ALUMNO</div>
+<div style="width:96px;font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.12em;color:#0b1114">ADHERENCIA ↓</div>
+<div style="width:26px"></div>
+</div>
+<div style="flex:1;overflow:hidden;padding:0 20px">
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Sofía Bianchi</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);margin-top:4px">Fuerza · entrenó ayer</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:100%;height:100%;background:#2C8C4E"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">100</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:7px"><span style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Martina López</span><span style="width:6px;height:6px;border-radius:50%;background:#2C8C4E"></span></div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#1F6B3B;margin-top:4px">Entrenando ahora · Día A</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:92%;height:100%;background:#2C8C4E"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">92</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Nicolás Paz</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);margin-top:4px">Crossfit · hace 2 días</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:78%;height:100%;background:#2C8C4E"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">78</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Lucía Ferrari</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);margin-top:4px">Running · hace 2 días</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:71%;height:100%;background:#2C8C4E"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">71</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08);background:#FDF6E8;margin:0 -20px;padding-left:20px;padding-right:20px"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Julián Ferrer</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#8A5A11;margin-top:4px">Plan vencido · sin semana asignada</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:54%;height:100%;background:#B8791A"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">54</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Tomás Ricci</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);margin-top:4px">Fuerza · hace 5 días</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:48%;height:100%;background:#B8791A"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">48</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08);background:#FDF6E8;margin:0 -20px;padding-left:20px;padding-right:20px"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Rodrigo Vega</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#8A5A11;margin-top:4px">Cuota vencida · $32.000</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:42%;height:100%;background:#B8791A"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">42</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+<div style="display:flex;align-items:center;padding:14px 0;border-bottom:1px solid rgba(9,15,18,.08);background:#FDF6E8;margin:0 -20px;padding-left:20px;padding-right:20px"><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Agustina Ruiz</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#8A5A11;margin-top:4px">9 días sin entrenar</div></div><div style="width:96px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:31%;height:100%;background:#B8791A"></div></div><span style="font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114;width:32px;text-align:right">31</span></div><div style="width:26px;text-align:right;color:rgba(9,15,18,.3);font-size:15px">›</div></div>
+</div>
+<div style="height:78px;border-top:1px solid rgba(9,15,18,.1);background:#FBFAF8;display:flex;align-items:flex-start;padding-top:12px">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">DÍA</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;background:#0b1114"></div><div style="font:600 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#0b1114">ALUMNOS</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">PLANES</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">NEGOCIO</div></div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="3b">
+<div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Constructor de rutinas.</b> Bloques arrastrables, series editables en línea y la asignación a alumnos en el mismo lugar donde se construye.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.14);background:#F3F1EC;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:12px 20px 16px;border-bottom:1px solid rgba(9,15,18,.1)">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="font:500 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);cursor:pointer">‹ Planes</div>
+<div style="font:600 12.5px/1 'Space Grotesk',sans-serif;color:#0b1114;cursor:pointer">Guardar</div>
+</div>
+<div style="font:700 24px/1.15 'Space Grotesk',sans-serif;color:#0b1114;margin-top:14px;letter-spacing:-.025em">Plan Fuerza · 5 días</div>
+<div style="font:400 12.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45);margin-top:7px">Asignado a 6 alumnos · editado hoy</div>
+</div>
+<div style="display:flex;gap:6px;padding:16px 20px 0">
+<div style="flex:1;height:44px;border-radius:11px;background:#0b1114;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer"><span style="font:600 12.5px/1 'Space Grotesk',sans-serif;color:#F3F1EC">A</span><span style="font:400 9px/1 ui-monospace,monospace;color:rgba(243,241,236,.55)">EMPUJÓN</span></div>
+<div style="flex:1;height:44px;border-radius:11px;border:1px solid rgba(9,15,18,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer"><span style="font:600 12.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.65)">B</span><span style="font:400 9px/1 ui-monospace,monospace;color:rgba(9,15,18,.38)">TIRÓN</span></div>
+<div style="flex:1;height:44px;border-radius:11px;border:1px solid rgba(9,15,18,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer"><span style="font:600 12.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.65)">C</span><span style="font:400 9px/1 ui-monospace,monospace;color:rgba(9,15,18,.38)">PIERNAS</span></div>
+<div style="width:44px;height:44px;border-radius:11px;border:1px dashed rgba(9,15,18,.25);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(9,15,18,.4);cursor:pointer">+</div>
+</div>
+<div style="flex:1;overflow:hidden;padding:22px 20px 0">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.14em;color:#0b1114">BLOQUE A · PRINCIPAL</div><div style="flex:1;height:1px;background:rgba(9,15,18,.12)"></div><div style="font:400 10px/1 ui-monospace,monospace;color:rgba(9,15,18,.42)">90 S</div></div>
+<div style="background:#FBFAF8;border:1px solid rgba(9,15,18,.1);border-radius:12px;overflow:hidden;margin-bottom:9px">
+<div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid rgba(9,15,18,.07)"><div style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.28);cursor:grab">⠿</div><div style="flex:1;font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Press de banca</div><div style="display:flex;gap:5px"><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">4×8</div><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">80 kg</div></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 14px"><div style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.28);cursor:grab">⠿</div><div style="flex:1;font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Press militar</div><div style="display:flex;gap:5px"><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">4×6</div><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">45 kg</div></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin:20px 0 12px"><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.14em;color:#0b1114">BLOQUE B · ACCESORIO</div><div style="flex:1;height:1px;background:rgba(9,15,18,.12)"></div><div style="font:400 10px/1 ui-monospace,monospace;color:rgba(9,15,18,.42)">60 S</div></div>
+<div style="background:#FBFAF8;border:1px solid rgba(9,15,18,.1);border-radius:12px;overflow:hidden">
+<div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid rgba(9,15,18,.07)"><div style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.28);cursor:grab">⠿</div><div style="flex:1;font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Fondos en paralelas</div><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">3×10</div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid rgba(9,15,18,.07)"><div style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.28);cursor:grab">⠿</div><div style="flex:1;font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Aperturas con mancuernas</div><div style="display:flex;gap:5px"><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">3×12</div></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 14px"><div style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.28);cursor:grab">⠿</div><div style="flex:1;font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Extensión de tríceps</div><div style="height:28px;padding:0 9px;border-radius:7px;background:#F0EEE9;border:1px solid rgba(9,15,18,.12);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#0b1114">3×15</div></div>
+</div>
+<div style="height:44px;border-radius:11px;border:1px dashed rgba(9,15,18,.25);display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font:600 12.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.5);cursor:pointer"><span style="font-size:15px">+</span>Añadir ejercicio o bloque</div>
+</div>
+<div style="border-top:1px solid rgba(9,15,18,.1);background:#FBFAF8;padding:14px 20px 22px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(9,15,18,.42)">ASIGNADO A</div><div style="font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.5);cursor:pointer">Editar</div></div>
+<div style="display:flex;align-items:center;gap:9px">
+<div style="display:flex">
+<div style="width:32px;height:32px;border-radius:50%;background:#0b1114;border:2px solid #FBFAF8;display:flex;align-items:center;justify-content:center;font:600 11.5px 'Space Grotesk',sans-serif;color:#F3F1EC">M</div>
+<div style="width:32px;height:32px;border-radius:50%;background:#2b3a40;border:2px solid #FBFAF8;margin-left:-9px;display:flex;align-items:center;justify-content:center;font:600 11.5px 'Space Grotesk',sans-serif;color:#F3F1EC">S</div>
+<div style="width:32px;height:32px;border-radius:50%;background:#46585f;border:2px solid #FBFAF8;margin-left:-9px;display:flex;align-items:center;justify-content:center;font:600 11.5px 'Space Grotesk',sans-serif;color:#F3F1EC">T</div>
+<div style="width:32px;height:32px;border-radius:50%;background:#6b7c82;border:2px solid #FBFAF8;margin-left:-9px;display:flex;align-items:center;justify-content:center;font:600 11.5px 'Space Grotesk',sans-serif;color:#F3F1EC">+3</div>
+</div>
+<div style="flex:1"></div>
+<div style="height:46px;padding:0 20px;border-radius:12px;background:#0b1114;display:flex;align-items:center;font:600 14px/1 'Space Grotesk',sans-serif;color:#F3F1EC;cursor:pointer">Publicar semana</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Probá: “el perfil de un alumno visto por el entrenador” · “pasá <a class="dv-oid" href="#3a">3a</a> y <a class="dv-oid" href="#3b">3b</a> a dark como <a class="dv-oid" href="#2a">2a</a>” · “el flujo de cobro de la cuota”</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">¿Aguanta la paleta? ¿Separamos entrenador y alumno?</span></div>
+
+<div class="dv-opts">
+
+<div style="flex:none;width:300px;background:#0d1417;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:20px;color:#E8EDEF">
+<div style="font:600 9.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:rgba(232,237,239,.4);margin-bottom:14px">MI RESPUESTA CORTA</div>
+<div style="font:500 15px/1.4 'Space Grotesk',sans-serif;margin-bottom:16px">La fuente sí. El dark-only no. Y sí: hay que separarlos, pero por temperatura, no por identidad.</div>
+<div style="display:flex;flex-direction:column;gap:13px;font:400 12.5px/1.5 'Space Grotesk',sans-serif;color:rgba(232,237,239,.62)">
+<div><b style="color:#E8EDEF;font-weight:600">Space Grotesk se queda.</b> Geométrica, dígitos anchos y legibles a 40&nbsp;px de distancia — que es como se lee un teléfono apoyado en un banco. Solo hay que apretarle el tracking en titulares.</div>
+<div><b style="color:#E8EDEF;font-weight:600">El cyan sobre carbón funciona en el gimnasio</b> (poca luz, pantalla al 40&nbsp;%) y falla al sol. Si hay running, hay pantalla a mediodía: el tema claro es una necesidad funcional, no una preferencia. Ver <a class="dv-oid" href="#2c">2c</a>.</div>
+<div><b style="color:#E8EDEF;font-weight:600">Cuatro acentos era el problema real</b>, no los colores en sí. Cyan = acción. Verde = hecho. Ámbar = te necesita. Nada más.</div>
+<div><b style="color:#E8EDEF;font-weight:600">Entrenador ≠ alumno.</b> El alumno abre la app 4 min y hace una cosa. El entrenador la abre 40 min y compara 20 personas. Mismos tokens, densidad y superficie opuestas.</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Entrenador, mismo dark.</b> Se diferencia solo por densidad y por el ámbar como señal de “te necesita”. Un único tema en el código.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.1);background:#090f12;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:12px 20px 16px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)">
+<div><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(232,237,239,.38)">MARTES 25 · 18 ALUMNOS</div><div style="font:700 25px/1.1 'Space Grotesk',sans-serif;color:#E8EDEF;margin-top:7px;letter-spacing:-.02em">Tu día</div></div>
+<div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:10px;background:rgba(254,177,39,.12);border:1px solid rgba(254,177,39,.3)"><span style="font:700 13px/1 'Space Grotesk',sans-serif;color:#FEB127">3</span><span style="font:500 11px/1 'Space Grotesk',sans-serif;color:#FEB127">te necesitan</span></div>
+</div>
+<div style="display:flex;padding:14px 20px 0;gap:22px">
+<div><div style="font:700 22px/1 'Space Grotesk',sans-serif;color:#E8EDEF">11</div><div style="font:400 10px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(232,237,239,.35);margin-top:6px">ENTRENARON</div></div>
+<div><div style="font:700 22px/1 'Space Grotesk',sans-serif;color:#E8EDEF">86<span style="font-size:13px;color:rgba(232,237,239,.4)">%</span></div><div style="font:400 10px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(232,237,239,.35);margin-top:6px">ADHERENCIA</div></div>
+<div><div style="font:700 22px/1 'Space Grotesk',sans-serif;color:#FEB127">2</div><div style="font:400 10px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(232,237,239,.35);margin-top:6px">CUOTAS</div></div>
+</div>
+<div style="display:flex;gap:7px;padding:20px 20px 12px;overflow:hidden">
+<div style="height:32px;padding:0 13px;border-radius:9px;background:#E8EDEF;display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#090f12;flex:none">Atención</div>
+<div style="height:32px;padding:0 13px;border-radius:9px;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.5);flex:none">Todos</div>
+<div style="height:32px;padding:0 13px;border-radius:9px;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.5);flex:none">Fuerza</div>
+<div style="height:32px;padding:0 13px;border-radius:9px;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.5);flex:none">Running</div>
+</div>
+<div style="flex:1;overflow:hidden;padding:0 20px">
+<div style="display:flex;align-items:center;gap:13px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="width:3px;height:38px;border-radius:2px;background:#FEB127;flex:none"></div><div style="width:34px;height:34px;border-radius:50%;background:#241d10;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#FEB127;flex:none">A</div><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Agustina Ruiz</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#FEB127;margin-top:4px">Sin entrenar 9 días · Running</div></div><div style="height:34px;padding:0 12px;border-radius:9px;background:rgba(254,177,39,.14);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#FEB127;cursor:pointer">Escribir</div></div>
+<div style="display:flex;align-items:center;gap:13px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="width:3px;height:38px;border-radius:2px;background:#FEB127;flex:none"></div><div style="width:34px;height:34px;border-radius:50%;background:#241d10;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#FEB127;flex:none">R</div><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Rodrigo Vega</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#FEB127;margin-top:4px">Cuota vencida hace 4 días</div></div><div style="height:34px;padding:0 12px;border-radius:9px;background:rgba(254,177,39,.14);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#FEB127;cursor:pointer">Cobrar</div></div>
+<div style="display:flex;align-items:center;gap:13px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="width:3px;height:38px;border-radius:2px;background:#FEB127;flex:none"></div><div style="width:34px;height:34px;border-radius:50%;background:#241d10;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#FEB127;flex:none">J</div><div style="flex:1;min-width:0"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Julián Ferrer</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#FEB127;margin-top:4px">Plan vencido · sin semana asignada</div></div><div style="height:34px;padding:0 12px;border-radius:9px;background:rgba(254,177,39,.14);display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#FEB127;cursor:pointer">Asignar</div></div>
+<div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(232,237,239,.3);padding:20px 0 4px">AL DÍA</div>
+<div style="display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="width:34px;height:34px;border-radius:50%;background:#132420;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#4ade80;flex:none">M</div><div style="flex:1"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Martina López</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:4px">Entrenando ahora · Día A</div></div><div style="display:flex;gap:3px;align-items:flex-end;height:22px"><div style="width:4px;height:14px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:20px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:9px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:22px;background:#4ade80;border-radius:1px"></div></div></div>
+<div style="display:flex;align-items:center;gap:13px;padding:14px 0"><div style="width:34px;height:34px;border-radius:50%;background:#132420;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#4ade80;flex:none">S</div><div style="flex:1"><div style="font:600 14.5px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Sofía Bianchi</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:4px">Entrenó ayer · 5 de 5 sesiones</div></div><div style="display:flex;gap:3px;align-items:flex-end;height:22px"><div style="width:4px;height:18px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:22px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:16px;background:rgba(74,222,128,.5);border-radius:1px"></div><div style="width:4px;height:21px;background:rgba(74,222,128,.5);border-radius:1px"></div></div></div>
+</div>
+<div style="height:78px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:flex-start;padding-top:12px">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;background:#00D1FF"></div><div style="font:600 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#00D1FF">DÍA</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(232,237,239,.28)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(232,237,239,.35)">ALUMNOS</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(232,237,239,.28)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(232,237,239,.35)">PLANES</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(232,237,239,.28)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(232,237,239,.35)">NEGOCIO</div></div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Entrenador en claro: “consola”.</b> Mismos tokens, superficie invertida. Escanear 18 nombres y números es trabajo de oficina, no de gimnasio.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.14);background:#F3F1EC;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:12px 20px 16px;background:#F3F1EC">
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(9,15,18,.42)">MARTES 25 AGOSTO</div><div style="font:700 25px/1.1 'Space Grotesk',sans-serif;color:#0b1114;margin-top:7px;letter-spacing:-.025em">18 alumnos</div></div>
+<div style="width:36px;height:36px;border-radius:50%;background:#0b1114;display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk',sans-serif;color:#F3F1EC">CD</div>
+</div>
+<div style="display:flex;gap:0;margin-top:20px;border:1px solid rgba(9,15,18,.1);border-radius:12px;overflow:hidden;background:#FBFAF8">
+<div style="flex:1;padding:13px 14px;border-right:1px solid rgba(9,15,18,.08)"><div style="font:700 21px/1 'Space Grotesk',sans-serif;color:#0b1114">11<span style="font:500 11px 'Space Grotesk',sans-serif;color:rgba(9,15,18,.4)">/18</span></div><div style="font:500 9.5px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(9,15,18,.42);margin-top:7px">HOY</div></div>
+<div style="flex:1;padding:13px 14px;border-right:1px solid rgba(9,15,18,.08)"><div style="font:700 21px/1 'Space Grotesk',sans-serif;color:#0b1114">86<span style="font-size:12px;color:rgba(9,15,18,.4)">%</span></div><div style="font:500 9.5px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(9,15,18,.42);margin-top:7px">ADHEREN.</div></div>
+<div style="flex:1;padding:13px 14px"><div style="font:700 21px/1 'Space Grotesk',sans-serif;color:#0b1114">$412<span style="font-size:12px;color:rgba(9,15,18,.4)">k</span></div><div style="font:500 9.5px/1 ui-monospace,monospace;letter-spacing:.1em;color:rgba(9,15,18,.42);margin-top:7px">MES</div></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:6px 20px 14px"><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(9,15,18,.4)">REQUIEREN ACCIÓN</div><div style="flex:1;height:1px;background:rgba(9,15,18,.1)"></div><div style="font:600 9.5px/1 ui-monospace,monospace;color:#B8791A">3</div></div>
+<div style="padding:0 20px">
+<div style="border:1px solid rgba(184,121,26,.35);background:#FDF6E8;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:9px"><div style="flex:1"><div style="font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Agustina Ruiz</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#8A5A11;margin-top:4px">9 días sin entrenar · Running</div></div><div style="height:34px;padding:0 13px;border-radius:9px;background:#0b1114;display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#F3F1EC;cursor:pointer">Escribir</div></div>
+<div style="border:1px solid rgba(184,121,26,.35);background:#FDF6E8;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:9px"><div style="flex:1"><div style="font:600 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Rodrigo Vega</div><div style="font:400 11.5px/1.2 'Space Grotesk',sans-serif;color:#8A5A11;margin-top:4px">Cuota vencida · $32.000</div></div><div style="height:34px;padding:0 13px;border-radius:9px;background:#0b1114;display:flex;align-items:center;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#F3F1EC;cursor:pointer">Cobrar</div></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:16px 20px 12px"><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(9,15,18,.4)">TODOS</div><div style="flex:1;height:1px;background:rgba(9,15,18,.1)"></div><div style="font:500 10.5px/1 'Space Grotesk',sans-serif;color:rgba(9,15,18,.45)">Adherencia ↓</div></div>
+<div style="flex:1;overflow:hidden;padding:0 20px">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;font:500 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Sofía Bianchi</div><div style="width:74px;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:100%;height:100%;background:#2C8C4E"></div></div><div style="width:34px;text-align:right;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114">100%</div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;font:500 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Martina López</div><div style="width:74px;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:92%;height:100%;background:#2C8C4E"></div></div><div style="width:34px;text-align:right;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114">92%</div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;font:500 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Nicolás Paz</div><div style="width:74px;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:78%;height:100%;background:#2C8C4E"></div></div><div style="width:34px;text-align:right;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114">78%</div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;font:500 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Julián Ferrer</div><div style="width:74px;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:54%;height:100%;background:#B8791A"></div></div><div style="width:34px;text-align:right;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114">54%</div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(9,15,18,.08)"><div style="flex:1;font:500 14px/1.2 'Space Grotesk',sans-serif;color:#0b1114">Agustina Ruiz</div><div style="width:74px;height:5px;border-radius:3px;background:rgba(9,15,18,.09);overflow:hidden"><div style="width:31%;height:100%;background:#B8791A"></div></div><div style="width:34px;text-align:right;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114">31%</div></div>
+</div>
+<div style="height:78px;border-top:1px solid rgba(9,15,18,.1);background:#FBFAF8;display:flex;align-items:flex-start;padding-top:12px">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;background:#0b1114"></div><div style="font:600 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#0b1114">DÍA</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">ALUMNOS</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">PLANES</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(9,15,18,.3)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(9,15,18,.42)">NEGOCIO</div></div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2c">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Alumno al sol.</b> La misma sesión de running con el teléfono a mediodía: negro sobre blanco, un solo número enorme, cero cromo.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.14);background:#FFFFFF;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:600 12px/1 'Space Grotesk',sans-serif;color:#0b1114"><span>13:04</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+<div style="padding:14px 24px 0;display:flex;align-items:center;justify-content:space-between">
+<div style="font:700 11px/1 ui-monospace,monospace;letter-spacing:.16em;color:#0b1114">SERIE 4 DE 6</div>
+<div style="height:30px;padding:0 12px;border-radius:8px;background:#0b1114;display:flex;align-items:center;font:700 11px/1 ui-monospace,monospace;letter-spacing:.1em;color:#fff">400 M</div>
+</div>
+<div style="display:flex;gap:5px;padding:16px 24px 0">
+<div style="flex:1;height:6px;background:#0b1114"></div><div style="flex:1;height:6px;background:#0b1114"></div><div style="flex:1;height:6px;background:#0b1114"></div><div style="flex:1;height:6px;background:#0b1114;opacity:.35"></div><div style="flex:1;height:6px;background:rgba(11,17,20,.12)"></div><div style="flex:1;height:6px;background:rgba(11,17,20,.12)"></div>
+</div>
+<div style="padding:44px 24px 0;text-align:center">
+<div style="font:700 11px/1 ui-monospace,monospace;letter-spacing:.18em;color:rgba(11,17,20,.45)">RITMO ACTUAL</div>
+<div style="font:700 108px/.86 'Space Grotesk',sans-serif;color:#0b1114;letter-spacing:-.055em;margin-top:16px">4:02</div>
+<div style="font:600 15px/1 'Space Grotesk',sans-serif;color:rgba(11,17,20,.5);margin-top:10px">min / km · objetivo 4:05</div>
+<div style="display:inline-flex;align-items:center;gap:7px;margin-top:18px;height:32px;padding:0 14px;border-radius:8px;background:#0b1114"><span style="font:700 12px/1 'Space Grotesk',sans-serif;color:#fff">3 s más rápido</span></div>
+</div>
+<div style="display:flex;margin:46px 24px 0;border-top:2px solid #0b1114;border-bottom:1px solid rgba(11,17,20,.14)">
+<div style="flex:1;padding:16px 0"><div style="font:700 30px/1 'Space Grotesk',sans-serif;color:#0b1114;letter-spacing:-.03em">312</div><div style="font:700 10px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(11,17,20,.45);margin-top:8px">METROS</div></div>
+<div style="flex:1;padding:16px 0;border-left:1px solid rgba(11,17,20,.14);padding-left:16px"><div style="font:700 30px/1 'Space Grotesk',sans-serif;color:#0b1114;letter-spacing:-.03em">1:16</div><div style="font:700 10px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(11,17,20,.45);margin-top:8px">TIEMPO</div></div>
+<div style="flex:1;padding:16px 0;border-left:1px solid rgba(11,17,20,.14);padding-left:16px"><div style="font:700 30px/1 'Space Grotesk',sans-serif;color:#0b1114;letter-spacing:-.03em">168</div><div style="font:700 10px/1 ui-monospace,monospace;letter-spacing:.14em;color:rgba(11,17,20,.45);margin-top:8px">PPM</div></div>
+</div>
+<div style="padding:20px 24px 0;font:400 13px/1.45 'Space Grotesk',sans-serif;color:rgba(11,17,20,.55)">Carlos: “si la cuarta te sale bajo 4:05, cortá ahí y hacé vuelta a la calma”.</div>
+<div style="margin-top:auto;padding:0 24px 30px;display:flex;gap:12px">
+<div style="width:96px;height:66px;border-radius:14px;border:2px solid #0b1114;display:flex;align-items:center;justify-content:center;font:700 14px/1 'Space Grotesk',sans-serif;color:#0b1114;cursor:pointer">Pausar</div>
+<div style="flex:1;height:66px;border-radius:14px;background:#0b1114;display:flex;align-items:center;justify-content:center;font:700 17px/1 'Space Grotesk',sans-serif;color:#fff;cursor:pointer">Terminar serie</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Probá: “aplicá la consola de <a class="dv-oid" href="#2b">2b</a> a la lista completa de alumnos” · “versión clara del alumno en gimnasio, no solo running” · “probá otra tipografía solo en los números”</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Home del alumno — tres jerarquías distintas</span></div>
+
+<div class="dv-opts">
+
+<div style="flex:none;width:300px;background:#0d1417;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:20px 20px 22px;color:#E8EDEF">
+<div style="font:600 9.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:rgba(232,237,239,.4);margin-bottom:14px">LECTURA DEL DISEÑO ACTUAL</div>
+<div style="font:500 15px/1.35 'Space Grotesk',sans-serif;margin-bottom:14px">Todo pesa lo mismo, así que nada guía.</div>
+<div style="display:flex;flex-direction:column;gap:11px;font:400 12.5px/1.5 'Space Grotesk',sans-serif;color:rgba(232,237,239,.62)">
+<div><span style="color:#FEB127">01</span> · La sesión activa aparece dos veces (banner + tarjeta del día) y compiten entre sí.</div>
+<div><span style="color:#FEB127">02</span> · Cuatro acentos (cyan, ámbar, verde, violeta) en una sola pantalla: ninguno significa nada.</div>
+<div><span style="color:#FEB127">03</span> · Todo es una tarjeta de 12&nbsp;px de radio sobre gris. Sin ritmo, sin escala.</div>
+<div><span style="color:#FEB127">04</span> · El FAB tapa contenido y duplica una acción que ya existe.</div>
+<div><span style="color:#FEB127">05</span> · Cuatro tabs para un usuario que abre la app a hacer una cosa.</div>
+</div>
+<div style="height:1px;background:rgba(255,255,255,.07);margin:18px 0 14px"></div>
+<div style="font:400 12.5px/1.5 'Space Grotesk',sans-serif;color:rgba(232,237,239,.62)">Se mantiene: <span style="color:#00D1FF">#00D1FF</span>, <span style="color:#FEB127">#FEB127</span>, <span style="color:#4ade80">#4ade80</span>, fondo <span style="color:#E8EDEF">#090f12</span>, Space&nbsp;Grotesk. Cambia el reparto: cyan = acción, verde = hecho, ámbar = atención. Nada más.</div>
+</div>
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">Una sola acción.</b> La sesión de hoy ocupa media pantalla y el resto se vuelve una lista silenciosa. Tres tabs.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.1);background:#090f12;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+
+<div style="padding:14px 22px 0;display:flex;align-items:center;justify-content:space-between">
+<div><div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(232,237,239,.38)">MARTES 25 AGO</div><div style="font:600 20px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF;margin-top:5px">Hola, Martina</div></div>
+<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><div style="width:38px;height:38px;border-radius:50%;background:#16242a;border:1px solid rgba(0,209,255,.3);display:flex;align-items:center;justify-content:center;font:600 14px 'Space Grotesk',sans-serif;color:#00D1FF">C</div><div style="position:absolute;top:4px;right:2px;width:9px;height:9px;border-radius:50%;background:#FEB127;border:2px solid #090f12"></div></div>
+</div>
+
+<div style="margin:20px 22px 0;border-radius:22px;background:linear-gradient(180deg,#0f1c21 0%,#0b1216 100%);border:1px solid rgba(0,209,255,.22);padding:22px 22px 20px;position:relative;overflow:hidden">
+<div style="display:flex;align-items:center;gap:8px;font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:#4ade80"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>EN CURSO · 14 MIN</div>
+<div style="font:700 38px/1.05 'Space Grotesk',sans-serif;color:#E8EDEF;margin:16px 0 0;letter-spacing:-.02em;text-wrap:balance">Día A<br>Empujón</div>
+<div style="display:flex;gap:18px;margin-top:16px;font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.5)"><span>8 ejercicios</span><span>3 bloques</span><span>~55 min</span></div>
+<div style="display:flex;gap:4px;margin-top:20px">
+<div style="flex:1;height:3px;border-radius:2px;background:#4ade80"></div><div style="flex:1;height:3px;border-radius:2px;background:#4ade80"></div><div style="flex:1;height:3px;border-radius:2px;background:#4ade80"></div><div style="flex:1;height:3px;border-radius:2px;background:#4ade80"></div><div style="flex:1;height:3px;border-radius:2px;background:#00D1FF"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1)"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1)"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1)"></div>
+</div>
+<div style="font:400 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:10px">Siguiente: Press de banca · serie 3 de 4</div>
+<div style="margin-top:20px;height:54px;border-radius:14px;background:#00D1FF;display:flex;align-items:center;justify-content:center;gap:10px;font:600 15px/1 'Space Grotesk',sans-serif;color:#04161c;cursor:pointer">Continuar entrenamiento <span style="font-size:17px">→</span></div>
+</div>
+
+<div style="margin:26px 22px 0">
+<div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(232,237,239,.35)">SEMANA</div>
+<div style="display:flex;justify-content:space-between;margin-top:14px">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;background:rgba(74,222,128,.14);border:1px solid rgba(74,222,128,.4);display:flex;align-items:center;justify-content:center;font:600 12px 'Space Grotesk',sans-serif;color:#4ade80">L</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.3)">24</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;background:#00D1FF;display:flex;align-items:center;justify-content:center;font:600 12px 'Space Grotesk',sans-serif;color:#04161c">M</div><div style="font:600 10px 'Space Grotesk',sans-serif;color:#00D1FF">HOY</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font:500 12px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.28)">X</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.25)">26</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(0,209,255,.25);display:flex;align-items:center;justify-content:center;font:500 12px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.6)">J</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.25)">27</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(0,209,255,.25);display:flex;align-items:center;justify-content:center;font:500 12px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.6)">V</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.25)">28</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font:500 12px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.28)">S</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.25)">29</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:40px"><div style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font:500 12px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.28)">D</div><div style="font:400 10px 'Space Grotesk',sans-serif;color:rgba(232,237,239,.25)">30</div></div>
+</div>
+<div style="display:flex;align-items:baseline;gap:6px;margin-top:16px;font:400 12.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.45)"><b style="font:600 15px 'Space Grotesk',sans-serif;color:#E8EDEF">2</b> de 5 sesiones<span style="opacity:.4">·</span><b style="font:600 15px 'Space Grotesk',sans-serif;color:#E8EDEF">73</b> min</div>
+</div>
+
+<div style="margin:24px 22px 0;display:flex;flex-direction:column">
+<div style="height:1px;background:rgba(255,255,255,.06)"></div>
+<div style="display:flex;align-items:center;gap:12px;padding:15px 0;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:#FEB127;flex:none"></div><div style="flex:1;min-width:0"><div style="font:500 13.5px/1.3 'Space Grotesk',sans-serif;color:#E8EDEF">Carlos te dejó una nota</div><div style="font:400 11.5px/1.3 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">“Subí el banca a 80 si las 4 series salen limpias”</div></div><span style="color:rgba(232,237,239,.3);font-size:15px">›</span></div>
+<div style="height:1px;background:rgba(255,255,255,.06)"></div>
+<div style="display:flex;align-items:center;gap:12px;padding:15px 0;cursor:pointer"><div style="width:6px;height:6px;border-radius:50%;background:#4ade80;flex:none"></div><div style="flex:1"><div style="font:500 13.5px/1.3 'Space Grotesk',sans-serif;color:#E8EDEF">Récord nuevo · Press de banca</div><div style="font:400 11.5px/1.3 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:3px">102,5 kg · hace 4 días</div></div><span style="color:rgba(232,237,239,.3);font-size:15px">›</span></div>
+</div>
+
+<div style="margin-top:auto;height:84px;border-top:1px solid rgba(255,255,255,.06);background:rgba(9,15,18,.9);display:flex;align-items:flex-start;padding-top:12px">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;background:#00D1FF"></div><div style="font:600 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#00D1FF">HOY</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(232,237,239,.28)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(232,237,239,.35)">PROGRESO</div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(232,237,239,.28)"></div><div style="font:500 10px/1 'Space Grotesk',sans-serif;letter-spacing:.06em;color:rgba(232,237,239,.35)">PERFIL</div></div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">La semana es la navegación.</b> El riel de días manda; toca un día y cambia todo. Sin tabs: una sola barra de acción. <i>Interactivo.</i></span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.1);background:#090f12;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+
+<div style="padding:12px 22px 0;display:flex;align-items:center;justify-content:space-between">
+<div style="display:flex;align-items:baseline;gap:9px"><span style="font:700 19px/1 'Space Grotesk',sans-serif;color:#E8EDEF">Agosto</span><span style="font:400 13px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.35)">semana 35</span></div>
+<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px 0 6px;border-radius:18px;background:#111b1f;border:1px solid rgba(255,255,255,.07)"><div style="width:24px;height:24px;border-radius:50%;background:#16242a;display:flex;align-items:center;justify-content:center;font:600 11px 'Space Grotesk',sans-serif;color:#00D1FF">C</div><span style="font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.6)">Carlos</span></div>
+</div>
+
+<div style="display:flex;gap:6px;padding:20px 18px 0" hint-placeholder-count="7">
+<sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+<div style="{{ d.chip }}" onClick="{{ d.pick }}">
+<div style="{{ d.letter }}">{{ d.l }}</div>
+<div style="{{ d.num }}">{{ d.n }}</div>
+<div style="{{ d.mark }}"></div>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:26px 22px 0">
+<div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:{{ headColor }}">{{ headLabel }}</div>
+<div style="font:700 30px/1.1 'Space Grotesk',sans-serif;color:#E8EDEF;margin-top:9px;letter-spacing:-.02em">{{ title }}</div>
+<div style="font:400 13px/1.4 'Space Grotesk',sans-serif;color:rgba(232,237,239,.45);margin-top:8px">{{ subtitle }}</div>
+</div>
+
+<div style="padding:22px 22px 0;overflow:hidden;flex:1">
+<sc-for list="{{ blocks }}" as="b" hint-placeholder-count="2">
+<div style="margin-bottom:22px">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="font:600 10px/1 ui-monospace,monospace;letter-spacing:.14em;color:#00D1FF">{{ b.name }}</div><div style="flex:1;height:1px;background:rgba(255,255,255,.07)"></div><div style="font:400 10px/1 ui-monospace,monospace;color:rgba(232,237,239,.3)">{{ b.meta }}</div></div>
+<sc-for list="{{ b.items }}" as="it" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+<div style="font:500 10px/1 ui-monospace,monospace;color:rgba(232,237,239,.25);width:14px">{{ it.i }}</div>
+<div style="flex:1;font:500 14px/1.25 'Space Grotesk',sans-serif;color:#E8EDEF">{{ it.name }}</div>
+<div style="font:500 12.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.45)">{{ it.detail }}</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:0 22px;background:linear-gradient(180deg,rgba(9,15,18,0),#090f12 40%);padding-top:16px">
+<div style="height:56px;border-radius:16px;background:{{ ctaBg }};border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;gap:10px;font:600 15px/1 'Space Grotesk',sans-serif;color:{{ ctaFg }};cursor:pointer">{{ ctaLabel }}</div>
+<div style="text-align:center;font:400 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.32);padding:14px 0 22px">{{ ctaHint }}</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span><b style="color:rgba(232,237,239,.8);font-weight:600">El entrenador al frente.</b> La app es la relación: un hilo donde llegan sesiones, notas y récords. Se entrena desde el hilo.</span></div>
+<div style="width:390px;height:844px;border-radius:44px;border:1px solid rgba(255,255,255,.1);background:#090f12;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+<div style="height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.55)"><span>9:41</span><span style="letter-spacing:.1em">▮▮▮ ⌁ ▰</span></div>
+
+<div style="padding:14px 22px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.06)">
+<div style="width:48px;height:48px;border-radius:50%;background:#16242a;border:1px solid rgba(0,209,255,.28);display:flex;align-items:center;justify-content:center;font:600 17px 'Space Grotesk',sans-serif;color:#00D1FF;flex:none">C</div>
+<div style="flex:1;min-width:0"><div style="font:600 17px/1.2 'Space Grotesk',sans-serif;color:#E8EDEF">Carlos Duarte</div><div style="display:flex;align-items:center;gap:7px;margin-top:4px"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80"></span><span style="font:400 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.45)">Musculación · responde en ~2 h</span></div></div>
+<div style="width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(232,237,239,.5);cursor:pointer">☰</div>
+</div>
+
+<div style="flex:1;overflow:hidden;padding:20px 22px 0;display:flex;flex-direction:column;gap:18px">
+<div style="text-align:center;font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:rgba(232,237,239,.28)">HOY · MARTES 25</div>
+
+<div style="border-radius:20px;border:1px solid rgba(0,209,255,.24);background:linear-gradient(180deg,#0f1c21,#0b1216);padding:18px 18px 16px">
+<div style="font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.16em;color:#00D1FF">SESIÓN ASIGNADA</div>
+<div style="font:700 24px/1.15 'Space Grotesk',sans-serif;color:#E8EDEF;margin-top:11px;letter-spacing:-.01em">Día A — Empujón</div>
+<div style="display:flex;gap:16px;margin-top:11px;font:400 12.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.48)"><span>8 ejercicios</span><span>~55 min</span></div>
+<div style="display:flex;gap:9px;margin-top:16px">
+<div style="flex:1;height:48px;border-radius:12px;background:#00D1FF;display:flex;align-items:center;justify-content:center;font:600 14px/1 'Space Grotesk',sans-serif;color:#04161c;cursor:pointer">Empezar</div>
+<div style="width:110px;height:48px;border-radius:12px;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:500 13.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.6);cursor:pointer">Ver plan</div>
+</div>
+</div>
+
+<div style="display:flex;gap:10px;align-items:flex-end">
+<div style="width:28px;height:28px;border-radius:50%;background:#16242a;display:flex;align-items:center;justify-content:center;font:600 11px 'Space Grotesk',sans-serif;color:#00D1FF;flex:none">C</div>
+<div style="max-width:250px;background:#141d21;border-radius:16px 16px 16px 4px;padding:12px 15px;font:400 13.5px/1.45 'Space Grotesk',sans-serif;color:#E8EDEF">Subí el banca a 80 kg si las 4 series salen limpias. Si la última se te va, quedate en 77,5.</div>
+</div>
+<div style="font:400 10.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.28);margin:-12px 0 0 38px">8:12</div>
+
+<div style="display:flex;justify-content:flex-end"><div style="max-width:250px;background:#0d2a33;border:1px solid rgba(0,209,255,.18);border-radius:16px 16px 4px 16px;padding:12px 15px;font:400 13.5px/1.45 'Space Grotesk',sans-serif;color:#E8EDEF">Dale, hoy me siento bien 💪</div></div>
+
+<div style="display:flex;align-items:center;gap:12px;border-radius:16px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);padding:14px 16px">
+<div style="font:700 15px/1 'Space Grotesk',sans-serif;color:#4ade80">PR</div>
+<div style="flex:1"><div style="font:500 13.5px/1.25 'Space Grotesk',sans-serif;color:#E8EDEF">Récord: Press de banca 102,5 kg</div><div style="font:400 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.4);margin-top:4px">Viernes · 5 reps × 5 series</div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;border-radius:16px;border:1px solid rgba(254,177,39,.22);background:rgba(254,177,39,.06);padding:14px 16px">
+<div style="flex:1"><div style="font:500 13.5px/1.25 'Space Grotesk',sans-serif;color:#E8EDEF">Cuota de septiembre</div><div style="font:400 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.42);margin-top:4px">$32.000 · vence en 6 días</div></div>
+<div style="height:36px;padding:0 14px;border-radius:10px;background:#FEB127;display:flex;align-items:center;font:600 12.5px/1 'Space Grotesk',sans-serif;color:#1b1204;cursor:pointer">Pagar</div>
+</div>
+</div>
+
+<div style="padding:14px 22px 12px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;background:#090f12">
+<div style="flex:1;height:46px;border-radius:23px;background:#111b1f;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;padding:0 18px;font:400 13.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.32)">Escribir a Carlos…</div>
+<div style="width:46px;height:46px;border-radius:23px;background:#16242a;display:flex;align-items:center;justify-content:center;font-size:17px;color:#00D1FF;cursor:pointer">+</div>
+</div>
+<div style="height:52px;display:flex;border-top:1px solid rgba(255,255,255,.06)">
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font:600 11.5px/1 'Space Grotesk',sans-serif;color:#00D1FF"><span style="width:7px;height:7px;border-radius:50%;background:#00D1FF"></span>ENTRENADOR</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;font:500 11.5px/1 'Space Grotesk',sans-serif;color:rgba(232,237,239,.32)">PROGRESO</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Probá: “llevá <a class="dv-oid" href="#1b">1b</a> al lado del entrenador (lista de alumnos)” · “mezclá el hilo de <a class="dv-oid" href="#1c">1c</a> dentro de <a class="dv-oid" href="#1a">1a</a>” · “ahora la pantalla de sesión en curso en la dirección de <a class="dv-oid" href="#1a">1a</a>”</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1480,&quot;height&quot;:1120},&quot;themeMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'light'|'dark'&quot;,&quot;section&quot;:&quot;Tema&quot;,&quot;label&quot;:&quot;Tema del turno 4&quot;}}">
+class Component extends DCLogic {
+  state = { day: 1, mode: 'auto', sysDark: true };
+
+  componentDidMount() {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    this.mq = mq;
+    this.onMq = () => this.setState({ sysDark: mq.matches });
+    mq.addEventListener('change', this.onMq);
+    this.setState({ sysDark: mq.matches });
+  }
+
+  componentWillUnmount() { if (this.mq) this.mq.removeEventListener('change', this.onMq); }
+
+  tokens(dark) {
+    return dark ? {
+      frame: 'rgba(255,255,255,.1)', bg: '#090f12', surf: '#141d21', surf2: '#10181c',
+      line: 'rgba(255,255,255,.06)', line2: 'rgba(255,255,255,.1)',
+      text: '#E8EDEF', mute: 'rgba(232,237,239,.45)', faint: 'rgba(232,237,239,.3)',
+      action: '#00D1FF', actionFg: '#04161c', heroBg: 'linear-gradient(180deg,#0f1c21,#0b1216)', heroLine: 'rgba(0,209,255,.22)',
+      ok: '#4ade80', okSoft: 'rgba(74,222,128,.14)', okLine: 'rgba(74,222,128,.4)',
+      warn: '#FEB127', warnBg: 'rgba(254,177,39,.09)', warnLine: 'rgba(254,177,39,.3)', warnText: '#FEB127',
+      chipInk: 'rgba(232,237,239,.28)', barTrack: 'rgba(255,255,255,.09)'
+    } : {
+      frame: 'rgba(255,255,255,.14)', bg: '#F3F1EC', surf: '#FBFAF8', surf2: '#F0EEE9',
+      line: 'rgba(9,15,18,.09)', line2: 'rgba(9,15,18,.14)',
+      text: '#0b1114', mute: 'rgba(9,15,18,.45)', faint: 'rgba(9,15,18,.32)',
+      action: '#0b1114', actionFg: '#F3F1EC', heroBg: '#FBFAF8', heroLine: 'rgba(9,15,18,.16)',
+      ok: '#2C8C4E', okSoft: 'rgba(44,140,78,.12)', okLine: 'rgba(44,140,78,.4)',
+      warn: '#B8791A', warnBg: '#FDF6E8', warnLine: 'rgba(184,121,26,.35)', warnText: '#8A5A11',
+      chipInk: 'rgba(9,15,18,.3)', barTrack: 'rgba(9,15,18,.09)'
+    };
+  }
+
+  themeVals() {
+    const m = this.state.touched ? this.state.mode : (this.props.themeMode ?? this.state.mode);
+    const dark = m === 'auto' ? this.state.sysDark : m === 'dark';
+    const t = this.tokens(dark);
+    const G = "'Space Grotesk',sans-serif";
+    const M = 'ui-monospace,Menlo,monospace';
+    const seg = (on) => 'height:32px;padding:0 14px;border-radius:8px;display:flex;align-items:center;cursor:pointer;font:600 11.5px/1 ' + G + ';' + (on ? 'background:#E8EDEF;color:#090f12' : 'color:rgba(232,237,239,.5)');
+    const done = [1, 1, 1, 1, 0, 0, 0, 0];
+    return {
+      btnAuto: seg(m === 'auto'), btnLight: seg(m === 'light'), btnDark: seg(m === 'dark'),
+      setAuto: () => this.setState({ mode: 'auto', touched: true }),
+      setLight: () => this.setState({ mode: 'light', touched: true }),
+      setDark: () => this.setState({ mode: 'dark', touched: true }),
+      modeNote: m === 'auto'
+        ? 'Automático: sigue prefers-color-scheme. Tu sistema está en ' + (dark ? 'oscuro' : 'claro') + ' ahora mismo — cambialo y estas pantallas cambian solas.'
+        : 'Forzado a ' + (dark ? 'oscuro' : 'claro') + ' para comparar. En la app real, “Automático” es el valor por defecto.',
+
+      sPhone: 'width:390px;height:844px;border-radius:44px;border:1px solid ' + t.frame + ';background:' + t.bg + ';overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)',
+      sStatus: 'height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:500 12px/1 ' + G + ';color:' + t.mute,
+      sEyebrow: 'font:600 9.5px/1 ' + M + ';letter-spacing:.16em;color:' + t.faint,
+      sGreet: 'font:600 20px/1.2 ' + G + ';color:' + t.text + ';margin-top:5px;letter-spacing:-.01em',
+      sAvatar: 'width:38px;height:38px;border-radius:50%;background:' + t.surf + ';border:1px solid ' + t.heroLine + ';display:flex;align-items:center;justify-content:center;font:600 14px ' + G + ';color:' + t.action,
+      sAvatarSolid: 'width:36px;height:36px;border-radius:50%;background:' + t.action + ';display:flex;align-items:center;justify-content:center;font:600 13px ' + G + ';color:' + t.actionFg,
+
+      sHero: 'margin:20px 22px 0;border-radius:22px;background:' + t.heroBg + ';border:1px solid ' + t.heroLine + ';padding:22px',
+      sLive: 'display:flex;align-items:center;gap:8px;font:600 9.5px/1 ' + M + ';letter-spacing:.16em;color:' + t.ok,
+      sLiveDot: 'width:6px;height:6px;border-radius:50%;background:' + t.ok + ';display:inline-block',
+      sHeroTitle: 'font:700 38px/1.05 ' + G + ';color:' + t.text + ';margin:16px 0 0;letter-spacing:-.03em',
+      sHeroMeta: 'display:flex;gap:18px;margin-top:16px;font:400 13px/1 ' + G + ';color:' + t.mute,
+      sHeroNext: 'font:400 11.5px/1 ' + G + ';color:' + t.mute + ';margin-top:10px',
+      sCta: 'margin-top:20px;height:54px;border-radius:14px;background:' + t.action + ';display:flex;align-items:center;justify-content:center;gap:10px;font:600 15px/1 ' + G + ';color:' + t.actionFg + ';cursor:pointer',
+      prog: done.map((d, i) => ({ s: 'flex:1;height:3px;border-radius:2px;background:' + (d ? t.ok : i === 4 ? t.action : t.barTrack) })),
+
+      sSection: 'font:600 9.5px/1 ' + M + ';letter-spacing:.16em;color:' + t.faint,
+      week: [['L', '24', 'done'], ['M', 'HOY', 'today'], ['X', '26', 'off'], ['J', '27', 'plan'], ['V', '28', 'plan'], ['S', '29', 'off'], ['D', '30', 'off']].map(([l, n, st]) => ({
+        l, n,
+        circle: 'width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 12px ' + G + ';' + (
+          st === 'today' ? 'background:' + t.action + ';color:' + t.actionFg
+            : st === 'done' ? 'background:' + t.okSoft + ';border:1px solid ' + t.okLine + ';color:' + t.ok
+              : st === 'plan' ? 'border:1px solid ' + t.line2 + ';color:' + t.mute
+                : 'border:1px solid ' + t.line + ';color:' + t.chipInk),
+        cap: 'font:' + (st === 'today' ? '600' : '400') + ' 10px/1 ' + G + ';color:' + (st === 'today' ? t.action : t.faint)
+      })),
+      sWeekSum: 'display:flex;align-items:baseline;gap:6px;margin-top:16px;font:400 12.5px/1 ' + G + ';color:' + t.mute,
+      sWeekNum: 'font:600 15px ' + G + ';color:' + t.text,
+
+      sHr: 'height:1px;background:' + t.line,
+      sDotWarn: 'width:6px;height:6px;border-radius:50%;background:' + t.warn + ';flex:none',
+      sDotOk: 'width:6px;height:6px;border-radius:50%;background:' + t.ok + ';flex:none',
+      sRowTitle: 'font:500 13.5px/1.3 ' + G + ';color:' + t.text,
+      sRowSub: 'font:400 11.5px/1.3 ' + G + ';color:' + t.mute + ';margin-top:3px',
+      sRowSubEllipsis: 'font:400 11.5px/1.3 ' + G + ';color:' + t.mute + ';margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+      sChev: 'color:' + t.faint + ';font-size:15px',
+
+      sTabbar: 'margin-top:auto;height:80px;border-top:1px solid ' + t.line + ';display:flex;align-items:flex-start;padding-top:12px',
+      sTabWrap: 'flex:1;display:flex;flex-direction:column;align-items:center;gap:7px',
+      sTabIconOn: 'width:22px;height:22px;border-radius:7px;background:' + t.action,
+      sTabIconOff: 'width:22px;height:22px;border-radius:7px;border:1.5px solid ' + t.chipInk,
+      sTabIconOffRound: 'width:22px;height:22px;border-radius:50%;border:1.5px solid ' + t.chipInk,
+      sTabLabelOn: 'font:600 10px/1 ' + G + ';letter-spacing:.06em;color:' + t.action,
+      sTabLabelOff: 'font:500 10px/1 ' + G + ';letter-spacing:.06em;color:' + t.faint,
+
+      sTrHead: 'padding:12px 20px 16px;border-bottom:1px solid ' + t.line2,
+      sTrTitle: 'font:700 25px/1.1 ' + G + ';color:' + t.text + ';margin-top:7px;letter-spacing:-.025em',
+      sStatStrip: 'display:flex;margin-top:20px;border:1px solid ' + t.line2 + ';border-radius:12px;overflow:hidden;background:' + t.surf,
+      sStatCell: 'flex:1;padding:13px 14px;border-right:1px solid ' + t.line2,
+      sStatCellLast: 'flex:1;padding:13px 14px',
+      sStatNum: 'font:700 21px/1 ' + G + ';color:' + t.text,
+      sStatOf: 'font:500 11px ' + G + ';color:' + t.mute,
+      sStatCap: 'font:500 9.5px/1 ' + M + ';letter-spacing:.1em;color:' + t.mute + ';margin-top:7px',
+
+      sSecRow: 'display:flex;align-items:center;gap:10px;padding:16px 20px 12px',
+      sSecRow2: 'display:flex;align-items:center;gap:10px;padding:20px 20px 12px',
+      sSecLabel: 'font:600 9.5px/1 ' + M + ';letter-spacing:.14em;color:' + t.mute,
+      sSecLine: 'flex:1;height:1px;background:' + t.line2,
+      sSecCount: 'font:600 9.5px/1 ' + M + ';color:' + t.warn,
+      sSortLabel: 'font:500 10.5px/1 ' + G + ';color:' + t.mute,
+
+      sAlert: 'border:1px solid ' + t.warnLine + ';background:' + t.warnBg + ';border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px',
+      sAlertName: 'font:600 14px/1.2 ' + G + ';color:' + t.text,
+      sAlertWhy: 'font:400 11.5px/1.2 ' + G + ';color:' + t.warnText + ';margin-top:4px',
+      sAlertBtn: 'height:34px;padding:0 13px;border-radius:9px;background:' + t.action + ';display:flex;align-items:center;font:600 11.5px/1 ' + G + ';color:' + t.actionFg + ';cursor:pointer;flex:none',
+      alerts: [
+        { name: 'Agustina Ruiz', why: '9 días sin entrenar · Running', action: 'Escribir' },
+        { name: 'Rodrigo Vega', why: 'Cuota vencida · $32.000', action: 'Cobrar' }
+      ],
+
+      sRosterRow: 'display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid ' + t.line,
+      sRosterName: 'font:500 14px/1.2 ' + G + ';color:' + t.text,
+      sRosterMeta: 'font:400 11px/1.2 ' + G + ';color:' + t.mute + ';margin-top:3px',
+      sBarTrack: 'width:74px;height:5px;border-radius:3px;background:' + t.barTrack + ';overflow:hidden;flex:none',
+      sPct: 'width:34px;text-align:right;font:600 12px/1 ' + G + ';color:' + t.text,
+      roster: [
+        ['Sofía Bianchi', 'Fuerza · entrenó ayer', 100, 1],
+        ['Martina López', 'Entrenando ahora · Día A', 92, 1],
+        ['Nicolás Paz', 'Crossfit · hace 2 días', 78, 1],
+        ['Julián Ferrer', 'Plan vencido', 54, 0],
+        ['Agustina Ruiz', '9 días sin entrenar', 31, 0]
+      ].map(([name, meta, pct, ok]) => ({
+        name, meta, pct: pct,
+        bar: 'width:' + pct + '%;height:100%;background:' + (ok ? t.ok : t.warn)
+      }))
+    };
+  }
+
+  data() {
+    return [
+      { l: 'L', n: 24, st: 'done', label: 'COMPLETADO', title: 'Día C — Piernas', sub: 'Fuerza · 62 min · RPE 8', cta: 'Ver resumen', hint: '6 de 6 ejercicios · 9,4 t de volumen',
+        blocks: [{ name: 'BLOQUE A', meta: 'hecho', items: [['Sentadilla', '5×5 · 125 kg'], ['Prensa', '3×10 · 180 kg'], ['Peso muerto rumano', '3×8 · 90 kg']] }] },
+      { l: 'M', n: 25, st: 'today', label: 'HOY · EN CURSO', title: 'Día A — Empujón', sub: 'Fuerza · ~55 min · 3 bloques', cta: 'Continuar · ejercicio 5 de 8', hint: 'Siguiente: Press de banca, serie 3 de 4',
+        blocks: [
+          { name: 'BLOQUE A · PRINCIPAL', meta: '90 s descanso', items: [['Press de banca', '4×8 · 80 kg'], ['Press militar', '4×6 · 45 kg']] },
+          { name: 'BLOQUE B · ACCESORIO', meta: '60 s descanso', items: [['Fondos en paralelas', '3×10'], ['Aperturas con mancuernas', '3×12 · 14 kg'], ['Extensión de tríceps', '3×15 · 25 kg']] }
+        ] },
+      { l: 'X', n: 26, st: 'rest', label: 'DESCANSO', title: 'Sin sesión', sub: 'Carlos dejó el día libre. Movilidad opcional.', cta: 'Registrar actividad libre', hint: 'Caminar, bici suave o movilidad cuentan',
+        blocks: [{ name: 'OPCIONAL', meta: '15 min', items: [['Movilidad de hombro', '3 series'], ['Cadera 90/90', '2×8 por lado']] }] },
+      { l: 'J', n: 27, st: 'plan', label: 'PLANIFICADO', title: 'Día B — Tirón', sub: 'Fuerza · ~50 min · 2 bloques', cta: 'Ver sesión completa', hint: 'Se desbloquea el jueves a las 00:00',
+        blocks: [
+          { name: 'BLOQUE A · PRINCIPAL', meta: '90 s descanso', items: [['Dominadas lastradas', '4×6 · +10 kg'], ['Remo con barra', '4×8 · 70 kg']] },
+          { name: 'BLOQUE B · ACCESORIO', meta: '60 s descanso', items: [['Remo en polea', '3×12 · 50 kg'], ['Curl de bíceps', '3×12 · 16 kg']] }
+        ] },
+      { l: 'V', n: 28, st: 'plan', label: 'PLANIFICADO', title: 'Running — Series', sub: 'Resistencia · 40 min · pista o cinta', cta: 'Ver sesión completa', hint: 'Objetivo: 6×400 m a 4:05 min/km',
+        blocks: [{ name: 'SERIES', meta: '400 m', items: [['Entrada en calor', '10 min suave'], ['6 × 400 m', '4:05 min/km'], ['Vuelta a la calma', '8 min'] ] }] },
+      { l: 'S', n: 29, st: 'rest', label: 'DESCANSO', title: 'Sin sesión', sub: 'Fin de semana libre.', cta: 'Registrar actividad libre', hint: 'Lo que hagas se suma al volumen del mes',
+        blocks: [{ name: 'OPCIONAL', meta: '—', items: [['Caminata', '45 min']] }] },
+      { l: 'D', n: 30, st: 'rest', label: 'DESCANSO', title: 'Sin sesión', sub: 'Cierre de semana. Revisión con Carlos.', cta: 'Ver informe semanal', hint: 'El informe se genera el domingo a las 20:00',
+        blocks: [{ name: 'RESUMEN', meta: 'semana 35', items: [['Sesiones', '4 de 5'], ['Volumen', '31,2 t'], ['Adherencia', '80 %']] }] }
+    ];
+  }
+
+  chipStyle(st, sel) {
+    const base = 'flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 0 9px;border-radius:14px;cursor:pointer;min-height:56px;transition:background .15s,border-color .15s;';
+    if (sel) return base + 'background:#00D1FF;border:1px solid #00D1FF;';
+    if (st === 'done') return base + 'background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.22);';
+    return base + 'background:transparent;border:1px solid rgba(255,255,255,.07);';
+  }
+
+  renderVals() {
+    const d = this.data();
+    const sel = this.state.day;
+    const cur = d[sel];
+    const days = d.map((x, i) => ({
+      l: x.l, n: x.n,
+      chip: this.chipStyle(x.st, i === sel),
+      letter: 'font:600 13px/1 \'Space Grotesk\',sans-serif;color:' + (i === sel ? '#04161c' : x.st === 'done' ? '#4ade80' : 'rgba(232,237,239,.55)'),
+      num: 'font:500 10px/1 \'Space Grotesk\',sans-serif;color:' + (i === sel ? 'rgba(4,22,28,.6)' : 'rgba(232,237,239,.28)'),
+      mark: 'width:4px;height:4px;border-radius:50%;background:' + (i === sel ? 'rgba(4,22,28,.45)' : x.st === 'done' ? '#4ade80' : x.st === 'plan' ? 'rgba(0,209,255,.5)' : 'transparent'),
+      pick: () => this.setState({ day: i })
+    }));
+    const live = cur.st === 'today';
+    return Object.assign(this.themeVals(), {
+      days,
+      headLabel: cur.label,
+      headColor: live ? '#4ade80' : cur.st === 'done' ? 'rgba(74,222,128,.7)' : 'rgba(232,237,239,.35)',
+      title: cur.title,
+      subtitle: cur.sub,
+      blocks: cur.blocks.map(b => ({ name: b.name, meta: b.meta, items: b.items.map((it, i) => ({ i: String(i + 1).padStart(2, '0'), name: it[0], detail: it[1] })) })),
+      ctaLabel: cur.cta,
+      ctaHint: cur.hint,
+      ctaBg: live ? '#00D1FF' : 'transparent',
+      ctaFg: live ? '#04161c' : 'rgba(232,237,239,.7)'
+    });
+  }
+}
+</script>
+</body>
+</html>

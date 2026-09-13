@@ -26,22 +26,10 @@ import { getAgentBackend } from '@/lib/agent/backend';
 import type { RoutineProposal, ProposedBlock } from '@/lib/agent/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-  ai:         '#a78bfa',
-};
+const AI_COLOR = '#a78bfa';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
@@ -92,12 +80,22 @@ const REST_PRESETS = [
 // Bloques donde el filtro por músculo tiene sentido
 const MUSCLE_FILTER_BLOCKS: BlockType[] = ['main', 'accessory'];
 
+// ─── Theme hook ───────────────────────────────────────────────────────────────
+
+function useStyles() {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
+  return { s, T, actionDimBg };
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function TrainerRoutineEditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { showAlert } = useAlert();
+  const { s, T, actionDimBg } = useStyles();
   const [routine, setRoutine]           = useState<Routine | null>(null);
   const [plan, setPlan]                 = useState<Plan | null>(null);
   const [isLoading, setIsLoading]       = useState(true);
@@ -441,16 +439,16 @@ export default function TrainerRoutineEditorScreen() {
         title: routine?.name ?? 'RUTINA',
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.navigate(`/trainer/plan/${routine?.plan_id}`)} style={{ marginLeft: 4, padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
+            <Ionicons name="chevron-back" size={24} color={T.action} />
           </TouchableOpacity>
         ),
         headerRight: () => (
           <View style={{ flexDirection: 'row', gap: 4, marginRight: 4 }}>
             <TouchableOpacity onPress={openAiModal} style={{ padding: 6 }}>
-              <Ionicons name="sparkles-outline" size={20} color={C.ai} />
+              <Ionicons name="sparkles-outline" size={20} color={AI_COLOR} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDuplicate} style={{ padding: 6 }}>
-              <Ionicons name="copy-outline" size={20} color={C.neutral} />
+              <Ionicons name="copy-outline" size={20} color={T.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDelete} style={{ padding: 6 }}>
               <Ionicons name="trash-outline" size={20} color="#f87171" />
@@ -460,10 +458,10 @@ export default function TrainerRoutineEditorScreen() {
       }} />
 
       <View style={s.safe}>
-        <LinearGradient colors={['transparent', C.primary, 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.topLine} />
+        <LinearGradient colors={['transparent', T.action, 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.topLine} />
 
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator size="large" color={C.primary} /></View>
+          <View style={s.center}><ActivityIndicator size="large" color={T.action} /></View>
         ) : error || !routine ? (
           <View style={s.center}>
             <Ionicons name="alert-circle-outline" size={48} color="#f87171" />
@@ -491,7 +489,7 @@ export default function TrainerRoutineEditorScreen() {
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>BLOQUES</Text>
               <TouchableOpacity onPress={() => setShowBlockModal(true)} style={s.addBlockBtn} activeOpacity={0.8}>
-                <Ionicons name="add" size={16} color={C.primary} />
+                <Ionicons name="add" size={16} color={T.action} />
                 <Text style={s.addBlockText}>AGREGAR</Text>
               </TouchableOpacity>
             </View>
@@ -499,26 +497,26 @@ export default function TrainerRoutineEditorScreen() {
             {/* Empty blocks state */}
             {!hasBlocks && (
               <View style={s.emptyCard}>
-                <Ionicons name="layers-outline" size={36} color={C.neutral} style={{ marginBottom: 12 }} />
+                <Ionicons name="layers-outline" size={36} color={T.textSecondary} style={{ marginBottom: 12 }} />
                 <Text style={s.emptyTitle}>Rutina vacía</Text>
                 <Text style={s.emptyText}>
                   Generá un borrador completo con IA a partir del perfil del alumno, o armá la estructura a mano.
                 </Text>
 
                 {isSaving ? (
-                  <ActivityIndicator color={C.primary} style={{ marginTop: 20 }} />
+                  <ActivityIndicator color={T.action} style={{ marginTop: 20 }} />
                 ) : (
                   <>
                     <TouchableOpacity onPress={openAiModal} activeOpacity={0.85} style={s.structureBtn}>
                       <LinearGradient colors={['#2e1065', '#1e0a45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.structureBtnGrad}>
-                        <Ionicons name="sparkles" size={16} color={C.ai} />
-                        <Text style={[s.structureBtnText, { color: C.ai }]}>GENERAR CON IA</Text>
+                        <Ionicons name="sparkles" size={16} color={AI_COLOR} />
+                        <Text style={[s.structureBtnText, { color: AI_COLOR }]}>GENERAR CON IA</Text>
                       </LinearGradient>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={handleCreateStructure} activeOpacity={0.85} style={s.structureBtn}>
-                      <LinearGradient colors={[C.primaryDim, '#003d4d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.structureBtnGrad}>
-                        <Ionicons name="layers-outline" size={16} color={C.primary} />
+                      <LinearGradient colors={[actionDimBg, '#003d4d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.structureBtnGrad}>
+                        <Ionicons name="layers-outline" size={16} color={T.action} />
                         <Text style={s.structureBtnText}>ESTRUCTURA RECOMENDADA</Text>
                       </LinearGradient>
                     </TouchableOpacity>
@@ -545,7 +543,7 @@ export default function TrainerRoutineEditorScreen() {
                     <Text style={[s.blockLabel, { color }]}>{getBlockLabel(block.block_type)}</Text>
                     <Text style={s.blockCount}>{block.exercises.length} ej.</Text>
                     <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.blockAddBtn} activeOpacity={0.7}>
-                      <Ionicons name="add-circle" size={22} color={C.primary} />
+                      <Ionicons name="add-circle" size={22} color={T.action} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => handleDeleteBlock(block)} style={{ padding: 4 }} activeOpacity={0.7}>
                       <Ionicons name="trash-outline" size={17} color="#f87171" />
@@ -554,7 +552,7 @@ export default function TrainerRoutineEditorScreen() {
 
                   {block.exercises.length === 0 ? (
                     <TouchableOpacity onPress={() => openPickerForBlock(block)} style={s.emptyExRow} activeOpacity={0.7}>
-                      <Ionicons name="add-circle-outline" size={16} color={C.neutral} />
+                      <Ionicons name="add-circle-outline" size={16} color={T.textSecondary} />
                       <Text style={s.emptyExText}>Agregá el primer ejercicio</Text>
                     </TouchableOpacity>
                   ) : (
@@ -580,9 +578,9 @@ export default function TrainerRoutineEditorScreen() {
                           hitSlop={10}
                           style={{ marginRight: 6 }}
                         >
-                          <Ionicons name="information-circle-outline" size={18} color={C.neutral} />
+                          <Ionicons name="information-circle-outline" size={18} color={T.textSecondary} />
                         </TouchableOpacity>
-                        <Ionicons name="chevron-forward" size={16} color={C.border} />
+                        <Ionicons name="chevron-forward" size={16} color={T.border} />
                       </TouchableOpacity>
                     ))
                   )}
@@ -602,7 +600,7 @@ export default function TrainerRoutineEditorScreen() {
           <View style={s.modalHeader}>
             <Text style={s.modalTitle}>AGREGAR BLOQUE</Text>
             <TouchableOpacity onPress={() => setShowBlockModal(false)} style={{ padding: 6 }}>
-              <Ionicons name="close" size={22} color={C.neutral} />
+              <Ionicons name="close" size={22} color={T.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 10 }}>
@@ -634,25 +632,25 @@ export default function TrainerRoutineEditorScreen() {
                   {selectedBlock ? getBlockLabel(selectedBlock.block_type).toUpperCase() : 'EJERCICIO'}
                 </Text>
                 <TouchableOpacity onPress={() => setShowExModal(false)} style={{ padding: 6 }}>
-                  <Ionicons name="close" size={22} color={C.neutral} />
+                  <Ionicons name="close" size={22} color={T.textSecondary} />
                 </TouchableOpacity>
               </View>
 
               {/* Search */}
               <View style={s.searchWrap}>
-                <Ionicons name="search-outline" size={16} color={C.neutral} />
+                <Ionicons name="search-outline" size={16} color={T.textSecondary} />
                 <TextInput
                   value={exSearch}
                   onChangeText={setExSearch}
                   placeholder={`Buscar en ${discipline || 'el catálogo'}...`}
-                  placeholderTextColor={C.neutral}
+                  placeholderTextColor={T.textSecondary}
                   style={s.searchInput}
                   returnKeyType="done"
                   onSubmitEditing={() => { if (exSearch.trim().length >= 2) handlePickSuggestion(exSearch.trim()); }}
                 />
                 {exSearch.length > 0 && (
                   <TouchableOpacity onPress={() => setExSearch('')}>
-                    <Ionicons name="close-circle" size={16} color={C.neutral} />
+                    <Ionicons name="close-circle" size={16} color={T.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -687,7 +685,7 @@ export default function TrainerRoutineEditorScreen() {
                 {/* Custom exercise option (when search has text) */}
                 {exSearch.trim().length >= 2 && (
                   <TouchableOpacity onPress={() => handlePickSuggestion(exSearch.trim())} activeOpacity={0.8} style={s.customRow}>
-                    <Ionicons name="add-circle-outline" size={20} color={C.primary} />
+                    <Ionicons name="add-circle-outline" size={20} color={T.action} />
                     <Text style={s.customRowText}>Agregar "{exSearch.trim()}"</Text>
                   </TouchableOpacity>
                 )}
@@ -699,7 +697,7 @@ export default function TrainerRoutineEditorScreen() {
                     <View style={s.recentWrap}>
                       {recentNames.map(name => (
                         <TouchableOpacity key={name} onPress={() => handlePickSuggestion(name)} activeOpacity={0.8} style={s.recentChip}>
-                          <Ionicons name="repeat-outline" size={12} color={C.textLo} />
+                          <Ionicons name="repeat-outline" size={12} color={T.textSecondary} />
                           <Text style={s.recentChipText}>{name}</Text>
                         </TouchableOpacity>
                       ))}
@@ -734,10 +732,10 @@ export default function TrainerRoutineEditorScreen() {
                           hitSlop={8}
                           style={{ marginRight: 8 }}
                         >
-                          <Ionicons name="information-circle-outline" size={17} color={C.neutral} />
+                          <Ionicons name="information-circle-outline" size={17} color={T.textSecondary} />
                         </TouchableOpacity>
                       )}
-                      <Ionicons name="add" size={18} color={C.primary} />
+                      <Ionicons name="add" size={18} color={T.action} />
                     </TouchableOpacity>
                   ))
                 )}
@@ -749,13 +747,13 @@ export default function TrainerRoutineEditorScreen() {
               <View style={s.modalHeader}>
                 <TouchableOpacity onPress={() => !selectedExercise && setExModalStep('pick')} style={{ padding: 6 }}>
                   {!selectedExercise
-                    ? <Ionicons name="chevron-back" size={22} color={C.primary} />
+                    ? <Ionicons name="chevron-back" size={22} color={T.action} />
                     : <View style={{ width: 22 }} />
                   }
                 </TouchableOpacity>
                 <Text style={s.modalTitle} numberOfLines={1}>{exName}</Text>
                 <TouchableOpacity onPress={() => setShowExModal(false)} style={{ padding: 6 }}>
-                  <Ionicons name="close" size={22} color={C.neutral} />
+                  <Ionicons name="close" size={22} color={T.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -766,7 +764,7 @@ export default function TrainerRoutineEditorScreen() {
                     value={exName}
                     onChangeText={setExName}
                     style={s.nameInput}
-                    placeholderTextColor={C.neutral}
+                    placeholderTextColor={T.textSecondary}
                     placeholder="Nombre del ejercicio"
                   />
                 </View>
@@ -837,19 +835,19 @@ export default function TrainerRoutineEditorScreen() {
                   value={exNotes}
                   onChangeText={setExNotes}
                   placeholder="Ej: Mantener codos a 45°"
-                  placeholderTextColor={C.neutral}
+                  placeholderTextColor={T.textSecondary}
                   style={s.notesInput}
                   multiline
                 />
 
                 <TouchableOpacity onPress={handleSaveExercise} disabled={isSaving} activeOpacity={0.85} style={s.saveBtn}>
                   {!isSaving ? (
-                    <LinearGradient colors={[C.primaryDim, '#003d4d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.saveBtnGrad}>
+                    <LinearGradient colors={[actionDimBg, '#003d4d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.saveBtnGrad}>
                       <Text style={s.saveBtnText}>{selectedExercise ? 'GUARDAR CAMBIOS' : 'AGREGAR EJERCICIO'}</Text>
                     </LinearGradient>
                   ) : (
-                    <View style={[s.saveBtnGrad, { backgroundColor: C.cardDeep }]}>
-                      <ActivityIndicator color={C.primary} />
+                    <View style={[s.saveBtnGrad, { backgroundColor: T.border }]}>
+                      <ActivityIndicator color={T.action} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -870,12 +868,12 @@ export default function TrainerRoutineEditorScreen() {
         <View style={s.aiOverlay}>
           <View style={s.aiCard}>
             <LinearGradient
-              colors={['transparent', C.ai, 'transparent']}
+              colors={['transparent', AI_COLOR, 'transparent']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={s.aiTopLine}
             />
             <View style={s.aiIconWrap}>
-              <Ionicons name="sparkles" size={26} color={C.ai} />
+              <Ionicons name="sparkles" size={26} color={AI_COLOR} />
             </View>
             <Text style={s.aiTitle}>Generar borrador con IA</Text>
             <Text style={s.aiDesc}>
@@ -886,7 +884,7 @@ export default function TrainerRoutineEditorScreen() {
               value={aiObjective}
               onChangeText={setAiObjective}
               placeholder="Ej: fuerza de tren superior, cuidar hombro derecho..."
-              placeholderTextColor={C.neutral}
+              placeholderTextColor={T.textSecondary}
               style={s.aiInput}
               multiline
               editable={!isGenerating}
@@ -897,13 +895,13 @@ export default function TrainerRoutineEditorScreen() {
               <LinearGradient colors={['#2e1065', '#1e0a45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.aiBtn}>
                 {isGenerating ? (
                   <>
-                    <ActivityIndicator size="small" color={C.ai} />
-                    <Text style={[s.aiBtnText, { color: C.ai }]}>GENERANDO (~10s)...</Text>
+                    <ActivityIndicator size="small" color={AI_COLOR} />
+                    <Text style={[s.aiBtnText, { color: AI_COLOR }]}>GENERANDO (~10s)...</Text>
                   </>
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={16} color={C.ai} />
-                    <Text style={[s.aiBtnText, { color: C.ai }]}>GENERAR</Text>
+                    <Ionicons name="sparkles" size={16} color={AI_COLOR} />
+                    <Text style={[s.aiBtnText, { color: AI_COLOR }]}>GENERAR</Text>
                   </>
                 )}
               </LinearGradient>
@@ -968,14 +966,15 @@ function buildStudentFacts(form: StudentForm | null): string {
 // ─── Stepper component ────────────────────────────────────────────────────────
 
 function Stepper({ value, onDec, onInc }: { value: number; onDec: () => void; onInc: () => void }) {
+  const { s, T } = useStyles();
   return (
     <View style={s.stepper}>
       <TouchableOpacity onPress={onDec} style={s.stepBtn} activeOpacity={0.7}>
-        <Ionicons name="remove" size={20} color={C.primary} />
+        <Ionicons name="remove" size={20} color={T.action} />
       </TouchableOpacity>
       <Text style={s.stepValue}>{value}</Text>
       <TouchableOpacity onPress={onInc} style={s.stepBtn} activeOpacity={0.7}>
-        <Ionicons name="add" size={20} color={C.primary} />
+        <Ionicons name="add" size={20} color={T.action} />
       </TouchableOpacity>
     </View>
   );
@@ -983,131 +982,133 @@ function Stepper({ value, onDec, onInc }: { value: number; onDec: () => void; on
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:  { padding: 20 },
-  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:  { padding: 20 },
+    center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
-  errorText: { color: C.textLo, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginTop: 12 },
+    errorText: { color: T.textSecondary, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginTop: 12 },
 
-  // Info card
-  infoCard:    { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 20, gap: 14 },
-  dayBadge:    { width: 48, height: 48, borderRadius: 12, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  dayNum:      { color: C.primary, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 22 },
-  dayLabel:    { color: C.primary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, opacity: 0.7 },
-  routineName: { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  routineSub:  { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
-  routineNotes:{ color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 6, fontStyle: 'italic' },
+    // Info card
+    infoCard:    { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, padding: 16, marginBottom: 20, gap: 14 },
+    dayBadge:    { width: 48, height: 48, borderRadius: 12, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    dayNum:      { color: T.action, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 22 },
+    dayLabel:    { color: T.action, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, opacity: 0.7 },
+    routineName: { color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    routineSub:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    routineNotes:{ color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 6, fontStyle: 'italic' },
 
-  // Section header
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle:  { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3 },
-  addBlockBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primaryDim, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  addBlockText:  { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    // Section header
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    sectionTitle:  { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3 },
+    addBlockBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: actionDimBg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    addBlockText:  { color: T.action, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // Empty blocks
-  emptyCard:        { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', marginBottom: 16 },
-  emptyTitle:       { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 8 },
-  emptyText:        { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 19, marginBottom: 16 },
-  structureBtn:     { width: '100%', borderRadius: 12, overflow: 'hidden', marginTop: 8 },
-  structureBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  structureBtnText: { color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  structureHint:    { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 14, textAlign: 'center' },
+    // Empty blocks
+    emptyCard:        { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 28, alignItems: 'center', marginBottom: 16 },
+    emptyTitle:       { color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 8 },
+    emptyText:        { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 19, marginBottom: 16 },
+    structureBtn:     { width: '100%', borderRadius: 12, overflow: 'hidden', marginTop: 8 },
+    structureBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+    structureBtnText: { color: T.action, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    structureHint:    { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 14, textAlign: 'center' },
 
-  // Block card
-  blockCard:    { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, marginBottom: 12, overflow: 'hidden' },
-  blockHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, paddingBottom: 10 },
-  blockIconWrap:{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  blockLabel:   { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, flex: 1 },
-  blockCount:   { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginRight: 4 },
-  blockAddBtn:  { padding: 4 },
+    // Block card
+    blockCard:    { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, borderLeftWidth: 3, marginBottom: 12, overflow: 'hidden' },
+    blockHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, paddingBottom: 10 },
+    blockIconWrap:{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    blockLabel:   { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, flex: 1 },
+    blockCount:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginRight: 4 },
+    blockAddBtn:  { padding: 4 },
 
-  emptyExRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderTopWidth: 1, borderTopColor: C.border },
-  emptyExText: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    emptyExRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderTopWidth: 1, borderTopColor: T.border },
+    emptyExText: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  exRow:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: C.border },
-  exRowBorder: {},
-  exNumBadge:  { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  exNum:       { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
-  exName:      { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 1 },
-  exMeta:      { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    exRow:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: T.border },
+    exRowBorder: {},
+    exNumBadge:  { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    exNum:       { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+    exName:      { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 1 },
+    exMeta:      { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Modals (shared)
-  modalSafe:   { flex: 1, backgroundColor: C.bg, paddingTop: 10 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 8 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10 },
-  modalTitle:  { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, flex: 1, textAlign: 'center' },
+    // Modals (shared)
+    modalSafe:   { flex: 1, backgroundColor: T.surface, paddingTop: 10 },
+    modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: T.border, alignSelf: 'center', marginBottom: 8 },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10 },
+    modalTitle:  { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, flex: 1, textAlign: 'center' },
 
-  blockTypeRow:  { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
-  blockTypeIcon: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  blockTypeName: { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    blockTypeRow:  { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 14 },
+    blockTypeIcon: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    blockTypeName: { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold' },
 
-  // Picker
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 12 },
-  searchInput: { flex: 1, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', paddingVertical: 11 },
+    // Picker
+    searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.border, marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 12 },
+    searchInput: { flex: 1, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', paddingVertical: 11 },
 
-  muscleChipsRow:      { paddingHorizontal: 20, gap: 8, paddingBottom: 10 },
-  muscleChip:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  muscleChipActive:    { backgroundColor: C.primaryDim, borderColor: C.primary },
-  muscleChipText:      { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  muscleChipTextActive:{ color: C.primary },
+    muscleChipsRow:      { paddingHorizontal: 20, gap: 8, paddingBottom: 10 },
+    muscleChip:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: T.surfaceElevated, borderWidth: 1, borderColor: T.border },
+    muscleChipActive:    { backgroundColor: actionDimBg, borderColor: T.action },
+    muscleChipText:      { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    muscleChipTextActive:{ color: T.action },
 
-  customRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginBottom: 6, padding: 13, backgroundColor: C.cardDeep, borderRadius: 10, borderWidth: 1, borderColor: C.primaryDim },
-  customRowText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    customRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginBottom: 6, padding: 13, backgroundColor: T.border, borderRadius: 10, borderWidth: 1, borderColor: actionDimBg },
+    customRowText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
 
-  suggestionsLabel: { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
-  recentWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20 },
-  recentChip:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 8, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
-  recentChipText:   { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    suggestionsLabel: { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
+    recentWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20 },
+    recentChip:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 8, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    recentChipText:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold' },
 
-  suggRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.card },
-  suggName:    { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 1 },
-  suggMuscles: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_400Regular' },
+    suggRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: T.surfaceElevated },
+    suggName:    { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 1 },
+    suggMuscles: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Config
-  configScroll: { paddingHorizontal: 20, paddingBottom: 40 },
-  configLabel:  { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginTop: 16, marginBottom: 8 },
-  nameInputWrap:{ backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border },
-  nameInput:    { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 14, paddingVertical: 12 },
+    // Config
+    configScroll: { paddingHorizontal: 20, paddingBottom: 40 },
+    configLabel:  { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginTop: 16, marginBottom: 8 },
+    nameInputWrap:{ backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.border },
+    nameInput:    { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 14, paddingVertical: 12 },
 
-  typeRow:            { flexDirection: 'row', gap: 8 },
-  typeChip:           { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  typeChipActive:     { backgroundColor: C.primaryDim, borderColor: C.primary },
-  typeChipText:       { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  typeChipTextActive: { color: C.primary },
+    typeRow:            { flexDirection: 'row', gap: 8 },
+    typeChip:           { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: T.surfaceElevated, borderWidth: 1, borderColor: T.border },
+    typeChipActive:     { backgroundColor: actionDimBg, borderColor: T.action },
+    typeChipText:       { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    typeChipTextActive: { color: T.action },
 
-  steppersRow:  { flexDirection: 'row', gap: 14 },
-  stepperBlock: { flex: 1 },
-  stepper:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border },
-  stepBtn:      { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  stepValue:    { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold' },
+    steppersRow:  { flexDirection: 'row', gap: 14 },
+    stepperBlock: { flex: 1 },
+    stepper:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.border },
+    stepBtn:      { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    stepValue:    { color: T.textPrimary, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  restRow:            { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  restChip:           { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  restChipActive:     { backgroundColor: C.primaryDim, borderColor: C.primary },
-  restChipText:       { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  restChipTextActive: { color: C.primary },
+    restRow:            { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    restChip:           { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: T.surfaceElevated, borderWidth: 1, borderColor: T.border },
+    restChipActive:     { backgroundColor: actionDimBg, borderColor: T.action },
+    restChipText:       { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    restChipTextActive: { color: T.action },
 
-  notesInput: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', paddingHorizontal: 14, paddingVertical: 12, minHeight: 70 },
+    notesInput: { backgroundColor: T.surfaceElevated, borderRadius: 10, borderWidth: 1, borderColor: T.border, color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', paddingHorizontal: 14, paddingVertical: 12, minHeight: 70 },
 
-  saveBtn:     { borderRadius: 12, overflow: 'hidden', marginTop: 24 },
-  saveBtnGrad: { alignItems: 'center', justifyContent: 'center', paddingVertical: 15 },
-  saveBtnText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    saveBtn:     { borderRadius: 12, overflow: 'hidden', marginTop: 24 },
+    saveBtnGrad: { alignItems: 'center', justifyContent: 'center', paddingVertical: 15 },
+    saveBtnText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
 
-  deleteExBtn:  { alignItems: 'center', paddingVertical: 16 },
-  deleteExText: { color: '#f87171', fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    deleteExBtn:  { alignItems: 'center', paddingVertical: 16 },
+    deleteExText: { color: '#f87171', fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
 
-  // AI modal
-  aiOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  aiCard:      { width: '100%', backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24, alignItems: 'center' },
-  aiTopLine:   { height: 2, opacity: 0.7, marginBottom: 24, alignSelf: 'stretch' },
-  aiIconWrap:  { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1e0a45', borderWidth: 1, borderColor: C.ai, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  aiTitle:     { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 8 },
-  aiDesc:      { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 19, marginBottom: 16 },
-  aiInput:     { alignSelf: 'stretch', backgroundColor: C.cardDeep, borderRadius: 10, borderWidth: 1, borderColor: C.border, color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', padding: 14, minHeight: 90, marginBottom: 16, lineHeight: 19 },
-  aiBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, paddingVertical: 14 },
-  aiBtnText:   { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-  aiCancelBtn: { paddingVertical: 12, marginTop: 4 },
-  aiCancelText:{ color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-});
+    // AI modal
+    aiOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    aiCard:      { width: '100%', backgroundColor: T.surfaceElevated, borderRadius: 18, borderWidth: 1, borderColor: T.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24, alignItems: 'center' },
+    aiTopLine:   { height: 2, opacity: 0.7, marginBottom: 24, alignSelf: 'stretch' },
+    aiIconWrap:  { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1e0a45', borderWidth: 1, borderColor: AI_COLOR, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    aiTitle:     { color: T.textPrimary, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 8 },
+    aiDesc:      { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 19, marginBottom: 16 },
+    aiInput:     { alignSelf: 'stretch', backgroundColor: T.border, borderRadius: 10, borderWidth: 1, borderColor: T.border, color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', padding: 14, minHeight: 90, marginBottom: 16, lineHeight: 19 },
+    aiBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, paddingVertical: 14 },
+    aiBtnText:   { fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    aiCancelBtn: { paddingVertical: 12, marginTop: 4 },
+    aiCancelText:{ color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+  });
+}

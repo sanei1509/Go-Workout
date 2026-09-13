@@ -11,10 +11,10 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { TrainingProvider } from '@/contexts/TrainingContext';
 import { AlertProvider } from '@/components/AppAlert';
+import { ThemeProvider as GowThemeProvider, useTheme } from '@/contexts/ThemeContext';
 
 export {
   ErrorBoundary,
@@ -43,19 +43,21 @@ export default function RootLayout() {
   }
 
   return (
-    <AlertProvider>
-      <AuthProvider>
-        <TrainingProvider>
-          <RootLayoutNav />
-        </TrainingProvider>
-      </AuthProvider>
-    </AlertProvider>
+    <GowThemeProvider>
+      <AlertProvider>
+        <AuthProvider>
+          <TrainingProvider>
+            <RootLayoutNav />
+          </TrainingProvider>
+        </AuthProvider>
+      </AlertProvider>
+    </GowThemeProvider>
   );
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   const { isLoading: authLoading } = useAuth();
+  const { activeTheme } = useTheme();
 
   useEffect(() => {
     if (!authLoading) {
@@ -64,7 +66,7 @@ function RootLayoutNav() {
   }, [authLoading]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={activeTheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />

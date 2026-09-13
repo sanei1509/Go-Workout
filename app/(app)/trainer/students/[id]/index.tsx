@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,20 +36,8 @@ import {
   formatRelativeDate,
 } from '@/lib/services/workoutService';
 import { FORM_FIELD_LABELS, FormField } from '@/lib/services/invitationService';
-
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 const BAR_MAX_HEIGHT = 56;
 
@@ -66,6 +54,10 @@ export default function StudentDetailScreen() {
   const [adherence, setAdherence] = useState<AdherenceStats | null>(null);
   const [plateaus, setPlateaus] = useState<PlateauFlag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   const loadAll = useCallback(async () => {
     if (!user?.id || !id) return;
@@ -122,7 +114,7 @@ export default function StudentDetailScreen() {
               onPress={() => router.navigate('/trainer/students')}
               style={{ paddingRight: 12 }}
             >
-              <Ionicons name="chevron-back" size={24} color={C.primary} />
+              <Ionicons name="chevron-back" size={24} color={T.action} />
             </TouchableOpacity>
           ),
         }}
@@ -130,7 +122,7 @@ export default function StudentDetailScreen() {
 
       {isLoading ? (
         <View style={s.loadingContainer}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <ActivityIndicator size="large" color={T.action} />
         </View>
       ) : !student ? (
         <View style={s.loadingContainer}>
@@ -145,7 +137,7 @@ export default function StudentDetailScreen() {
             {/* ── Hero ────────────────────────────────────────────────── */}
             <View style={s.heroCard}>
               <LinearGradient
-                colors={['transparent', C.primary, 'transparent']}
+                colors={['transparent', T.action, 'transparent']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={s.heroTopLine}
               />
@@ -183,7 +175,7 @@ export default function StudentDetailScreen() {
                 </Text>
                 <Text style={s.statLabel}>VOL. SEMANA</Text>
                 {stats != null && stats.volumeChange !== 0 && (
-                  <Text style={[s.statChange, { color: stats.volumeChange > 0 ? C.green : '#f87171' }]}>
+                  <Text style={[s.statChange, { color: stats.volumeChange > 0 ? T.done : '#f87171' }]}>
                     {stats.volumeChange > 0 ? '+' : ''}{Math.round(stats.volumeChange)}%
                   </Text>
                 )}
@@ -213,7 +205,7 @@ export default function StudentDetailScreen() {
                           s.bar,
                           {
                             height: Math.max(4, (b.count / maxBar) * BAR_MAX_HEIGHT),
-                            backgroundColor: b.count > 0 ? C.primary : C.cardDeep,
+                            backgroundColor: b.count > 0 ? T.action : T.border,
                           },
                         ]}
                       />
@@ -236,7 +228,7 @@ export default function StudentDetailScreen() {
                 <Text
                   style={[
                     s.adherenceValue,
-                    { color: adherence.adherenceRate >= 70 ? C.green : adherence.adherenceRate >= 40 ? C.tertiary : '#f87171' },
+                    { color: adherence.adherenceRate >= 70 ? T.done : adherence.adherenceRate >= 40 ? T.attention : '#f87171' },
                   ]}
                 >
                   {adherence.adherenceRate}%
@@ -248,7 +240,7 @@ export default function StudentDetailScreen() {
             {plateaus.length > 0 && (
               <View style={s.plateauCard}>
                 <View style={s.plateauHeader}>
-                  <Ionicons name="trending-down-outline" size={15} color={C.tertiary} />
+                  <Ionicons name="trending-down-outline" size={15} color={T.attention} />
                   <Text style={s.plateauTitle}>SIN PROGRESO RECIENTE</Text>
                 </View>
                 {plateaus.map((p, i) => (
@@ -275,7 +267,7 @@ export default function StudentDetailScreen() {
               </View>
             ) : (
               <View style={s.quietCard}>
-                <Ionicons name="document-text-outline" size={18} color={C.neutral} />
+                <Ionicons name="document-text-outline" size={18} color={T.textSecondary} />
                 <Text style={s.quietText}>No completó el formulario inicial.</Text>
               </View>
             )}
@@ -284,7 +276,7 @@ export default function StudentDetailScreen() {
             <Text style={s.sectionTitle}>PLANES ASIGNADOS</Text>
             {plans.length === 0 ? (
               <View style={s.quietCard}>
-                <Ionicons name="clipboard-outline" size={18} color={C.neutral} />
+                <Ionicons name="clipboard-outline" size={18} color={T.textSecondary} />
                 <Text style={s.quietText}>Todavía no le asignaste un plan.</Text>
               </View>
             ) : (
@@ -310,7 +302,7 @@ export default function StudentDetailScreen() {
                         {p.discipline} · {p.weekly_frequency} días/semana
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={C.neutral} />
+                    <Ionicons name="chevron-forward" size={16} color={T.textSecondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -320,7 +312,7 @@ export default function StudentDetailScreen() {
             <Text style={s.sectionTitle}>ÚLTIMAS SESIONES</Text>
             {sessions.length === 0 ? (
               <View style={s.quietCard}>
-                <Ionicons name="moon-outline" size={18} color={C.neutral} />
+                <Ionicons name="moon-outline" size={18} color={T.textSecondary} />
                 <Text style={s.quietText}>Sin entrenamientos registrados.</Text>
               </View>
             ) : (
@@ -328,7 +320,7 @@ export default function StudentDetailScreen() {
                 {sessions.map((sn, i) => (
                   <View key={sn.id} style={[s.sessionRow, i > 0 && s.planItemBorder]}>
                     <View style={s.sessionIcon}>
-                      <Ionicons name="checkmark" size={14} color={C.green} />
+                      <Ionicons name="checkmark" size={14} color={T.done} />
                     </View>
                     <Text style={s.sessionDate}>{formatRelativeDate(sn.started_at)}</Text>
                     <Text style={s.sessionDuration}>
@@ -351,7 +343,7 @@ export default function StudentDetailScreen() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={s.ctaBtn}
               >
-                <Ionicons name="add-circle-outline" size={18} color={C.primary} />
+                <Ionicons name="add-circle-outline" size={18} color={T.action} />
                 <Text style={s.ctaText}>ASIGNAR PLAN</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -362,86 +354,88 @@ export default function StudentDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: C.bg },
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: T.surface },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface },
 
-  sectionTitle: { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
+    sectionTitle: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
 
-  // Hero
-  heroCard:      { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  heroTopLine:   { height: 2, opacity: 0.6 },
-  heroBody:      { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18 },
-  avatar:        { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: C.primary },
-  avatarFallback:{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter:  { color: C.primary, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
-  heroName:      { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  heroEmail:     { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 7 },
-  tagRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag:           { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
-  tagText:       { color: C.textLo, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    // Hero
+    heroCard:      { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    heroTopLine:   { height: 2, opacity: 0.6 },
+    heroBody:      { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18 },
+    avatar:        { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: T.action },
+    avatarFallback:{ width: 56, height: 56, borderRadius: 28, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    avatarLetter:  { color: T.action, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
+    heroName:      { color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    heroEmail:     { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 7 },
+    tagRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    tag:           { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    tagText:       { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // Stats
-  statsRow:    { flexDirection: 'row', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 10 },
-  statItem:    { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  statDivider: { width: 1, backgroundColor: C.border },
-  statValue:   { color: C.textHi, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  statLabel:   { color: C.textLo, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-  statChange:  { fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
+    // Stats
+    statsRow:    { flexDirection: 'row', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden', marginBottom: 10 },
+    statItem:    { flex: 1, alignItems: 'center', paddingVertical: 14 },
+    statDivider: { width: 1, backgroundColor: T.border },
+    statValue:   { color: T.textPrimary, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    statLabel:   { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    statChange:  { fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
 
-  // Bars
-  barsCard:  { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 },
-  barsTitle: { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 12 },
-  barsRow:   { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  barCol:    { alignItems: 'center', flex: 1, gap: 4 },
-  barCount:  { color: C.primary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', height: 14 },
-  bar:       { width: 18, borderRadius: 4 },
-  barLabel:  { color: C.neutral, fontSize: 8, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Bars
+    barsCard:  { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16 },
+    barsTitle: { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 12 },
+    barsRow:   { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+    barCol:    { alignItems: 'center', flex: 1, gap: 4 },
+    barCount:  { color: T.action, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', height: 14 },
+    bar:       { width: 18, borderRadius: 4 },
+    barLabel:  { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Adherencia
-  adherenceCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, marginTop: 10 },
-  adherenceTitle: { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 3 },
-  adherenceSub:   { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
-  adherenceValue: { fontSize: 24, fontFamily: 'SpaceGrotesk_700Bold' },
+    // Adherencia
+    adherenceCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16, marginTop: 10 },
+    adherenceTitle: { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 3 },
+    adherenceSub:   { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    adherenceValue: { fontSize: 24, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  // Estancamientos
-  plateauCard:     { backgroundColor: '#130d00', borderRadius: 12, borderWidth: 1, borderColor: '#4a3200', padding: 14, marginTop: 10 },
-  plateauHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  plateauTitle:    { color: C.tertiary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-  plateauRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
-  plateauExercise: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  plateauMeta:     { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Estancamientos
+    plateauCard:     { backgroundColor: '#130d00', borderRadius: 12, borderWidth: 1, borderColor: '#4a3200', padding: 14, marginTop: 10 },
+    plateauHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    plateauTitle:    { color: T.attention, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    plateauRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
+    plateauExercise: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    plateauMeta:     { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Form
-  formCard:      { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  formRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
-  formRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
-  formLabel:     { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, paddingTop: 2 },
-  formValue:     { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, textAlign: 'right' },
+    // Form
+    formCard:      { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    formRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
+    formRowBorder: { borderTopWidth: 1, borderTopColor: T.border },
+    formLabel:     { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, paddingTop: 2 },
+    formValue:     { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, textAlign: 'right' },
 
-  // Quiet card (empty states discretos)
-  quietCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 },
-  quietText: { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1 },
-  emptyBody: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Quiet card (empty states discretos)
+    quietCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16 },
+    quietText: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1 },
+    emptyBody: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Plan list
-  planList:       { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  planItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingRight: 14, paddingLeft: 18, gap: 12 },
-  planItemBorder: { borderTopWidth: 1, borderTopColor: C.border },
-  planAccent:     { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.primary },
-  planName:       { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  planMeta:       { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
-  draftTag:       { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
-  draftTagText:   { color: C.neutral, fontSize: 7, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    // Plan list
+    planList:       { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    planItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingRight: 14, paddingLeft: 18, gap: 12 },
+    planItemBorder: { borderTopWidth: 1, borderTopColor: T.border },
+    planAccent:     { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: T.action },
+    planName:       { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    planMeta:       { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    draftTag:       { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    draftTagText:   { color: T.textSecondary, fontSize: 7, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // Sessions
-  sessionRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  sessionIcon:     { width: 26, height: 26, borderRadius: 13, backgroundColor: '#0a1f10', alignItems: 'center', justifyContent: 'center' },
-  sessionDate:     { flex: 1, color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  sessionDuration: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Sessions
+    sessionRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+    sessionIcon:     { width: 26, height: 26, borderRadius: 13, backgroundColor: '#0a1f10', alignItems: 'center', justifyContent: 'center' },
+    sessionDate:     { flex: 1, color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    sessionDuration: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Footer CTA
-  footer:  { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: C.border },
-  ctaBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 10, gap: 10 },
-  ctaText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-});
+    // Footer CTA
+    footer:  { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: T.surface, borderTopWidth: 1, borderTopColor: T.border },
+    ctaBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 10, gap: 10 },
+    ctaText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  });
+}

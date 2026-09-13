@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,24 +11,11 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTrainerStudents, TrainerStudent } from '@/lib/services/trainerService';
 import { formatRelativeDate } from '@/lib/services/workoutService';
-
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 const INACTIVITY_THRESHOLD_DAYS = 7;
 
@@ -41,6 +28,10 @@ export default function StudentsListScreen() {
   const [students, setStudents] = useState<TrainerStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   const loadStudents = useCallback(async () => {
     if (!user?.id) return;
@@ -64,7 +55,7 @@ export default function StudentsListScreen() {
   if (isLoading) {
     return (
       <View style={s.loadingContainer}>
-        <ActivityIndicator size="large" color={C.primary} />
+        <ActivityIndicator size="large" color={T.action} />
       </View>
     );
   }
@@ -76,7 +67,7 @@ export default function StudentsListScreen() {
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}
-            tintColor={C.primary} colors={[C.primary]} />
+            tintColor={T.action} colors={[T.action]} />
         }
       >
         <View style={s.headerRow}>
@@ -88,7 +79,7 @@ export default function StudentsListScreen() {
 
         {students.length === 0 ? (
           <View style={s.emptyCard}>
-            <Ionicons name="people-outline" size={32} color={C.neutral} />
+            <Ionicons name="people-outline" size={32} color={T.textSecondary} />
             <Text style={s.emptyTitle}>Todavía no tenés alumnos</Text>
             <Text style={s.emptyBody}>
               Cuando un alumno acepte tu invitación va a aparecer acá.
@@ -96,16 +87,10 @@ export default function StudentsListScreen() {
             <TouchableOpacity
               onPress={() => router.push('/trainer/create-invitation')}
               activeOpacity={0.85}
-              style={{ alignSelf: 'stretch', marginTop: 8 }}
+              style={[s.emptyCta, { alignSelf: 'stretch', marginTop: 8 }]}
             >
-              <LinearGradient
-                colors={['#00566a', '#003d4d']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.emptyCta}
-              >
-                <Ionicons name="person-add-outline" size={16} color={C.primary} />
-                <Text style={s.emptyCtaText}>INVITAR ALUMNO</Text>
-              </LinearGradient>
+              <Ionicons name="person-add-outline" size={16} color={T.actionFg} />
+              <Text style={s.emptyCtaText}>INVITAR ALUMNO</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -135,7 +120,7 @@ export default function StudentsListScreen() {
                 </View>
                 {(() => {
                   const inactive = st.last_session_at && daysSince(st.last_session_at) >= INACTIVITY_THRESHOLD_DAYS;
-                  const color = !st.last_session_at ? C.neutral : inactive ? C.tertiary : C.green;
+                  const color = !st.last_session_at ? T.textSecondary : inactive ? T.attention : T.done;
                   return (
                     <View style={s.lastSessionRow}>
                       <Ionicons
@@ -152,7 +137,7 @@ export default function StudentsListScreen() {
                   );
                 })()}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={C.neutral} />
+              <Ionicons name="chevron-forward" size={18} color={T.textSecondary} />
             </TouchableOpacity>
           ))
         )}
@@ -161,36 +146,38 @@ export default function StudentsListScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: C.bg },
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: T.surface },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface },
 
-  headerRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  sectionTitle: { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
-  countBadge:   { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  countText:    { color: C.primary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+    headerRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+    sectionTitle: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    countBadge:   { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+    countText:    { color: T.action, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  emptyCard:  { alignItems: 'center', backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 28, gap: 8 },
-  emptyTitle: { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
-  emptyBody:  { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 17 },
-  emptyCta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 10 },
-  emptyCtaText: { color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    emptyCard:  { alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, padding: 28, gap: 8 },
+    emptyTitle: { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
+    emptyBody:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 17 },
+    emptyCta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 10, backgroundColor: T.action },
+    emptyCtaText: { color: T.actionFg, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
 
-  studentCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
-    paddingVertical: 14, paddingRight: 14, paddingLeft: 18,
-    marginBottom: 10, overflow: 'hidden',
-  },
-  accent:         { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.primary },
-  avatar:         { width: 46, height: 46, borderRadius: 23 },
-  avatarFallback: { width: 46, height: 46, borderRadius: 23, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter:   { color: C.primary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
+    studentCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border,
+      paddingVertical: 14, paddingRight: 14, paddingLeft: 18,
+      marginBottom: 10, overflow: 'hidden',
+    },
+    accent:         { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: T.action },
+    avatar:         { width: 46, height: 46, borderRadius: 23 },
+    avatarFallback: { width: 46, height: 46, borderRadius: 23, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    avatarLetter:   { color: T.action, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  name:           { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 5 },
-  tagRow:         { flexDirection: 'row', gap: 6, marginBottom: 5 },
-  tag:            { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, backgroundColor: C.cardDeep, borderWidth: 1, borderColor: C.border },
-  tagText:        { color: C.textLo, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  lastSessionRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  lastSession:    { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
-});
+    name:           { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 5 },
+    tagRow:         { flexDirection: 'row', gap: 6, marginBottom: 5 },
+    tag:            { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    tagText:        { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    lastSessionRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    lastSession:    { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+  });
+}

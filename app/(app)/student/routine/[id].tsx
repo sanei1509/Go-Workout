@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, StyleSheet, KeyboardAvoidingView, Platform,
@@ -15,135 +15,16 @@ import {
   formatExerciseValue, CreateExerciseData,
 } from '@/lib/services/routineService';
 import { getPlanById } from '@/lib/services/planService';
+import {
+  getExercisesByDiscipline,
+  Exercise as CatalogExercise,
+} from '@/lib/services/exerciseService';
 import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
+import { ExercisePickerStep } from '@/components/ExercisePickerStep';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeTokens } from '@/constants/theme';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-
-// ─── Catálogo de ejercicios sugeridos ─────────────────────────────────────────
-
-type SuggMap = Partial<Record<BlockType, string[]>>;
-
-const CATALOG: Record<string, SuggMap> = {
-  'Musculación': {
-    warmup:    ['Movilidad articular', 'Activación de glúteos', 'Rotación de hombros', 'Sentadilla sin peso', 'Puente de glúteos', 'Band pull-apart'],
-    main:      ['Press de banca', 'Sentadilla con barra', 'Peso muerto', 'Dominadas', 'Press militar', 'Remo con barra', 'Hip Thrust', 'Press inclinado', 'Aperturas en polea', 'Sentadilla búlgara'],
-    accessory: ['Curl de bíceps', 'Extensión de tríceps', 'Elevaciones laterales', 'Face pull', 'Jalón al pecho', 'Curl martillo', 'Patada de tríceps', 'Remo en polea'],
-    cardio:    ['Bicicleta estática 10min', 'Caminadora 10min', 'Elíptica 10min'],
-    mobility:  ['Estiramiento de cuádriceps', 'Pigeon pose', 'Estiramiento de pecho', 'Foam roller espalda', 'Apertura de cadera'],
-  },
-  'Powerlifting': {
-    warmup:    ['Sentadilla sin peso 2×10', 'Peso muerto rumano ligero', 'Band pull-apart', 'Activación de glúteos', 'Hip flexor stretch'],
-    main:      ['Sentadilla', 'Press de banca', 'Peso muerto', 'Press de banca con pausa', 'Sentadilla con pausa', 'Box squat'],
-    accessory: ['Good morning', 'Remo Pendlay', 'Jalón al pecho', 'Press inclinado', 'Curl de bíceps', 'Extensión de espalda'],
-    mobility:  ['Estiramiento de cadera', 'Foam roller espalda', 'Estiramiento de tobillo', 'Pigeon pose'],
-  },
-  'Calistenia': {
-    warmup:    ['Rotación de muñecas', 'Planche lean', 'Hollow body', 'Scapular pull-up', 'Saltos suaves'],
-    main:      ['Dominadas', 'Fondos en paralelas', 'Flexiones', 'Muscle-up', 'Pistol squat', 'L-sit', 'Front lever', 'Archer pull-up'],
-    accessory: ['Flexiones diamante', 'Australian pull-ups', 'Pike push-up', 'Ring row', 'Dip asistido'],
-    cardio:    ['Burpees', 'Jumping Jacks', 'Mountain Climbers', 'Jump squats'],
-    mobility:  ['Estiramiento de muñeca', 'Apertura de cadera', 'Estiramiento de hombro', 'Pancake stretch'],
-  },
-  'Crossfit': {
-    warmup:    ['Movilidad torácica', 'Sentadilla profunda', 'Activación de hombros', 'Inchworm', 'Hip circle'],
-    main:      ['Thruster', 'Clean & Jerk', 'Snatch', 'Wall Ball', 'Box Jump', 'Burpees', 'Double Unders', 'Pull-ups kipping', 'Deadlift', 'Overhead squat'],
-    accessory: ['Ring row', 'GHD sit-up', 'Strict pull-up', 'Dumbbell snatch', 'Toes to bar'],
-    cardio:    ['Row 500m', 'Bike Erg', 'Run 400m', 'Ski Erg', 'Jump rope 3min'],
-    mobility:  ['Pigeon pose', 'Estiramiento de cadera', 'Foam roller', 'Thoracic spine rotation'],
-  },
-  'Funcional': {
-    warmup:    ['Movilidad articular completa', 'Bear crawl', 'Crab walk', 'Inchworm', 'Lateral squat'],
-    main:      ['Sentadilla goblet', 'Press turco', 'Swing con kettlebell', 'Remo TRX', 'Step-up con peso', 'Lunge con mancuerna', 'Farmer carry', 'Single leg deadlift'],
-    accessory: ['Face pull con banda', 'Pallof press', 'Dead bug', 'Bird-dog', 'Core: plancha lateral'],
-    cardio:    ['Battle ropes', 'Sled push', 'Jumping Jacks', 'Jump rope', 'Shuttle run'],
-    mobility:  ['Hip 90-90', 'Scorpion stretch', 'Estiramiento de psoas', 'World greatest stretch'],
-  },
-  'Running': {
-    warmup:    ['Movilidad de tobillo', 'Hip circle', 'Leg swing', 'Skipping', 'Talones al glúteo', 'A-march'],
-    main:      ['Carrera continua', 'Intervalos 400m', 'Fartlek', 'Tempo run', 'Progresivo', 'Cuestas', 'Sprints 100m', 'Carrera larga'],
-    accessory: ['Sentadilla rumana', 'Hip Thrust', 'Core: plancha', 'Abductores con banda', 'Calf raises'],
-    mobility:  ['Estiramiento de isquiotibiales', 'Pigeon pose', 'Estiramiento de pantorrilla', 'Hip flexor stretch'],
-  },
-  'HIIT': {
-    warmup:    ['Movilidad articular', 'Jumping Jacks suave', 'Trote en lugar', 'Hip circle'],
-    main:      ['Burpees', 'Mountain Climbers', 'Sentadillas explosivas', 'Sprint en lugar', 'Box Jumps', 'Jump Lunges', 'Flexiones explosivas', 'Squat thrust'],
-    cardio:    ['Tabata: Burpees', 'AMRAP 10min', 'Circuito 3 rondas', 'Jump rope'],
-    mobility:  ['Estiramiento activo', 'Foam roller piernas', 'Child\'s pose'],
-  },
-  'Yoga': {
-    warmup:    ['Respiración pranayama', 'Cat-cow', 'Child\'s pose', 'Seiza'],
-    main:      ['Saludo al sol A', 'Saludo al sol B', 'Guerrero I', 'Guerrero II', 'Triángulo', 'Perro boca abajo', 'Tabla', 'Árbol', 'Silla'],
-    mobility:  ['Pigeon pose', 'Torsión sentada', 'Uttanasana', 'Reclined twist', 'Supta baddha konasana'],
-  },
-  'Pilates': {
-    warmup:    ['Respiración costal', 'Imprinting', 'Pelvic curl', 'Spine warm-up'],
-    main:      ['Hundred', 'Roll up', 'Single leg stretch', 'Double leg stretch', 'Criss-cross', 'Leg circles', 'Swimming', 'Teaser'],
-    accessory: ['Side kick', 'Corkscrew', 'Jackknife', 'Spine twist'],
-    mobility:  ['Spine stretch forward', 'Saw', 'Swan', 'Rest position'],
-  },
-  'Boxeo': {
-    warmup:    ['Saltar soga 3min', 'Sombra 2min', 'Movilidad de muñeca', 'Rotación de hombros', 'Neck circles'],
-    main:      ['Jab-Cross', 'Combinación 1-2-3', 'Gancho', 'Uppercut', 'Defensa y contra', 'Paos 3×3min', 'Saco 3×3min', 'Sparring técnico'],
-    accessory: ['Flexiones', 'Core: plancha', 'Curl de muñeca', 'Neck bridge', 'Shoulder rotation con banda'],
-    cardio:    ['Saltar soga', 'Shadow boxing', 'Roadwork 3km'],
-  },
-  'Artes Marciales': {
-    warmup:    ['Estiramiento de cadera', 'Movilidad articular', 'Calentamiento dinámico', 'Patadas al aire suaves'],
-    main:      ['Patada frontal', 'Patada circular', 'Sparring técnico', 'Kata', 'Combinaciones de golpes', 'Derribo técnica'],
-    accessory: ['Ejercicios de cadera', 'Core: plancha', 'Flexiones', 'Squats profundos'],
-    cardio:    ['Saco 3min', 'Shadow 2min', 'Saltar soga'],
-  },
-  'Natación': {
-    warmup:    ['Movilidad de hombros', 'Rotación de tobillos', 'Activación de core', 'Brazada en seco'],
-    main:      ['Crol 4×50m', 'Espalda 4×50m', 'Pecho 2×50m', 'Mariposa 2×25m', 'Patada con tabla 100m', 'Técnica de giro'],
-    accessory: ['Jalón al pecho', 'Remo en polea', 'Rotación externa', 'Face pull'],
-    mobility:  ['Estiramiento de hombro', 'Apertura de pecho', 'Estiramiento de tobillo'],
-  },
-  'Ciclismo': {
-    warmup:    ['Pedaleo suave 5min', 'Movilidad de caderas', 'Estiramiento de cuádriceps dinámico'],
-    main:      ['Fondo 45min', 'Sprints 10×30s', 'Subida simulada', 'Cadencia alta 10min', 'Intervalos FTP', 'Sweet spot 2×20min'],
-    accessory: ['Sentadilla', 'Prensa de pierna', 'Core: plancha', 'Hip flexor stretch'],
-    mobility:  ['Estiramiento de cuádriceps', 'Foam roller piernas', 'Hip flexor stretch', 'Estiramiento lumbar'],
-  },
-};
-
-const DEFAULT_CATALOG: SuggMap = {
-  warmup:    ['Movilidad articular', 'Trote suave', 'Sentadilla sin peso', 'Jumping Jacks', 'Rotación de hombros'],
-  main:      ['Sentadilla', 'Press de banca', 'Peso muerto', 'Dominadas', 'Fondos', 'Press militar'],
-  accessory: ['Curl de bíceps', 'Extensión de tríceps', 'Elevaciones laterales', 'Core: plancha'],
-  cardio:    ['Caminadora 10min', 'Bicicleta estática', 'Saltar soga'],
-  mobility:  ['Estiramiento de cuádriceps', 'Pigeon pose', 'Estiramiento de pecho'],
-};
-
-// Refinamiento por nombre de rutina
-const KEYWORD_EXERCISES: Array<{ keywords: string[]; exercises: string[] }> = [
-  { keywords: ['pecho', 'chest'],      exercises: ['Press de banca', 'Press inclinado', 'Aperturas', 'Fondos', 'Flexiones', 'Press declinado'] },
-  { keywords: ['espalda', 'back'],     exercises: ['Peso muerto', 'Remo con barra', 'Dominadas', 'Jalón al pecho', 'Remo en polea', 'T-bar row'] },
-  { keywords: ['pierna', 'leg', 'cuadri', 'isquio'],
-                                       exercises: ['Sentadilla', 'Peso muerto rumano', 'Prensa de pierna', 'Extensión de cuádriceps', 'Curl de isquiotibiales', 'Hip Thrust', 'Sentadilla búlgara'] },
-  { keywords: ['hombro', 'shoulder'],  exercises: ['Press militar', 'Elevaciones laterales', 'Press Arnold', 'Face pull', 'Pájaro', 'Elevaciones frontales'] },
-  { keywords: ['brazo', 'bícep', 'trícep', 'arm'],
-                                       exercises: ['Curl de bíceps', 'Extensión de tríceps', 'Curl martillo', 'Dip', 'Curl concentrado', 'Press cerrado'] },
-  { keywords: ['glúteo', 'glute'],     exercises: ['Hip Thrust', 'Sentadilla búlgara', 'Abducción de cadera', 'Patada trasera', 'Romanian deadlift', 'Step-up'] },
-  { keywords: ['core', 'abdomen', 'abs'],
-                                       exercises: ['Plancha', 'Crunch', 'Russian twist', 'Dead bug', 'Pallof press', 'Ab wheel rollout'] },
-  { keywords: ['full', 'cuerpo completo'],
-                                       exercises: ['Peso muerto', 'Sentadilla', 'Press de banca', 'Dominadas', 'Fondos', 'Press militar'] },
-];
-
-function getSuggestions(discipline: string, blockType: BlockType, routineName: string): string[] {
-  // Para bloques main, intentar refinar por nombre de rutina
-  if (blockType === 'main') {
-    const nameLower = routineName.toLowerCase();
-    for (const { keywords, exercises } of KEYWORD_EXERCISES) {
-      if (keywords.some(k => nameLower.includes(k))) return exercises;
-    }
-  }
-  const map = CATALOG[discipline] ?? DEFAULT_CATALOG;
-  return map[blockType] ?? DEFAULT_CATALOG[blockType] ?? [];
-}
 
 // ─── Estructura recomendada por disciplina ────────────────────────────────────
 
@@ -195,6 +76,7 @@ export default function RoutineDetailScreen() {
   const [isLoading, setIsLoading]       = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [isSaving, setIsSaving]         = useState(false);
+  const [catalog, setCatalog]           = useState<CatalogExercise[]>([]);
 
   // Block modal
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -210,7 +92,6 @@ export default function RoutineDetailScreen() {
 
   // Exercise form
   const [exName, setExName]         = useState('');
-  const [exSearch, setExSearch]     = useState('');
   const [exType, setExType]         = useState<ExerciseType>('reps');
   const [exSets, setExSets]         = useState(3);
   const [exValue, setExValue]       = useState(10);
@@ -235,6 +116,8 @@ export default function RoutineDetailScreen() {
     if (plan) {
       setDiscipline(plan.discipline);
       setIsAssigned(plan.trainer_id != null);
+      const { exercises } = await getExercisesByDiscipline(plan.discipline);
+      setCatalog(exercises);
     }
     setIsLoading(false);
   };
@@ -280,7 +163,6 @@ export default function RoutineDetailScreen() {
   const openPickerForBlock = (block: Block) => {
     setSelectedBlock(block);
     setSelectedExercise(null);
-    setExSearch('');
     const defaults = BLOCK_DEFAULTS[block.block_type];
     setExType(defaults.type);
     setExSets(defaults.sets);
@@ -415,12 +297,11 @@ export default function RoutineDetailScreen() {
   };
   const stepValue  = (type: ExerciseType) => type === 'reps' ? 1 : type === 'time' ? 5 : 10;
 
-  const suggestions = selectedBlock
-    ? getSuggestions(discipline, selectedBlock.block_type, routine?.name ?? '')
-    : [];
-  const filteredSuggestions = exSearch.trim()
-    ? suggestions.filter(s => s.toLowerCase().includes(exSearch.toLowerCase()))
-    : suggestions;
+  const recentNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const b of routine?.blocks ?? []) for (const e of b.exercises) names.add(e.name);
+    return [...names];
+  }, [routine]);
 
   const hasExercises = routine?.blocks?.some(b => b.exercises.length > 0) ?? false;
 
@@ -641,64 +522,18 @@ export default function RoutineDetailScreen() {
         <KeyboardAvoidingView style={s.modalSafe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalHandle} />
 
-          {exModalStep === 'pick' ? (
-            /* Step 1: Picker */
-            <>
-              <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>
-                  {selectedBlock ? getBlockLabel(selectedBlock.block_type).toUpperCase() : 'EJERCICIO'}
-                </Text>
-                <TouchableOpacity onPress={() => setShowExModal(false)} style={{ padding: 6 }}>
-                  <Ionicons name="close" size={22} color={T.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Search */}
-              <View style={s.searchWrap}>
-                <Ionicons name="search-outline" size={16} color={T.textSecondary} />
-                <TextInput
-                  value={exSearch}
-                  onChangeText={setExSearch}
-                  placeholder="Buscar ejercicio..."
-                  placeholderTextColor={T.textSecondary}
-                  style={s.searchInput}
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={() => { if (exSearch.trim().length >= 2) handlePickSuggestion(exSearch.trim()); }}
-                />
-                {exSearch.length > 0 && (
-                  <TouchableOpacity onPress={() => setExSearch('')}>
-                    <Ionicons name="close-circle" size={16} color={T.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
-                {/* Custom exercise option (when search has text) */}
-                {exSearch.trim().length >= 2 && (
-                  <TouchableOpacity onPress={() => handlePickSuggestion(exSearch.trim())} activeOpacity={0.8} style={s.customRow}>
-                    <Ionicons name="add-circle-outline" size={20} color={T.action} />
-                    <Text style={s.customRowText}>Agregar "{exSearch.trim()}"</Text>
-                  </TouchableOpacity>
-                )}
-
-                <Text style={s.suggestionsLabel}>
-                  {exSearch ? 'RESULTADOS' : `SUGERIDOS PARA ${discipline ? discipline.toUpperCase() : 'ESTE BLOQUE'}`}
-                </Text>
-
-                {filteredSuggestions.length === 0 && exSearch.trim().length < 2 ? (
-                  <Text style={[s.emptyExText, { paddingHorizontal: 20 }]}>No hay sugerencias para este bloque</Text>
-                ) : (
-                  filteredSuggestions.map(name => (
-                    <TouchableOpacity key={name} onPress={() => handlePickSuggestion(name)} activeOpacity={0.8} style={s.suggRow}>
-                      <Text style={s.suggName}>{name}</Text>
-                      <Ionicons name="add" size={18} color={T.action} />
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            </>
-          ) : (
+          {exModalStep === 'pick' && selectedBlock ? (
+            <ExercisePickerStep
+              catalog={catalog}
+              discipline={discipline}
+              blockType={selectedBlock.block_type}
+              blockLabel={getBlockLabel(selectedBlock.block_type)}
+              recentNames={recentNames}
+              onPick={handlePickSuggestion}
+              onClose={() => setShowExModal(false)}
+              onHelpExercise={setHelpExercise}
+            />
+          ) : exModalStep === 'config' ? (
             /* Step 2: Config */
             <>
               <View style={s.modalHeader}>
@@ -823,7 +658,7 @@ export default function RoutineDetailScreen() {
                 )}
               </ScrollView>
             </>
-          )}
+          ) : null}
         </KeyboardAvoidingView>
       </Modal>
 
@@ -925,17 +760,6 @@ function createStyles(T: ThemeTokens, actionDimBg: string) {
     blockTypeRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 14, gap: 14 },
     blockTypeIcon: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
     blockTypeName: { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_600SemiBold' },
-
-    // Exercise picker
-    searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 10, margin: 16, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, paddingHorizontal: 14, paddingVertical: 12 },
-    searchInput: { flex: 1, color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_400Regular' },
-
-    customRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.border },
-    customRowText: { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', flex: 1 },
-
-    suggestionsLabel: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, paddingHorizontal: 20, paddingVertical: 10 },
-    suggRow:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.border + '66' },
-    suggName:         { flex: 1, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
 
     // Exercise config
     configScroll:  { padding: 20, paddingBottom: 48 },

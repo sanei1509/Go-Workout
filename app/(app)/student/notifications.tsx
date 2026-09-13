@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Switch, ScrollView, StyleSheet } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 import {
   setupWorkoutReminder,
   cancelWorkoutReminder,
@@ -12,24 +14,13 @@ import {
   MIN_SESSIONS_FOR_HISTORY,
 } from '@/lib/services/notificationService';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const [isEnabled, setIsEnabled]         = useState(false);
   const [isLoading, setIsLoading]         = useState(true);
   const [isSaving, setIsSaving]           = useState(false);
@@ -120,13 +111,13 @@ export default function NotificationsScreen() {
         title: 'RECORDATORIOS',
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.navigate('/student/profile')} style={{ marginLeft: 4, padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
+            <Ionicons name="chevron-back" size={24} color={T.action} />
           </TouchableOpacity>
         ),
       }} />
       <View style={s.safe}>
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
@@ -138,7 +129,7 @@ export default function NotificationsScreen() {
           <View style={s.toggleCard}>
             <View style={s.toggleRow}>
               <View style={s.toggleIconWrap}>
-                <Ionicons name="notifications-outline" size={20} color={C.primary} />
+                <Ionicons name="notifications-outline" size={20} color={T.action} />
               </View>
               <View style={s.toggleInfo}>
                 <Text style={s.toggleLabel}>Recordatorio diario</Text>
@@ -150,15 +141,15 @@ export default function NotificationsScreen() {
                 value={isEnabled}
                 onValueChange={handleToggle}
                 disabled={isLoading || isSaving}
-                trackColor={{ false: C.border, true: C.primaryDim }}
-                thumbColor={isEnabled ? C.primary : C.neutral}
+                trackColor={{ false: T.border, true: actionDimBg }}
+                thumbColor={isEnabled ? T.action : T.textSecondary}
               />
             </View>
 
             {isEnabled && (
               <View style={s.activeInfo}>
                 <View style={s.activeRow}>
-                  <Ionicons name="alarm-outline" size={16} color={C.primary} />
+                  <Ionicons name="alarm-outline" size={16} color={T.action} />
                   <Text style={s.activeText}>
                     Próxima notificación a las{' '}
                     <Text style={s.activeTime}>{fmt(reminderHour, reminderMinute)}</Text>
@@ -166,7 +157,7 @@ export default function NotificationsScreen() {
                 </View>
                 {fromHistory && (
                   <View style={s.historyRow}>
-                    <Ionicons name="analytics-outline" size={14} color={C.neutral} />
+                    <Ionicons name="analytics-outline" size={14} color={T.textSecondary} />
                     <Text style={s.historyText}>
                       Calculado a partir de tu historial de entrenamientos
                     </Text>
@@ -191,11 +182,11 @@ export default function NotificationsScreen() {
                   {/* Horas */}
                   <View style={s.pickerCol}>
                     <TouchableOpacity onPress={() => adjustHour(1)} style={s.chevronBtn} activeOpacity={0.7}>
-                      <Ionicons name="chevron-up" size={26} color={C.primary} />
+                      <Ionicons name="chevron-up" size={26} color={T.action} />
                     </TouchableOpacity>
                     <Text style={s.pickerDigit}>{manualHour.toString().padStart(2, '0')}</Text>
                     <TouchableOpacity onPress={() => adjustHour(-1)} style={s.chevronBtn} activeOpacity={0.7}>
-                      <Ionicons name="chevron-down" size={26} color={C.primary} />
+                      <Ionicons name="chevron-down" size={26} color={T.action} />
                     </TouchableOpacity>
                   </View>
 
@@ -204,11 +195,11 @@ export default function NotificationsScreen() {
                   {/* Minutos */}
                   <View style={s.pickerCol}>
                     <TouchableOpacity onPress={() => adjustMinute(15)} style={s.chevronBtn} activeOpacity={0.7}>
-                      <Ionicons name="chevron-up" size={26} color={C.primary} />
+                      <Ionicons name="chevron-up" size={26} color={T.action} />
                     </TouchableOpacity>
                     <Text style={s.pickerDigit}>{manualMinute.toString().padStart(2, '0')}</Text>
                     <TouchableOpacity onPress={() => adjustMinute(-15)} style={s.chevronBtn} activeOpacity={0.7}>
-                      <Ionicons name="chevron-down" size={26} color={C.primary} />
+                      <Ionicons name="chevron-down" size={26} color={T.action} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -224,11 +215,11 @@ export default function NotificationsScreen() {
                   style={s.saveBtn}
                 >
                   <LinearGradient
-                    colors={[C.primaryDim, '#003d4d']}
+                    colors={[actionDimBg, '#003d4d']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={s.saveBtnGrad}
                   >
-                    <Ionicons name="checkmark-circle-outline" size={18} color={C.primary} />
+                    <Ionicons name="checkmark-circle-outline" size={18} color={T.action} />
                     <Text style={s.saveBtnText}>ACTIVAR RECORDATORIO</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -239,7 +230,7 @@ export default function NotificationsScreen() {
           {/* ── Info ────────────────────────────────────────────── */}
           <View style={s.infoCard}>
             <View style={s.infoRow}>
-              <Ionicons name="information-circle-outline" size={18} color={C.primary} />
+              <Ionicons name="information-circle-outline" size={18} color={T.action} />
               <Text style={s.infoText}>
                 La hora se recalcula automáticamente después de cada entrenamiento completado,
                 para adaptarse a tu rutina real.
@@ -255,46 +246,48 @@ export default function NotificationsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:  { padding: 20, paddingBottom: 48 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:  { padding: 20, paddingBottom: 48 },
 
-  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 10 },
+    sectionTitle: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 10 },
 
-  // Toggle card
-  toggleCard:    { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 24 },
-  toggleRow:     { flexDirection: 'row', alignItems: 'center' },
-  toggleIconWrap:{ width: 40, height: 40, borderRadius: 8, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  toggleInfo:    { flex: 1, marginRight: 12 },
-  toggleLabel:   { color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
-  toggleSub:     { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17 },
+    // Toggle card
+    toggleCard:    { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 16, marginBottom: 24 },
+    toggleRow:     { flexDirection: 'row', alignItems: 'center' },
+    toggleIconWrap:{ width: 40, height: 40, borderRadius: 8, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    toggleInfo:    { flex: 1, marginRight: 12 },
+    toggleLabel:   { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 3 },
+    toggleSub:     { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 17 },
 
-  activeInfo:  { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  activeRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  activeText:  { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
-  activeTime:  { color: C.primary, fontFamily: 'SpaceGrotesk_700Bold' },
-  historyRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  historyText: { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    activeInfo:  { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: T.border, gap: 8 },
+    activeRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    activeText:  { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    activeTime:  { color: T.action, fontFamily: 'SpaceGrotesk_700Bold' },
+    historyRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    historyText: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Time card
-  timeCard:    { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 24 },
-  timeCardSub: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 19, marginBottom: 24 },
+    // Time card
+    timeCard:    { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 20, marginBottom: 24 },
+    timeCardSub: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 19, marginBottom: 24 },
 
-  pickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  pickerCol:  { alignItems: 'center' },
-  chevronBtn: { padding: 10 },
-  pickerDigit:{ color: C.textHi, fontSize: 48, fontFamily: 'SpaceGrotesk_700Bold', width: 72, textAlign: 'center' },
-  pickerColon:{ color: C.border, fontSize: 42, fontFamily: 'SpaceGrotesk_700Bold', marginHorizontal: 4, marginBottom: 8 },
+    pickerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    pickerCol:  { alignItems: 'center' },
+    chevronBtn: { padding: 10 },
+    pickerDigit:{ color: T.textPrimary, fontSize: 48, fontFamily: 'SpaceGrotesk_700Bold', width: 72, textAlign: 'center' },
+    pickerColon:{ color: T.border, fontSize: 42, fontFamily: 'SpaceGrotesk_700Bold', marginHorizontal: 4, marginBottom: 8 },
 
-  notifPreview: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginBottom: 20 },
+    notifPreview: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginBottom: 20 },
 
-  saveBtn:     { borderRadius: 12, overflow: 'hidden' },
-  saveBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  saveBtnText: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    saveBtn:     { borderRadius: 12, overflow: 'hidden' },
+    saveBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+    saveBtnText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // Info
-  infoCard: { backgroundColor: C.cardDeep, borderRadius: 12, borderWidth: 1, borderColor: C.primaryDim, padding: 14 },
-  infoRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  infoText: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, lineHeight: 19 },
-});
+    // Info
+    infoCard: { backgroundColor: T.border, borderRadius: 12, borderWidth: 1, borderColor: actionDimBg, padding: 14 },
+    infoRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    infoText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, lineHeight: 19 },
+  });
+}

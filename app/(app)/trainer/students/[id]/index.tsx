@@ -1,0 +1,441 @@
+import { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+} from 'react-native';
+import { router, useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  getTrainerStudents,
+  getStudentForm,
+  TrainerStudent,
+  StudentForm,
+} from '@/lib/services/trainerService';
+import {
+  getGeneralStats,
+  getWeeklySessionsBars,
+  getAdherenceRate,
+  detectPlateaus,
+  GeneralStats,
+  WeeklySessionsBar,
+  AdherenceStats,
+  PlateauFlag,
+} from '@/lib/services/progressService';
+import { getPlansAssignedByTrainer, Plan } from '@/lib/services/planService';
+import {
+  getUserSessions,
+  WorkoutSession,
+  formatDuration,
+  formatRelativeDate,
+} from '@/lib/services/workoutService';
+import { FORM_FIELD_LABELS, FormField } from '@/lib/services/invitationService';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
+
+const BAR_MAX_HEIGHT = 56;
+
+export default function StudentDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
+
+  const [student, setStudent] = useState<TrainerStudent | null>(null);
+  const [form, setForm] = useState<StudentForm | null>(null);
+  const [stats, setStats] = useState<GeneralStats | null>(null);
+  const [bars, setBars] = useState<WeeklySessionsBar[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [adherence, setAdherence] = useState<AdherenceStats | null>(null);
+  const [plateaus, setPlateaus] = useState<PlateauFlag[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
+
+  const loadAll = useCallback(async () => {
+    if (!user?.id || !id) return;
+
+    const { students } = await getTrainerStudents(user.id);
+    const st = students.find((x) => x.student_id === id) ?? null;
+    setStudent(st);
+
+    const [formRes, statsRes, barsRes, plansRes, sessionsRes, plateausRes] = await Promise.all([
+      st ? getStudentForm(st.invitation_id) : Promise.resolve({ form: null, error: null }),
+      getGeneralStats(id),
+      getWeeklySessionsBars(id, 6),
+      getPlansAssignedByTrainer(user.id, id),
+      getUserSessions(id, 5),
+      detectPlateaus(id),
+    ]);
+    setForm(formRes.form);
+    setStats(statsRes.stats);
+    setBars(barsRes.bars);
+    setPlans(plansRes.plans);
+    setSessions(sessionsRes.sessions.filter((sn) => sn.finished_at));
+    setPlateaus(plateausRes.plateaus);
+
+    // Adherencia sobre el plan asignado más reciente con días definidos
+    const planForAdherence = plansRes.plans.find((p) => p.training_days?.length);
+    if (planForAdherence) {
+      const { stats: adherenceStats } = await getAdherenceRate(id, planForAdherence.id);
+      setAdherence(adherenceStats);
+    } else {
+      setAdherence(null);
+    }
+
+    setIsLoading(false);
+  }, [user?.id, id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
+
+  const maxBar = Math.max(1, ...bars.map((b) => b.count));
+  const formFields = (Object.keys(FORM_FIELD_LABELS) as FormField[]).filter(
+    (f) => form && form[f] != null && `${form[f]}`.trim() !== ''
+  );
+
+  return (
+    <View style={s.container}>
+      <Stack.Screen
+        options={{
+          headerTitle: student?.full_name ?? 'Alumno',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.navigate('/trainer/students')}
+              style={{ paddingRight: 12 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={T.action} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+
+      {isLoading ? (
+        <View style={s.loadingContainer}>
+          <ActivityIndicator size="large" color={T.action} />
+        </View>
+      ) : !student ? (
+        <View style={s.loadingContainer}>
+          <Text style={s.emptyBody}>No encontramos a este alumno.</Text>
+        </View>
+      ) : (
+        <>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+          >
+            {/* ── Hero ────────────────────────────────────────────────── */}
+            <View style={s.heroCard}>
+              <LinearGradient
+                colors={['transparent', T.action, 'transparent']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.heroTopLine}
+              />
+              <View style={s.heroBody}>
+                {student.avatar_url ? (
+                  <Image source={{ uri: student.avatar_url }} style={s.avatar} />
+                ) : (
+                  <View style={s.avatarFallback}>
+                    <Text style={s.avatarLetter}>
+                      {student.full_name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.heroName}>{student.full_name}</Text>
+                  {student.email && <Text style={s.heroEmail}>{student.email}</Text>}
+                  <View style={s.tagRow}>
+                    <View style={s.tag}>
+                      <Text style={s.tagText}>{student.discipline.toUpperCase()}</Text>
+                    </View>
+                    <View style={s.tag}>
+                      <Text style={s.tagText}>{student.plan_type.toUpperCase()}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* ── Progreso ───────────────────────────────────────────── */}
+            <Text style={s.sectionTitle}>PROGRESO</Text>
+            <View style={s.statsRow}>
+              <View style={s.statItem}>
+                <Text style={s.statValue}>
+                  {stats ? Math.round(stats.volumeThisWeek) : 0}
+                </Text>
+                <Text style={s.statLabel}>VOL. SEMANA</Text>
+                {stats != null && stats.volumeChange !== 0 && (
+                  <Text style={[s.statChange, { color: stats.volumeChange > 0 ? T.done : '#f87171' }]}>
+                    {stats.volumeChange > 0 ? '+' : ''}{Math.round(stats.volumeChange)}%
+                  </Text>
+                )}
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{stats?.totalSets ?? 0}</Text>
+                <Text style={s.statLabel}>SETS TOTALES</Text>
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{stats?.distinctExercises ?? 0}</Text>
+                <Text style={s.statLabel}>EJERCICIOS</Text>
+              </View>
+            </View>
+
+            {/* Barras de sesiones por semana */}
+            {bars.length > 0 && (
+              <View style={s.barsCard}>
+                <Text style={s.barsTitle}>SESIONES POR SEMANA</Text>
+                <View style={s.barsRow}>
+                  {bars.map((b, i) => (
+                    <View key={i} style={s.barCol}>
+                      <Text style={s.barCount}>{b.count > 0 ? b.count : ''}</Text>
+                      <View
+                        style={[
+                          s.bar,
+                          {
+                            height: Math.max(4, (b.count / maxBar) * BAR_MAX_HEIGHT),
+                            backgroundColor: b.count > 0 ? T.action : T.border,
+                          },
+                        ]}
+                      />
+                      <Text style={s.barLabel}>{b.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Adherencia */}
+            {adherence && (
+              <View style={s.adherenceCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.adherenceTitle}>ADHERENCIA (4 SEM.)</Text>
+                  <Text style={s.adherenceSub}>
+                    {adherence.completedSessions} de {adherence.expectedSessions} sesiones esperadas
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    s.adherenceValue,
+                    { color: adherence.adherenceRate >= 70 ? T.done : adherence.adherenceRate >= 40 ? T.attention : '#f87171' },
+                  ]}
+                >
+                  {adherence.adherenceRate}%
+                </Text>
+              </View>
+            )}
+
+            {/* Estancamientos */}
+            {plateaus.length > 0 && (
+              <View style={s.plateauCard}>
+                <View style={s.plateauHeader}>
+                  <Ionicons name="trending-down-outline" size={15} color={T.attention} />
+                  <Text style={s.plateauTitle}>SIN PROGRESO RECIENTE</Text>
+                </View>
+                {plateaus.map((p, i) => (
+                  <View key={p.exercise_name} style={[s.plateauRow, i > 0 && s.formRowBorder]}>
+                    <Text style={s.plateauExercise}>{p.exercise_name}</Text>
+                    <Text style={s.plateauMeta}>
+                      hace {p.sessionsSincePR} sesión{p.sessionsSincePR !== 1 ? 'es' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ── Formulario ─────────────────────────────────────────── */}
+            <Text style={s.sectionTitle}>FORMULARIO INICIAL</Text>
+            {formFields.length > 0 ? (
+              <View style={s.formCard}>
+                {formFields.map((f, i) => (
+                  <View key={f} style={[s.formRow, i > 0 && s.formRowBorder]}>
+                    <Text style={s.formLabel}>{FORM_FIELD_LABELS[f].toUpperCase()}</Text>
+                    <Text style={s.formValue}>{`${form![f]}`}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={s.quietCard}>
+                <Ionicons name="document-text-outline" size={18} color={T.textSecondary} />
+                <Text style={s.quietText}>No completó el formulario inicial.</Text>
+              </View>
+            )}
+
+            {/* ── Planes asignados ───────────────────────────────────── */}
+            <Text style={s.sectionTitle}>PLANES ASIGNADOS</Text>
+            {plans.length === 0 ? (
+              <View style={s.quietCard}>
+                <Ionicons name="clipboard-outline" size={18} color={T.textSecondary} />
+                <Text style={s.quietText}>Todavía no le asignaste un plan.</Text>
+              </View>
+            ) : (
+              <View style={s.planList}>
+                {plans.map((p, i) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[s.planItem, i > 0 && s.planItemBorder]}
+                    onPress={() => router.push(`/trainer/plan/${p.id}`)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={s.planAccent} />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.planName}>{p.name}</Text>
+                        {!p.is_published && (
+                          <View style={s.draftTag}>
+                            <Text style={s.draftTagText}>BORRADOR</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={s.planMeta}>
+                        {p.discipline} · {p.weekly_frequency} días/semana
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={T.textSecondary} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* ── Últimas sesiones ───────────────────────────────────── */}
+            <Text style={s.sectionTitle}>ÚLTIMAS SESIONES</Text>
+            {sessions.length === 0 ? (
+              <View style={s.quietCard}>
+                <Ionicons name="moon-outline" size={18} color={T.textSecondary} />
+                <Text style={s.quietText}>Sin entrenamientos registrados.</Text>
+              </View>
+            ) : (
+              <View style={s.planList}>
+                {sessions.map((sn, i) => (
+                  <View key={sn.id} style={[s.sessionRow, i > 0 && s.planItemBorder]}>
+                    <View style={s.sessionIcon}>
+                      <Ionicons name="checkmark" size={14} color={T.done} />
+                    </View>
+                    <Text style={s.sessionDate}>{formatRelativeDate(sn.started_at)}</Text>
+                    <Text style={s.sessionDuration}>
+                      {formatDuration(sn.started_at, sn.finished_at)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* ── CTA fija ─────────────────────────────────────────────── */}
+          <View style={s.footer}>
+            <TouchableOpacity
+              onPress={() => router.push(`/trainer/students/${id}/assign-plan`)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#00566a', '#003d4d']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={s.ctaBtn}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={T.action} />
+                <Text style={s.ctaText}>ASIGNAR PLAN</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: T.surface },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface },
+
+    sectionTitle: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 10, marginTop: 20 },
+
+    // Hero
+    heroCard:      { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    heroTopLine:   { height: 2, opacity: 0.6 },
+    heroBody:      { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18 },
+    avatar:        { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: T.action },
+    avatarFallback:{ width: 56, height: 56, borderRadius: 28, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    avatarLetter:  { color: T.action, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
+    heroName:      { color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    heroEmail:     { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 7 },
+    tagRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    tag:           { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    tagText:       { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+    // Stats
+    statsRow:    { flexDirection: 'row', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden', marginBottom: 10 },
+    statItem:    { flex: 1, alignItems: 'center', paddingVertical: 14 },
+    statDivider: { width: 1, backgroundColor: T.border },
+    statValue:   { color: T.textPrimary, fontSize: 20, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    statLabel:   { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    statChange:  { fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
+
+    // Bars
+    barsCard:  { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16 },
+    barsTitle: { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 12 },
+    barsRow:   { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+    barCol:    { alignItems: 'center', flex: 1, gap: 4 },
+    barCount:  { color: T.action, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', height: 14 },
+    bar:       { width: 18, borderRadius: 4 },
+    barLabel:  { color: T.textSecondary, fontSize: 8, fontFamily: 'SpaceGrotesk_400Regular' },
+
+    // Adherencia
+    adherenceCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16, marginTop: 10 },
+    adherenceTitle: { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, marginBottom: 3 },
+    adherenceSub:   { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    adherenceValue: { fontSize: 24, fontFamily: 'SpaceGrotesk_700Bold' },
+
+    // Estancamientos
+    plateauCard:     { backgroundColor: '#130d00', borderRadius: 12, borderWidth: 1, borderColor: '#4a3200', padding: 14, marginTop: 10 },
+    plateauHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    plateauTitle:    { color: T.attention, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    plateauRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
+    plateauExercise: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    plateauMeta:     { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+
+    // Form
+    formCard:      { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    formRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
+    formRowBorder: { borderTopWidth: 1, borderTopColor: T.border },
+    formLabel:     { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5, paddingTop: 2 },
+    formValue:     { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', flex: 1, textAlign: 'right' },
+
+    // Quiet card (empty states discretos)
+    quietCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 16 },
+    quietText: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', flex: 1 },
+    emptyBody: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+
+    // Plan list
+    planList:       { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    planItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingRight: 14, paddingLeft: 18, gap: 12 },
+    planItemBorder: { borderTopWidth: 1, borderTopColor: T.border },
+    planAccent:     { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: T.action },
+    planName:       { color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    planMeta:       { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    draftTag:       { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: T.border, borderWidth: 1, borderColor: T.border },
+    draftTagText:   { color: T.textSecondary, fontSize: 7, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+
+    // Sessions
+    sessionRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+    sessionIcon:     { width: 26, height: 26, borderRadius: 13, backgroundColor: '#0a1f10', alignItems: 'center', justifyContent: 'center' },
+    sessionDate:     { flex: 1, color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    sessionDuration: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+
+    // Footer CTA
+    footer:  { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: T.surface, borderTopWidth: 1, borderTopColor: T.border },
+    ctaBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 10, gap: 10 },
+    ctaText: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  });
+}

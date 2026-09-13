@@ -38,6 +38,9 @@ interface AgentUserContext {
   displayName?: string;
   today: { dayNumber: number; dayName: string; date: string };
   activePlans: AgentActivePlan[];
+  // Modo entrenador: asiste a un TRAINER armando planes para su alumno.
+  role?: "student" | "trainer";
+  student?: { name: string; facts?: string };
 }
 interface AgentRequest {
   messages: ChatMessage[];
@@ -60,20 +63,81 @@ USO DE HERRAMIENTAS:
 - Cuando proponés algo, el alumno verá una tarjeta y decidirá si lo crea. NO afirmes que ya creaste nada: decí que se lo dejás propuesto para que confirme.
 - Para rutinas, organizá los ejercicios en bloques con sentido: calentamiento (warmup) primero, después el bloque principal (main), accesorios (accessory), y al final cardio o movilidad si corresponde.
 - Usá descansos realistas: 60-120s para hipertrofia, 120-180s para fuerza, 30-60s para resistencia/circuitos.
+- Al elegir ejercicios, preferí los del catálogo que se te indica más abajo: así el alumno ve la ayuda visual (músculos y técnica). Usá el nombre tal cual aparece en el catálogo. Si necesitás uno que no está, escribí su nombre común en español, pero priorizá los del catálogo.
 
 Respondé siempre en español.`;
+
+// Variante para cuando el usuario es un ENTRENADOR (espejo de lib/agent/prompt.ts).
+const TRAINER_SYSTEM_PROMPT = `Sos el asistente de programación de GO Workout. Asistís a un ENTRENADOR profesional que arma planes y rutinas para sus alumnos. Hablás en español rioplatense, con tono colegiado y técnico — es una conversación entre profesionales del entrenamiento.
+
+PRINCIPIOS:
+- Sé concreto y directo. El entrenador sabe de entrenamiento: no expliques lo básico.
+- Usá los datos del alumno que se te dan (edad, peso, lesiones, objetivos, experiencia). Si falta algo clave, preguntá.
+- Respetá SIEMPRE las lesiones o condiciones de salud del alumno al elegir ejercicios.
+- Podés discutir periodización, volumen e intensidad con vocabulario técnico.
+
+USO DE HERRAMIENTAS:
+- Tenés dos herramientas: propose_plan (plan para el alumno) y propose_routine (rutina con bloques y ejercicios).
+- Las propuestas se muestran al ENTRENADOR, que las revisa, edita y confirma antes de asignarlas al alumno. NO afirmes que ya creaste nada.
+- Para rutinas, organizá bloques con sentido: warmup primero, después main, accessory, y cardio o movilidad al final si corresponde.
+- Usá descansos realistas: 60-120s hipertrofia, 120-180s fuerza, 30-60s resistencia/circuitos.
+- Al elegir ejercicios, preferí los del catálogo que se te indica más abajo, con el nombre exacto. Si necesitás uno que no está, escribí su nombre común en español.
+
+Respondé siempre en español.`;
+
+// Apéndice con los nombres válidos del catálogo (tabla `exercises`). Espejo de
+// buildExerciseCatalogBlock en lib/agent/prompt.ts.
+function buildExerciseCatalogBlock(exerciseLabels: string[]): string {
+  if (exerciseLabels.length === 0) return "";
+  return `CATÁLOGO DE EJERCICIOS DISPONIBLES (elegí de acá siempre que puedas, usando el nombre exacto):\n${exerciseLabels.join(", ")}.`;
+}
+
+// Trae los labels del catálogo vía REST (la tabla es de lectura pública). Si falla,
+// devuelve [] y el agente sigue funcionando sin la restricción de catálogo.
+async function fetchExerciseLabels(): Promise<string[]> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !key) return [];
+    const res = await fetch(`${url}/rest/v1/exercises?select=label&order=label`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) return [];
+    const rows = (await res.json()) as { label: string }[];
+    return rows.map((r) => r.label);
+  } catch {
+    return [];
+  }
+}
 
 const WEEKDAY_NAMES = ["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
 
 function buildUserContextBlock(ctx: AgentUserContext): string {
-  const name = ctx.displayName ? `El alumno se llama ${ctx.displayName}.` : "";
   const todayStr = `Hoy es ${ctx.today.dayName} (día ${ctx.today.dayNumber}, ${ctx.today.date}).`;
+
+  // Modo entrenador: el contexto describe al alumno seleccionado y sus planes asignados.
+  if (ctx.role === "trainer") {
+    const trainerName = ctx.displayName ? `El entrenador se llama ${ctx.displayName}.` : "";
+    const studentDesc = ctx.student
+      ? `Alumno seleccionado: ${ctx.student.name}${ctx.student.facts ? ` (${ctx.student.facts})` : ""}.`
+      : "Todavía no hay un alumno seleccionado: pedile al entrenador que elija uno antes de proponer.";
+    const plansIntro = ctx.activePlans.length === 0
+      ? "El alumno no tiene planes asignados por este entrenador aún. Si pide una rutina, probablemente convenga proponer primero un plan."
+      : `Planes que el entrenador le asignó:\n\n${describePlans(ctx)}`;
+    return `[Contexto] ${trainerName} ${todayStr} ${studentDesc}\n${plansIntro}`;
+  }
+
+  const name = ctx.displayName ? `El alumno se llama ${ctx.displayName}.` : "";
 
   if (ctx.activePlans.length === 0) {
     return `[Contexto del alumno] ${name} ${todayStr} El alumno no tiene planes activos. Si quiere una rutina, conviene proponer primero un plan.`;
   }
 
-  const plansDesc = ctx.activePlans.map((plan) => {
+  return `[Contexto del alumno] ${name} ${todayStr}\n\n${describePlans(ctx)}`;
+}
+
+function describePlans(ctx: AgentUserContext): string {
+  return ctx.activePlans.map((plan) => {
     const trainingDayNames = (plan.training_days ?? [])
       .sort((a, b) => a - b)
       .map((d) => WEEKDAY_NAMES[d] ?? `día ${d}`)
@@ -111,8 +175,6 @@ function buildUserContextBlock(ctx: AgentUserContext): string {
   - ${todayStatus}
   - ${nextInfo}`;
   }).join("\n\n");
-
-  return `[Contexto del alumno] ${name} ${todayStr}\n\n${plansDesc}`;
 }
 
 // ─── Tool/function declarations (formato Gemini) ─────────────────────────────
@@ -185,7 +247,9 @@ const FUNCTION_DECLARATIONS = [
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  // supabase-js manda también apikey y x-client-info: sin ellos el preflight
+  // del navegador falla y el agente no funciona en web (en nativo no hay CORS).
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -207,8 +271,15 @@ Deno.serve(async (req) => {
       })),
     ];
 
+    // Catálogo de ejercicios válidos, apéndice estable del system prompt.
+    const basePrompt = context.role === "trainer" ? TRAINER_SYSTEM_PROMPT : COACH_SYSTEM_PROMPT;
+    const catalogBlock = buildExerciseCatalogBlock(await fetchExerciseLabels());
+    const systemText = catalogBlock
+      ? `${basePrompt}\n\n${catalogBlock}`
+      : basePrompt;
+
     const body = {
-      systemInstruction: { parts: [{ text: COACH_SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: systemText }] },
       contents,
       tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }],
     };

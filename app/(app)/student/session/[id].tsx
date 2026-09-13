@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,21 +20,8 @@ import {
   getBlockColor,
   getBlockIcon,
 } from '@/lib/services/routineService';
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -75,6 +62,8 @@ export default function SessionDetailScreen() {
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { T } = useTheme();
+  const s = useMemo(() => createStyles(T), [T]);
 
   useEffect(() => {
     if (!id) return;
@@ -110,20 +99,20 @@ export default function SessionDetailScreen() {
         title: 'SESIÓN',
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.navigate('/student/history')} style={{ marginLeft: 4, padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
+            <Ionicons name="chevron-back" size={24} color={T.action} />
           </TouchableOpacity>
         ),
       }} />
       <View style={s.safe}>
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
 
         {isLoading ? (
           <View style={s.center}>
-            <ActivityIndicator size="large" color={C.primary} />
+            <ActivityIndicator size="large" color={T.action} />
           </View>
         ) : error ? (
           <View style={s.center}>
@@ -143,16 +132,16 @@ export default function SessionDetailScreen() {
 
               <View style={s.metaRow}>
                 <View style={s.metaChip}>
-                  <Ionicons name="calendar-outline" size={13} color={C.neutral} />
+                  <Ionicons name="calendar-outline" size={13} color={T.textSecondary} />
                   <Text style={s.metaChipText}>{formatDate(detail.session.started_at)}</Text>
                 </View>
                 <View style={s.metaChip}>
-                  <Ionicons name="time-outline" size={13} color={C.neutral} />
+                  <Ionicons name="time-outline" size={13} color={T.textSecondary} />
                   <Text style={s.metaChipText}>{formatTime(detail.session.started_at)}</Text>
                 </View>
                 <View style={[s.metaChip, s.metaChipGreen]}>
-                  <Ionicons name="stopwatch-outline" size={13} color={C.green} />
-                  <Text style={[s.metaChipText, { color: C.green }]}>{detail.session.duration}</Text>
+                  <Ionicons name="stopwatch-outline" size={13} color={T.done} />
+                  <Text style={[s.metaChipText, { color: T.done }]}>{detail.session.duration}</Text>
                 </View>
               </View>
 
@@ -211,7 +200,7 @@ export default function SessionDetailScreen() {
                             )}
                             {ex.rest_seconds > 0 && (
                               <View style={s.restChip}>
-                                <Ionicons name="pause-circle-outline" size={12} color={C.neutral} />
+                                <Ionicons name="pause-circle-outline" size={12} color={T.textSecondary} />
                                 <Text style={s.restText}>{ex.rest_seconds}s</Text>
                               </View>
                             )}
@@ -236,53 +225,55 @@ export default function SessionDetailScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:  { padding: 20, paddingBottom: 48 },
-  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+function createStyles(T: ThemeTokens) {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:  { padding: 20, paddingBottom: 48 },
+    center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
-  errorText: { color: C.textLo, textAlign: 'center', marginTop: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    errorText: { color: T.textSecondary, textAlign: 'center', marginTop: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Hero
-  heroCard:    { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 20 },
-  routineName: { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 4 },
-  planName:    { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 14 },
+    // Hero
+    heroCard:    { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 20, marginBottom: 20 },
+    routineName: { color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 4 },
+    planName:    { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 14 },
 
-  metaRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  metaChip:      { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.cardDeep, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  metaChipGreen: { backgroundColor: '#0a2218' },
-  metaChipText:  { color: C.textLo, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    metaRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    metaChip:      { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: T.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    metaChipGreen: { backgroundColor: '#0a2218' },
+    metaChipText:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  notesWrap: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
-  notesText: { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', fontStyle: 'italic' },
+    notesWrap: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: T.border },
+    notesText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', fontStyle: 'italic' },
 
-  emptyCard:  { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 24, alignItems: 'center' },
-  emptyText:  { color: C.neutral, fontFamily: 'SpaceGrotesk_400Regular' },
+    emptyCard:  { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 24, alignItems: 'center' },
+    emptyText:  { color: T.textSecondary, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // Blocks
-  blockWrap:    { marginBottom: 16 },
-  blockHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingLeft: 10, borderLeftWidth: 3, gap: 10 },
-  blockIconWrap:{ width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  blockLabel:   { flex: 1, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-  blockCount:   { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    // Blocks
+    blockWrap:    { marginBottom: 16 },
+    blockHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingLeft: 10, borderLeftWidth: 3, gap: 10 },
+    blockIconWrap:{ width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    blockLabel:   { flex: 1, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    blockCount:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  exercisesCard: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+    exercisesCard: { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
 
-  exRow:     { padding: 14 },
-  exDivider: { borderBottomWidth: 1, borderBottomColor: C.border },
-  exTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  exName:    { flex: 1, color: C.textHi, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginRight: 8 },
+    exRow:     { padding: 14 },
+    exDivider: { borderBottomWidth: 1, borderBottomColor: T.border },
+    exTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    exName:    { flex: 1, color: T.textPrimary, fontSize: 14, fontFamily: 'SpaceGrotesk_600SemiBold', marginRight: 8 },
 
-  setsBadge:     { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  setsBadgeText: { fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+    setsBadge:     { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+    setsBadgeText: { fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  exBottom:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  exValue:   { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
-  exTarget:  { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    exBottom:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+    exValue:   { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    exTarget:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  restChip:  { flexDirection: 'row', alignItems: 'center', marginLeft: 10, gap: 3 },
-  restText:  { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+    restChip:  { flexDirection: 'row', alignItems: 'center', marginLeft: 10, gap: 3 },
+    restText:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  exNotes:   { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', fontStyle: 'italic', marginTop: 4 },
-});
+    exNotes:   { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular', fontStyle: 'italic', marginTop: 4 },
+  });
+}

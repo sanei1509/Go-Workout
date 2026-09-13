@@ -7,23 +7,48 @@ export interface ExerciseHistoryEntry {
   date: string;           // ISO date of the session
   sets_completed: number;
   actual_value: number;
+  actual_weight_kg: number | null;
   exercise_type: 'reps' | 'time' | 'distance';
 }
 
 export interface PersonalRecord {
   exercise_name: string;
   exercise_type: 'reps' | 'time' | 'distance';
-  best_value: number;     // max actual_value across all logs
-  best_sets: number;      // sets_completed on the best session
-  achieved_at: string;    // date of the PR
+  best_value: number;         // max actual_value del mejor registro
+  best_sets: number;          // sets_completed en el mejor registro
+  best_weight_kg: number | null;  // peso en el mejor registro, si se trackeó
+  estimated_1rm: number | null;   // fórmula de Epley, solo si hay peso
+  achieved_at: string;        // date of the PR
 }
 
 export interface VolumeEntry {
   period: string;         // 'YYYY-WW' for week, 'YYYY-MM' for month
   exercise_name: string;
   exercise_type: 'reps' | 'time' | 'distance';
-  total_volume: number;   // SUM(sets_completed × actual_value)
+  total_volume: number;   // SUM(sets × reps × peso) si hay peso, si no SUM(sets × valor)
   sessions_count: number;
+}
+
+// Estimación de 1RM (fórmula de Epley) — usada para rankear PRs cuando hay
+// peso registrado: una serie pesada de pocas reps puede representar más
+// fuerza que una liviana de muchas, algo que comparar solo actual_value no captura.
+function estimate1RM(weightKg: number, reps: number): number {
+  return weightKg * (1 + reps / 30);
+}
+
+// Score para decidir "el mejor" registro de un ejercicio: 1RM estimado si
+// hay peso (solo tiene sentido para exercise_type='reps'), si no el valor crudo.
+function rankScore(exerciseType: string, actualValue: number, weightKg: number | null): number {
+  if (exerciseType === 'reps' && weightKg) return estimate1RM(weightKg, actualValue);
+  return actualValue;
+}
+
+// Volumen de una serie: sets × reps × peso cuando hay peso registrado (kg reales),
+// si no sets × valor (reps/seg/mts, como antes — unidades no comparables entre sí,
+// limitación preexistente al sumar ejercicios de distinto tipo en un mismo total).
+function rowVolume(exerciseType: string, setsCompleted: number, actualValue: number, weightKg: number | null): number {
+  if (exerciseType === 'reps' && weightKg) return setsCompleted * actualValue * weightKg;
+  return setsCompleted * actualValue;
 }
 
 // ── Funciones ────────────────────────────────────────────────────────────────
@@ -44,6 +69,7 @@ export async function getExerciseHistory(
         session_id,
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
@@ -62,6 +88,7 @@ export async function getExerciseHistory(
         date: row.workout_sessions.started_at,
         sets_completed: row.sets_completed,
         actual_value: row.actual_value,
+        actual_weight_kg: row.actual_weight_kg ?? null,
         exercise_type: row.block_exercises.exercise_type,
       }));
 
@@ -85,19 +112,23 @@ export async function getPersonalRecord(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
       .eq('block_exercises.name', exerciseName)
-      .not('actual_value', 'is', null)
-      .order('actual_value', { ascending: false });
+      .not('actual_value', 'is', null);
 
     if (error) return { pr: null, error: new Error(error.message) };
 
-    const best = (data || []).find(
-      (row: any) => row.block_exercises.routine_blocks.block_type !== 'warmup'
-    ) as any;
+    let best: any = null;
+    let bestScore = -Infinity;
+    for (const row of (data || []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
+      const score = rankScore(row.block_exercises.exercise_type, row.actual_value, row.actual_weight_kg);
+      if (score > bestScore) { bestScore = score; best = row; }
+    }
 
     if (!best) return { pr: null, error: null };
 
@@ -106,6 +137,10 @@ export async function getPersonalRecord(
       exercise_type: best.block_exercises.exercise_type,
       best_value: best.actual_value,
       best_sets: best.sets_completed,
+      best_weight_kg: best.actual_weight_kg ?? null,
+      estimated_1rm: best.block_exercises.exercise_type === 'reps' && best.actual_weight_kg
+        ? estimate1RM(best.actual_weight_kg, best.actual_value)
+        : null,
       achieved_at: best.workout_sessions.started_at,
     };
 
@@ -128,32 +163,44 @@ export async function getAllPersonalRecords(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
-      .not('actual_value', 'is', null)
-      .order('actual_value', { ascending: false });
+      .not('actual_value', 'is', null);
 
     if (error) return { records: [], error: new Error(error.message) };
 
-    // Quedarse con el mejor por nombre de ejercicio, excluyendo calentamiento
-    const best = new Map<string, PersonalRecord>();
+    // Quedarse con el mejor por nombre de ejercicio (por rankScore, no por
+    // actual_value crudo), excluyendo calentamiento.
+    const best = new Map<string, PersonalRecord & { _score: number }>();
     for (const row of (data || []) as any[]) {
       if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const name: string = row.block_exercises.name;
-      if (!best.has(name)) {
+      const exerciseType = row.block_exercises.exercise_type;
+      const score = rankScore(exerciseType, row.actual_value, row.actual_weight_kg);
+      const current = best.get(name);
+      if (!current || score > current._score) {
         best.set(name, {
           exercise_name: name,
-          exercise_type: row.block_exercises.exercise_type,
+          exercise_type: exerciseType,
           best_value: row.actual_value,
           best_sets: row.sets_completed,
+          best_weight_kg: row.actual_weight_kg ?? null,
+          estimated_1rm: exerciseType === 'reps' && row.actual_weight_kg
+            ? estimate1RM(row.actual_weight_kg, row.actual_value)
+            : null,
           achieved_at: row.workout_sessions.started_at,
+          _score: score,
         });
       }
     }
 
-    return { records: Array.from(best.values()), error: null };
+    return {
+      records: Array.from(best.values()).map(({ _score, ...pr }) => pr),
+      error: null,
+    };
   } catch {
     return { records: [], error: new Error('Error al obtener récords personales') };
   }
@@ -177,6 +224,7 @@ export async function getVolumeStats(
       .select(`
         sets_completed,
         actual_value,
+        actual_weight_kg,
         block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
@@ -211,7 +259,12 @@ export async function getVolumeStats(
       }
 
       const entry = map.get(key)!;
-      entry.total_volume += row.sets_completed * (row.actual_value ?? 0);
+      entry.total_volume += rowVolume(
+        row.block_exercises.exercise_type,
+        row.sets_completed,
+        row.actual_value ?? 0,
+        row.actual_weight_kg ?? null
+      );
       entry.sessions_count += 1;
     }
 
@@ -260,7 +313,8 @@ export async function getGeneralStats(
       .select(`
         sets_completed,
         actual_value,
-        block_exercises!inner ( name, routine_blocks!inner ( block_type ) ),
+        actual_weight_kg,
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
         workout_sessions!inner ( started_at, user_id )
       `)
       .eq('workout_sessions.user_id', userId)
@@ -290,7 +344,12 @@ export async function getGeneralStats(
     for (const row of (data || []) as any[]) {
       if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
       const date = new Date(row.workout_sessions.started_at);
-      const vol = row.sets_completed * (row.actual_value ?? 0);
+      const vol = rowVolume(
+        row.block_exercises.exercise_type,
+        row.sets_completed,
+        row.actual_value ?? 0,
+        row.actual_weight_kg ?? null
+      );
       if (date >= thisMonday) {
         volumeThisWeek += vol;
         totalSets += row.sets_completed;
@@ -358,6 +417,179 @@ export async function getWeeklySessionsBars(
   } catch {
     return { bars: [], error: new Error('Error al obtener barras semanales') };
   }
+}
+
+// ── Seguimiento para el entrenador ────────────────────────────────────────────
+
+export interface AdherenceStats {
+  expectedSessions: number;
+  completedSessions: number;
+  adherenceRate: number; // 0-100
+}
+
+/**
+ * Adherencia de un plan: sesiones completadas vs esperadas según
+ * training_days, en las últimas `weeksBack` semanas.
+ */
+export async function getAdherenceRate(
+  userId: string,
+  planId: string,
+  weeksBack = 4
+): Promise<{ stats: AdherenceStats | null; error: Error | null }> {
+  try {
+    const { data: plan, error: planError } = await supabase
+      .from('plans')
+      .select('training_days')
+      .eq('id', planId)
+      .single();
+    if (planError) return { stats: null, error: new Error(planError.message) };
+
+    const trainingDays = plan?.training_days as number[] | null;
+    if (!trainingDays || trainingDays.length === 0) return { stats: null, error: null };
+
+    const expectedSessions = trainingDays.length * weeksBack;
+
+    const { data: routines, error: routinesError } = await supabase
+      .from('routines')
+      .select('id')
+      .eq('plan_id', planId);
+    if (routinesError) return { stats: null, error: new Error(routinesError.message) };
+
+    const routineIds = (routines ?? []).map((r) => r.id);
+    if (routineIds.length === 0) {
+      return { stats: { expectedSessions, completedSessions: 0, adherenceRate: 0 }, error: null };
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeksBack * 7);
+
+    const { count, error: countError } = await supabase
+      .from('workout_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('routine_id', routineIds)
+      .not('finished_at', 'is', null)
+      .gte('started_at', cutoff.toISOString());
+    if (countError) return { stats: null, error: new Error(countError.message) };
+
+    const completedSessions = count ?? 0;
+    const adherenceRate = Math.min(100, Math.round((completedSessions / expectedSessions) * 100));
+
+    return { stats: { expectedSessions, completedSessions, adherenceRate }, error: null };
+  } catch {
+    return { stats: null, error: new Error('Error al calcular adherencia') };
+  }
+}
+
+export interface PlateauFlag {
+  exercise_name: string;
+  sessionsSincePR: number;
+  lastPrAt: string;
+}
+
+/**
+ * Ejercicios sin mejora reciente: el mejor registro (por rankScore/1RM
+ * estimado) quedó fuera de las últimas `minSessions` veces que se hizo
+ * ese ejercicio.
+ */
+export async function detectPlateaus(
+  userId: string,
+  minSessions = 3
+): Promise<{ plateaus: PlateauFlag[]; error: Error | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select(`
+        actual_value,
+        actual_weight_kg,
+        block_exercises!inner ( name, exercise_type, routine_blocks!inner ( block_type ) ),
+        workout_sessions!inner ( started_at, user_id )
+      `)
+      .eq('workout_sessions.user_id', userId)
+      .not('actual_value', 'is', null);
+
+    if (error) return { plateaus: [], error: new Error(error.message) };
+
+    const byExercise = new Map<string, { date: string; score: number }[]>();
+    for (const row of (data ?? []) as any[]) {
+      if (row.block_exercises.routine_blocks.block_type === 'warmup') continue;
+      const name: string = row.block_exercises.name;
+      const score = rankScore(row.block_exercises.exercise_type, row.actual_value, row.actual_weight_kg);
+      if (!byExercise.has(name)) byExercise.set(name, []);
+      byExercise.get(name)!.push({ date: row.workout_sessions.started_at, score });
+    }
+
+    const plateaus: PlateauFlag[] = [];
+    for (const [name, entries] of byExercise) {
+      if (entries.length < minSessions) continue;
+      entries.sort((a, b) => a.date.localeCompare(b.date));
+
+      let bestIdx = 0;
+      for (let i = 1; i < entries.length; i++) {
+        if (entries[i].score > entries[bestIdx].score) bestIdx = i;
+      }
+
+      const sessionsSincePR = entries.length - 1 - bestIdx;
+      if (sessionsSincePR >= minSessions) {
+        plateaus.push({ exercise_name: name, sessionsSincePR, lastPrAt: entries[bestIdx].date });
+      }
+    }
+
+    return { plateaus, error: null };
+  } catch {
+    return { plateaus: [], error: new Error('Error al detectar estancamientos') };
+  }
+}
+
+/**
+ * Resumen compacto de desempeño real para inyectar en el prompt del
+ * asistente IA al generar una rutina: PRs recientes (con 1RM estimado
+ * cuando hay peso), estancamientos y adherencia — así "Generar con IA"
+ * propone progresiones basadas en lo que el alumno realmente hizo, no en
+ * una estimación genérica.
+ */
+export async function buildPerformanceSummary(
+  userId: string,
+  planId?: string
+): Promise<string> {
+  const [{ records }, { plateaus }] = await Promise.all([
+    getAllPersonalRecords(userId),
+    detectPlateaus(userId),
+  ]);
+
+  const parts: string[] = [];
+
+  if (records.length > 0) {
+    const top = [...records]
+      .sort((a, b) => (b.estimated_1rm ?? b.best_value) - (a.estimated_1rm ?? a.best_value))
+      .slice(0, 6);
+    const prLines = top.map((r) =>
+      r.estimated_1rm && r.best_weight_kg
+        ? `${r.exercise_name}: ${r.best_sets}×${r.best_value} @ ${r.best_weight_kg}kg (1RM≈${Math.round(r.estimated_1rm)}kg)`
+        : `${r.exercise_name}: mejor ${formatProgressValue(r.best_value, r.exercise_type)}`
+    );
+    parts.push(`Récords recientes del alumno: ${prLines.join('; ')}.`);
+  }
+
+  if (plateaus.length > 0) {
+    const plateauLines = plateaus.map(
+      (p) => `${p.exercise_name} (sin mejora hace ${p.sessionsSincePR} sesiones)`
+    );
+    parts.push(
+      `Sin progreso reciente en: ${plateauLines.join(', ')}. Considerá variar el estímulo o ajustar volumen/intensidad ahí.`
+    );
+  }
+
+  if (planId) {
+    const { stats: adherence } = await getAdherenceRate(userId, planId);
+    if (adherence) {
+      parts.push(
+        `Adherencia últimas 4 semanas: ${adherence.completedSessions}/${adherence.expectedSessions} sesiones (${adherence.adherenceRate}%).`
+      );
+    }
+  }
+
+  return parts.join(' ');
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

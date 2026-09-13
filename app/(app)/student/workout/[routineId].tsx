@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   Modal, StyleSheet, Vibration,
@@ -30,23 +30,10 @@ import {
   clearActiveSnapshot,
   ExerciseProgressSnapshot,
 } from '@/lib/services/activeSessionService';
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-  greenDim:   '#14532d',
-  red:        '#f87171',
-};
+import { ExerciseHelpModal } from '@/components/ExerciseHelpModal';
+import { lookupExercise } from '@/lib/exercises/lookup';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 interface ExerciseProgress {
   exerciseId: string;
@@ -61,6 +48,7 @@ type FlatExercise = {
   value: number;
   exercise_type: string;
   rest_seconds: number;
+  target_weight_kg?: number | null;
   notes?: string | null;
   blockType: string;
 };
@@ -69,6 +57,9 @@ export default function WorkoutScreen() {
   const { routineId } = useLocalSearchParams<{ routineId: string }>();
   const { user } = useAuth();
   const { showAlert } = useAlert();
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
@@ -77,6 +68,12 @@ export default function WorkoutScreen() {
 
   const [progress, setProgress] = useState<Map<string, ExerciseProgress>>(new Map());
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  // Peso de hoy para el ejercicio actual — precargado con el objetivo, editable
+  // por si el alumno levantó distinto. Se resetea al pasar de ejercicio.
+  const [currentWeight, setCurrentWeight] = useState(0);
+
+  // Exercise help modal
+  const [helpExercise, setHelpExercise] = useState<string | null>(null);
 
   // Rest timer
   const [isResting, setIsResting] = useState(false);
@@ -95,6 +92,10 @@ export default function WorkoutScreen() {
 
   const currentExercise = allExercises[currentExerciseIndex];
   const totalExercises = allExercises.length;
+
+  useEffect(() => {
+    setCurrentWeight(currentExercise?.target_weight_kg ?? 0);
+  }, [currentExercise?.id]);
 
   useEffect(() => {
     loadRoutineAndStart();
@@ -231,6 +232,8 @@ export default function WorkoutScreen() {
           exercise_id: currentExercise.id,
           sets_completed: currentExercise.sets,
           actual_value: currentExercise.value,
+          actual_weight_kg:
+            currentExercise.exercise_type === 'reps' && currentWeight > 0 ? currentWeight : null,
         });
       }
       if (currentExerciseIndex < totalExercises - 1) {
@@ -319,13 +322,17 @@ export default function WorkoutScreen() {
 
   const completedCount = Array.from(progress.values()).filter(p => p.isComplete).length;
 
+  const ctaGradColors: [string, string] = activeTheme === 'dark'
+    ? [actionDimBg, '#003d4d']
+    : [T.border, T.surface];
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={[s.safe, s.center]}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <ActivityIndicator size="large" color={T.action} />
           <Text style={[s.textLo, { marginTop: 16 }]}>Preparando entrenamiento...</Text>
         </View>
       </>
@@ -338,7 +345,7 @@ export default function WorkoutScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={[s.safe, s.center, { paddingHorizontal: 24 }]}>
-          <Ionicons name="alert-circle-outline" size={56} color={C.red} />
+          <Ionicons name="alert-circle-outline" size={56} color={'#EF4444'} />
           <Text style={[s.textHi, { textAlign: 'center', marginTop: 16 }]}>
             {error || 'No hay ejercicios en esta rutina'}
           </Text>
@@ -365,7 +372,7 @@ export default function WorkoutScreen() {
         <View style={s.restOverlay}>
           <View style={s.restCard}>
             <LinearGradient
-              colors={['transparent', C.primary, 'transparent']}
+              colors={['transparent', T.action, 'transparent']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={s.restTopLine}
             />
@@ -376,7 +383,7 @@ export default function WorkoutScreen() {
             </Text>
             <TouchableOpacity onPress={skipRest} style={s.skipBtn}>
               <Text style={s.skipBtnText}>SALTAR DESCANSO</Text>
-              <Ionicons name="arrow-forward" size={16} color={C.bg} />
+              <Ionicons name="arrow-forward" size={16} color={T.surface} />
             </TouchableOpacity>
           </View>
         </View>
@@ -386,7 +393,7 @@ export default function WorkoutScreen() {
         {/* ── Top bar ──────────────────────────────────────────────────────── */}
         <View style={s.topBar}>
           <TouchableOpacity onPress={handleCancelWorkout} style={s.topBarBtn}>
-            <Ionicons name="close" size={24} color={C.neutral} />
+            <Ionicons name="close" size={24} color={T.textSecondary} />
           </TouchableOpacity>
 
           <View style={s.topBarCenter}>
@@ -395,7 +402,7 @@ export default function WorkoutScreen() {
           </View>
 
           <TouchableOpacity onPress={handleFinishWorkout} style={s.topBarBtn}>
-            <Ionicons name="checkmark-done" size={24} color={C.green} />
+            <Ionicons name="checkmark-done" size={24} color={T.done} />
           </TouchableOpacity>
         </View>
 
@@ -429,12 +436,12 @@ export default function WorkoutScreen() {
                   s.dot,
                   { borderColor: color },
                   active && { backgroundColor: color },
-                  done && { backgroundColor: C.green, borderColor: C.green },
+                  done && { backgroundColor: T.done, borderColor: T.done },
                 ]}
               >
                 {done
-                  ? <Ionicons name="checkmark" size={10} color={C.bg} />
-                  : <Text style={[s.dotNum, active && { color: C.bg }]}>{idx + 1}</Text>
+                  ? <Ionicons name="checkmark" size={10} color={T.surface} />
+                  : <Text style={[s.dotNum, active && { color: T.surface }]}>{idx + 1}</Text>
                 }
               </TouchableOpacity>
             );
@@ -462,6 +469,16 @@ export default function WorkoutScreen() {
           <Text style={s.exDetail}>
             {currentExercise.sets} series × {formatExerciseValue(currentExercise.exercise_type as any, currentExercise.value)}
           </Text>
+          {lookupExercise(currentExercise.name) && (
+            <TouchableOpacity
+              onPress={() => setHelpExercise(currentExercise.name)}
+              style={s.techBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="information-circle-outline" size={14} color={T.textSecondary} />
+              <Text style={s.techBtnText}>Ver técnica</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Sets bubbles */}
           <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
@@ -480,7 +497,7 @@ export default function WorkoutScreen() {
                     ]}
                   >
                     {done
-                      ? <Ionicons name="checkmark" size={20} color={C.bg} />
+                      ? <Ionicons name="checkmark" size={20} color={T.surface} />
                       : <Text style={[s.setBubbleNum, active && { color: blockColor }]}>{idx + 1}</Text>
                     }
                   </View>
@@ -489,10 +506,34 @@ export default function WorkoutScreen() {
             </View>
           </View>
 
+          {/* Peso de hoy (solo si el ejercicio trackea peso) */}
+          {currentExercise.exercise_type === 'reps' && currentExercise.target_weight_kg != null && (
+            <View style={[s.setsCard, { borderLeftColor: blockColor }]}>
+              <Text style={s.setsLabel}>PESO DE HOY (KG)</Text>
+              <View style={s.weightRow}>
+                <TouchableOpacity
+                  onPress={() => setCurrentWeight(w => Math.max(0, w - 2.5))}
+                  style={s.weightBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={20} color={blockColor} />
+                </TouchableOpacity>
+                <Text style={s.weightValue}>{currentWeight}</Text>
+                <TouchableOpacity
+                  onPress={() => setCurrentWeight(w => Math.min(500, w + 2.5))}
+                  style={s.weightBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={20} color={blockColor} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Notes */}
           {currentExercise.notes ? (
             <View style={s.notesCard}>
-              <Ionicons name="information-circle-outline" size={18} color={C.neutral} />
+              <Ionicons name="information-circle-outline" size={18} color={T.textSecondary} />
               <Text style={s.notesText}>{currentExercise.notes}</Text>
             </View>
           ) : null}
@@ -500,7 +541,7 @@ export default function WorkoutScreen() {
           {/* Rest info */}
           {currentExercise.rest_seconds > 0 && !isResting && (
             <View style={s.restInfo}>
-              <Ionicons name="timer-outline" size={16} color={C.textLo} />
+              <Ionicons name="timer-outline" size={16} color={T.textSecondary} />
               <Text style={s.restInfoText}>
                 Descanso: {currentExercise.rest_seconds}s entre series
               </Text>
@@ -517,8 +558,8 @@ export default function WorkoutScreen() {
               disabled={currentExerciseIndex === 0}
               style={[s.navBtn, currentExerciseIndex === 0 && s.navBtnDisabled]}
             >
-              <Ionicons name="chevron-back" size={18} color={currentExerciseIndex === 0 ? C.border : C.textLo} />
-              <Text style={[s.navBtnText, currentExerciseIndex === 0 && { color: C.border }]}>Anterior</Text>
+              <Ionicons name="chevron-back" size={18} color={currentExerciseIndex === 0 ? T.border : T.textSecondary} />
+              <Text style={[s.navBtnText, currentExerciseIndex === 0 && { color: T.border }]}>Anterior</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -526,8 +567,8 @@ export default function WorkoutScreen() {
               disabled={currentExerciseIndex === totalExercises - 1}
               style={[s.navBtn, currentExerciseIndex === totalExercises - 1 && s.navBtnDisabled]}
             >
-              <Text style={[s.navBtnText, currentExerciseIndex === totalExercises - 1 && { color: C.border }]}>Siguiente</Text>
-              <Ionicons name="chevron-forward" size={18} color={currentExerciseIndex === totalExercises - 1 ? C.border : C.textLo} />
+              <Text style={[s.navBtnText, currentExerciseIndex === totalExercises - 1 && { color: T.border }]}>Siguiente</Text>
+              <Ionicons name="chevron-forward" size={18} color={currentExerciseIndex === totalExercises - 1 ? T.border : T.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -535,100 +576,113 @@ export default function WorkoutScreen() {
           {!isComplete ? (
             <TouchableOpacity onPress={handleCompleteSet} activeOpacity={0.85} style={s.ctaBtn}>
               <LinearGradient
-                colors={[C.primaryDim, '#003d4d']}
+                colors={ctaGradColors}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={s.ctaGrad}
               >
                 <Text style={s.ctaText}>COMPLETAR SERIE {setsCompleted + 1}</Text>
-                <Ionicons name="checkmark-circle-outline" size={20} color={C.primary} />
+                <Ionicons name="checkmark-circle-outline" size={20} color={T.action} />
               </LinearGradient>
             </TouchableOpacity>
           ) : (
             <View style={s.doneCard}>
-              <Ionicons name="checkmark-circle" size={26} color={C.green} />
+              <Ionicons name="checkmark-circle" size={26} color={T.done} />
               <Text style={s.doneText}>EJERCICIO COMPLETADO</Text>
             </View>
           )}
         </View>
       </View>
+
+      <ExerciseHelpModal
+        exerciseName={helpExercise}
+        onClose={() => setHelpExercise(null)}
+      />
     </>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  center:  { alignItems: 'center', justifyContent: 'center' },
-  scroll:  { padding: 20, paddingBottom: 8 },
+function createStyles(T: ThemeTokens, actionDimBg = '#00566a') {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    center:  { alignItems: 'center', justifyContent: 'center' },
+    scroll:  { padding: 20, paddingBottom: 8 },
 
-  // ── Loading / error ──
-  textHi:     { color: C.textHi, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  textLo:     { color: C.textLo, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
-  errorBtn:   { marginTop: 20, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: C.border },
-  errorBtnText: { color: C.primary, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 14 },
+    // ── Loading / error ──
+    textHi:     { color: T.textPrimary, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    textLo:     { color: T.textSecondary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular' },
+    errorBtn:   { marginTop: 20, backgroundColor: T.surfaceElevated, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: T.border },
+    errorBtnText: { color: T.action, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 14 },
 
-  // ── Rest modal ──
-  restOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  restCard:    { width: '100%', backgroundColor: C.card, borderRadius: 24, padding: 32, alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: C.border },
-  restTopLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.5 },
-  restLabel:   { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 16 },
-  restTimer:   { color: C.primary, fontSize: 80, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 88 },
-  restNext:    { color: C.textLo, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 8, marginBottom: 28 },
-  skipBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.primary, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14 },
-  skipBtnText: { color: C.bg, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 13, letterSpacing: 1.5 },
+    // ── Rest modal ──
+    restOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+    restCard:    { width: '100%', backgroundColor: T.surfaceElevated, borderRadius: 24, padding: 32, alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: T.border },
+    restTopLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.5 },
+    restLabel:   { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 16 },
+    restTimer:   { color: T.action, fontSize: 80, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 88 },
+    restNext:    { color: T.textSecondary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginTop: 8, marginBottom: 28 },
+    skipBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.action, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14 },
+    skipBtnText: { color: T.surface, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 13, letterSpacing: 1.5 },
 
-  // ── Top bar ──
-  topBar:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
-  topBarBtn:    { padding: 8 },
-  topBarCenter: { flex: 1, alignItems: 'center' },
-  topBarTitle:  { color: C.textHi, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
-  topBarTime:   { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
+    // ── Top bar ──
+    topBar:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
+    topBarBtn:    { padding: 8 },
+    topBarCenter: { flex: 1, alignItems: 'center' },
+    topBarTitle:  { color: T.textPrimary, fontSize: 15, fontFamily: 'SpaceGrotesk_700Bold' },
+    topBarTime:   { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', marginTop: 2 },
 
-  // ── Progress ──
-  progressWrap:  { paddingHorizontal: 20, marginBottom: 8 },
-  progressTrack: { height: 4, backgroundColor: C.cardDeep, borderRadius: 4, overflow: 'hidden' },
-  progressFill:  { height: '100%', backgroundColor: C.green, borderRadius: 4 },
-  progressLabel: { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginTop: 6 },
+    // ── Progress ──
+    progressWrap:  { paddingHorizontal: 20, marginBottom: 8 },
+    progressTrack: { height: 4, backgroundColor: T.border, borderRadius: 4, overflow: 'hidden' },
+    progressFill:  { height: '100%', backgroundColor: T.done, borderRadius: 4 },
+    progressLabel: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', marginTop: 6 },
 
-  // ── Exercise dots ──
-  dotsScroll: { maxHeight: 40, flexGrow: 0 },
-  dotsRow:    { paddingHorizontal: 20, gap: 6, alignItems: 'center' },
-  dot:        { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
-  dotNum:     { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
+    // ── Exercise dots ──
+    dotsScroll: { maxHeight: 40, flexGrow: 0 },
+    dotsRow:    { paddingHorizontal: 20, gap: 6, alignItems: 'center' },
+    dot:        { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.border },
+    dotNum:     { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  // ── Main content ──
-  blockBadgeRow: { alignItems: 'center', marginBottom: 20 },
-  blockBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
-  blockBadgeText:{ fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 0.5 },
+    // ── Main content ──
+    blockBadgeRow: { alignItems: 'center', marginBottom: 20 },
+    blockBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+    blockBadgeText:{ fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 0.5 },
 
-  exName:   { color: C.textHi, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', lineHeight: 36, marginBottom: 8 },
-  exDetail: { color: C.textLo, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 28 },
+    exName:   { color: T.textPrimary, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', lineHeight: 36, marginBottom: 8 },
+    exDetail: { color: T.textSecondary, fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center', marginBottom: 12 },
+    techBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'center', marginBottom: 20, opacity: 0.6 },
+    techBtnText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  setsCard:  { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, padding: 20, marginBottom: 16 },
-  setsLabel: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 16, textAlign: 'center' },
-  setsRow:   { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap' },
-  setBubble: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
-  setBubbleDone: { backgroundColor: C.green, borderColor: C.green },
-  setBubbleNum:  { color: C.neutral, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
+    setsCard:  { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, borderLeftWidth: 3, padding: 20, marginBottom: 16 },
+    setsLabel: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 16, textAlign: 'center' },
+    setsRow:   { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap' },
+    setBubble: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.border },
+    setBubbleDone: { backgroundColor: T.done, borderColor: T.done },
+    setBubbleNum:  { color: T.textSecondary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  notesCard: { flexDirection: 'row', gap: 10, backgroundColor: C.cardDeep, borderRadius: 12, padding: 14, marginBottom: 12 },
-  notesText: { flex: 1, color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
+    weightRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
+    weightBtn:   { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.border },
+    weightValue: { color: T.textPrimary, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold', minWidth: 56, textAlign: 'center' },
 
-  restInfo:     { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 },
-  restInfoText: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    notesCard: { flexDirection: 'row', gap: 10, backgroundColor: T.border, borderRadius: 12, padding: 14, marginBottom: 12 },
+    notesText: { flex: 1, color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 20 },
 
-  // ── Bottom ──
-  bottom:   { padding: 20, paddingBottom: 36, gap: 12 },
-  navRow:   { flexDirection: 'row', justifyContent: 'space-between' },
-  navBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
-  navBtnDisabled: { opacity: 0.4 },
-  navBtnText: { color: C.textLo, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    restInfo:     { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 },
+    restInfoText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  ctaBtn:  { borderRadius: 16, overflow: 'hidden' },
-  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
-  ctaText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+    // ── Bottom ──
+    bottom:   { padding: 20, paddingBottom: 36, gap: 12 },
+    navRow:   { flexDirection: 'row', justifyContent: 'space-between' },
+    navBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
+    navBtnDisabled: { opacity: 0.4 },
+    navBtnText: { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold' },
 
-  doneCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: `${C.green}15`, borderRadius: 16, paddingVertical: 18, borderWidth: 1.5, borderColor: C.green },
-  doneText: { color: C.green, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 14, letterSpacing: 1.5 },
-});
+    ctaBtn:  { borderRadius: 16, overflow: 'hidden' },
+    ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
+    ctaText: { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+
+    doneCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: `${T.done}15`, borderRadius: 16, paddingVertical: 18, borderWidth: 1.5, borderColor: T.done },
+    doneText: { color: T.done, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 14, letterSpacing: 1.5 },
+  });
+}

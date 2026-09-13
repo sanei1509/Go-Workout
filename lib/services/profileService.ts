@@ -8,6 +8,7 @@ export interface Profile {
   role: Role;
   full_name?: string;
   avatar_url?: string;
+  disciplines?: string[];  // solo TRAINER: 1-3 disciplinas que acotan su flujo
   created_at?: string;
 }
 
@@ -26,7 +27,7 @@ export async function upsertProfile(profile: { id: string; email: string; role: 
 
 export async function updateProfile(
   id: string,
-  data: { full_name?: string; avatar_url?: string }
+  data: { full_name?: string; avatar_url?: string; disciplines?: string[] }
 ): Promise<{ error: Error | null }> {
   const { error } = await supabase
     .from('profiles')

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BarChart } from 'react-native-chart-kit';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 import {
   getWorkoutHistory,
   getWeeklyStats,
@@ -28,22 +30,6 @@ import {
   WeeklySessionsBar,
 } from '@/lib/services/progressService';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-  green:      '#4ade80',
-  greenDim:   '#052e16',
-};
-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CHART_W = SCREEN_WIDTH - 80;
 
@@ -54,6 +40,10 @@ interface SessionWithDetails extends WorkoutSession {
 
 export default function HistoryScreen() {
   const { user } = useAuth();
+  const { T, activeTheme } = useTheme();
+  const isDark = activeTheme === 'dark';
+  const actionDimBg = isDark ? '#00566a' : '#e8e4dc';
+  const s = useMemo(() => createStyles(T, actionDimBg, isDark), [T, actionDimBg, isDark]);
   const [sessions, setSessions] = useState<SessionWithDetails[]>([]);
   const [stats, setStats] = useState<WeeklyStats | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
@@ -122,42 +112,42 @@ export default function HistoryScreen() {
       <Stack.Screen options={{ title: 'HISTORIAL' }} />
       <View style={s.container}>
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
 
         {isLoading ? (
           <View style={s.loading}>
-            <ActivityIndicator size="large" color={C.primary} />
+            <ActivityIndicator size="large" color={T.action} />
           </View>
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}
             refreshControl={
               <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}
-                tintColor={C.primary} colors={[C.primary]} />
+                tintColor={T.action} colors={[T.action]} />
             }
           >
             {/* ── Stats strip ───────────────────────────────────────── */}
             <View style={s.statsRow}>
               <View style={[s.statCard, { flex: 1, marginRight: 8 }]}>
-                <View style={[s.statIcon, { backgroundColor: C.primaryDim }]}>
-                  <Ionicons name="fitness-outline" size={18} color={C.primary} />
+                <View style={[s.statIcon, { backgroundColor: actionDimBg }]}>
+                  <Ionicons name="fitness-outline" size={18} color={T.action} />
                 </View>
                 <Text style={s.statValue}>{sessions.length}</Text>
                 <Text style={s.statLabel}>SESIONES</Text>
               </View>
               <View style={[s.statCard, { flex: 1, marginHorizontal: 4 }]}>
-                <View style={[s.statIcon, { backgroundColor: '#2a1f00' }]}>
-                  <Ionicons name="flame" size={18} color={C.tertiary} />
+                <View style={[s.statIcon, s.statIconAttention]}>
+                  <Ionicons name="flame" size={18} color={T.attention} />
                 </View>
-                <Text style={[s.statValue, { color: C.tertiary }]}>{stats?.streak ?? 0}</Text>
+                <Text style={[s.statValue, { color: T.attention }]}>{stats?.streak ?? 0}</Text>
                 <Text style={s.statLabel}>RACHA</Text>
               </View>
               <View style={[s.statCard, { flex: 1, marginLeft: 8 }]}>
-                <View style={[s.statIcon, { backgroundColor: C.primaryDim }]}>
-                  <Ionicons name="calendar-outline" size={18} color={C.primary} />
+                <View style={[s.statIcon, { backgroundColor: actionDimBg }]}>
+                  <Ionicons name="calendar-outline" size={18} color={T.action} />
                 </View>
                 <Text style={s.statValue}>{stats?.workoutsCompleted ?? 0}</Text>
                 <Text style={s.statLabel}>ESTA SEM.</Text>
@@ -170,7 +160,7 @@ export default function HistoryScreen() {
                 <Text style={s.sectionTitle}>VOLUMEN SEMANAL</Text>
                 <View style={s.volumeCard}>
                   <LinearGradient
-                    colors={['transparent', C.primary, 'transparent']}
+                    colors={['transparent', T.action, 'transparent']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={s.cardTopLine}
                   />
@@ -184,9 +174,9 @@ export default function HistoryScreen() {
                         <Ionicons
                           name={generalStats.volumeChange >= 0 ? 'trending-up' : 'trending-down'}
                           size={13}
-                          color={generalStats.volumeChange >= 0 ? C.green : '#f87171'}
+                          color={generalStats.volumeChange >= 0 ? T.done : '#f87171'}
                         />
-                        <Text style={[s.changeText, { color: generalStats.volumeChange >= 0 ? C.green : '#f87171' }]}>
+                        <Text style={[s.changeText, { color: generalStats.volumeChange >= 0 ? T.done : '#f87171' }]}>
                           {generalStats.volumeChange >= 0 ? '+' : ''}{generalStats.volumeChange}% vs sem. ant.
                         </Text>
                       </View>
@@ -216,14 +206,14 @@ export default function HistoryScreen() {
                     yAxisLabel=""
                     yAxisSuffix=""
                     chartConfig={{
-                      backgroundColor: C.card,
-                      backgroundGradientFrom: C.card,
-                      backgroundGradientTo: C.cardDeep,
+                      backgroundColor: T.surfaceElevated,
+                      backgroundGradientFrom: T.surfaceElevated,
+                      backgroundGradientTo: T.border,
                       decimalPlaces: 0,
                       color: (opacity = 1) => `rgba(0, 209, 255, ${opacity})`,
-                      labelColor: () => C.textLo,
+                      labelColor: () => T.textSecondary,
                       barPercentage: 0.6,
-                      propsForBackgroundLines: { stroke: C.border, strokeDasharray: '' },
+                      propsForBackgroundLines: { stroke: T.border, strokeDasharray: '' },
                     }}
                     style={{ borderRadius: 8, marginLeft: -10 }}
                     withInnerLines
@@ -238,7 +228,7 @@ export default function HistoryScreen() {
             {sessions.length === 0 ? (
               <View style={s.emptyCard}>
                 <View style={s.emptyIcon}>
-                  <Ionicons name="barbell-outline" size={32} color={C.primary} />
+                  <Ionicons name="barbell-outline" size={32} color={T.action} />
                 </View>
                 <Text style={s.emptyTitle}>SIN ENTRENAMIENTOS</Text>
                 <Text style={s.emptyDesc}>Completá tu primer entrenamiento para verlo aquí.</Text>
@@ -258,7 +248,7 @@ export default function HistoryScreen() {
                         >
                           <View style={[s.sessionRow, idx < groupedSessions[dateKey].length - 1 && s.sessionBorder]}>
                             <View style={s.sessionIcon}>
-                              <Ionicons name="checkmark" size={20} color={C.green} />
+                              <Ionicons name="checkmark" size={20} color={T.done} />
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={s.sessionName}>
@@ -268,7 +258,7 @@ export default function HistoryScreen() {
                                 <Text style={s.sessionPlan}>{session.plan_name}</Text>
                               )}
                               <View style={s.sessionMeta}>
-                                <Ionicons name="time-outline" size={12} color={C.neutral} />
+                                <Ionicons name="time-outline" size={12} color={T.textSecondary} />
                                 <Text style={s.sessionMetaText}>{formatTime(session.started_at)}</Text>
                                 {session.finished_at && (
                                   <>
@@ -280,7 +270,7 @@ export default function HistoryScreen() {
                                 )}
                               </View>
                             </View>
-                            <Ionicons name="chevron-forward" size={14} color={C.border} />
+                            <Ionicons name="chevron-forward" size={14} color={T.border} />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -293,7 +283,7 @@ export default function HistoryScreen() {
             {/* ── Racha motivacional ────────────────────────────────── */}
             {stats && stats.streak > 2 && (
               <View style={s.streakCard}>
-                <Ionicons name="flame" size={22} color={C.tertiary} />
+                <Ionicons name="flame" size={22} color={T.attention} />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={s.streakTitle}>
                     ¡{stats.streak} día{stats.streak !== 1 ? 's' : ''} seguidos!
@@ -311,57 +301,67 @@ export default function HistoryScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  topLine:   { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  loading:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll:    { padding: 20, paddingBottom: 48 },
+function createStyles(T: ThemeTokens, actionDimBg: string, isDark: boolean) {
+  const doneIconBg = isDark ? 'rgba(74,222,128,0.12)' : 'rgba(44,140,78,0.10)';
+  const doneIconBorder = isDark ? 'rgba(74,222,128,0.35)' : 'rgba(44,140,78,0.30)';
+  const attentionIconBg = isDark ? 'rgba(254,177,39,0.12)' : '#FDF6E8';
+  const streakBg = isDark ? 'rgba(254,177,39,0.09)' : '#FDF6E8';
+  const streakBorder = isDark ? 'rgba(254,177,39,0.30)' : 'rgba(184,121,26,0.35)';
+  const streakTitleColor = isDark ? T.attention : '#8A5A11';
 
-  sectionTitle: { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: T.surface },
+    topLine:   { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    loading:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    scroll:    { padding: 20, paddingBottom: 48 },
 
-  // Stats strip
-  statsRow: { flexDirection: 'row', marginBottom: 24 },
-  statCard: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, alignItems: 'center', gap: 6 },
-  statIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  statValue:{ color: C.textHi, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
-  statLabel:{ color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    sectionTitle: { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 12 },
 
-  // Volume card
-  volumeCard:   { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.primary, marginBottom: 24, overflow: 'hidden' },
-  cardTopLine:  { height: 2, opacity: 0.6 },
-  volumeBody:   { flexDirection: 'row', alignItems: 'center', padding: 18 },
-  volumeValue:  { color: C.textHi, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -1 },
-  volumeUnit:   { color: C.neutral, fontSize: 16, fontFamily: 'SpaceGrotesk_400Regular' },
-  changePill:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  changeText:   { fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  volumeDivider:{ width: 1, height: 48, backgroundColor: C.border, marginHorizontal: 18 },
-  volumeSide:   { alignItems: 'center' },
-  miniValue:    { color: C.textHi, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
-  miniLabel:    { color: C.textLo, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginTop: 3 },
+    // Stats strip
+    statsRow: { flexDirection: 'row', marginBottom: 24 },
+    statCard: { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 14, alignItems: 'center', gap: 6 },
+    statIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    statIconAttention: { backgroundColor: attentionIconBg },
+    statValue:{ color: T.textPrimary, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
+    statLabel:{ color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
 
-  // Chart
-  chartCard: { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 24, overflow: 'hidden' },
+    // Volume card
+    volumeCard:   { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.action, marginBottom: 24, overflow: 'hidden' },
+    cardTopLine:  { height: 2, opacity: 0.6 },
+    volumeBody:   { flexDirection: 'row', alignItems: 'center', padding: 18 },
+    volumeValue:  { color: T.textPrimary, fontSize: 30, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: -1 },
+    volumeUnit:   { color: T.textSecondary, fontSize: 16, fontFamily: 'SpaceGrotesk_400Regular' },
+    changePill:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+    changeText:   { fontSize: 12, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    volumeDivider:{ width: 1, height: 48, backgroundColor: T.border, marginHorizontal: 18 },
+    volumeSide:   { alignItems: 'center' },
+    miniValue:    { color: T.textPrimary, fontSize: 22, fontFamily: 'SpaceGrotesk_700Bold' },
+    miniLabel:    { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginTop: 3 },
 
-  // Session list
-  dateLabel:    { color: C.neutral, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 8 },
-  sessionGroup: { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  sessionRow:   { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  sessionBorder:{ borderBottomWidth: 1, borderBottomColor: C.border },
-  sessionIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: C.greenDim, borderWidth: 1, borderColor: C.green, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  sessionName:  { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 2 },
-  sessionPlan:  { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 3 },
-  sessionMeta:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  sessionMetaText: { color: C.textLo, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
-  sessionDot:   { color: C.border, fontSize: 11 },
+    // Chart
+    chartCard: { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: T.border, padding: 20, marginBottom: 24, overflow: 'hidden' },
 
-  // Empty
-  emptyCard:  { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 40, alignItems: 'center', gap: 12 },
-  emptyIcon:  { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primaryDim, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: C.textHi, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
-  emptyDesc:  { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20 },
+    // Session list
+    dateLabel:    { color: T.textSecondary, fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 3, marginBottom: 8 },
+    sessionGroup: { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+    sessionRow:   { flexDirection: 'row', alignItems: 'center', padding: 14 },
+    sessionBorder:{ borderBottomWidth: 1, borderBottomColor: T.border },
+    sessionIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: doneIconBg, borderWidth: 1, borderColor: doneIconBorder, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    sessionName:  { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginBottom: 2 },
+    sessionPlan:  { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 3 },
+    sessionMeta:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    sessionMetaText: { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+    sessionDot:   { color: T.border, fontSize: 11 },
 
-  // Streak
-  streakCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: '#3a2c00', padding: 16, marginTop: 8 },
-  streakTitle: { color: C.tertiary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
-  streakDesc:  { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
-});
+    // Empty
+    emptyCard:  { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border, padding: 40, alignItems: 'center', gap: 12 },
+    emptyIcon:  { width: 64, height: 64, borderRadius: 32, backgroundColor: actionDimBg, alignItems: 'center', justifyContent: 'center' },
+    emptyTitle: { color: T.textPrimary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2 },
+    emptyDesc:  { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20 },
+
+    // Streak
+    streakCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: streakBg, borderRadius: 12, borderWidth: 1, borderColor: streakBorder, padding: 16, marginTop: 8 },
+    streakTitle: { color: streakTitleColor, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', marginBottom: 2 },
+    streakDesc:  { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_400Regular' },
+  });
+}

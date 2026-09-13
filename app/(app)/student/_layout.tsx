@@ -1,31 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, useRootNavigationState } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View, Text } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { getStudentPendingInvitations } from '@/lib/services/invitationService';
-
-const BG     = '#090f12';
-const CARD   = '#141c1f';
-const BORDER = '#3c494e';
-const PRIMARY = '#00D1FF';
-const PRIMARY_DIM = '#00566a';
-const NEUTRAL = '#71787B';
-const TEXT_HI = '#dde3e7';
+import { useTheme } from '@/contexts/ThemeContext';
 
 function ProfileTabIcon({ focused }: { focused: boolean }) {
   const { profile, user } = useAuth();
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
   const letter = (profile?.full_name || user?.email || 'U').charAt(0).toUpperCase();
   return (
     <View style={{
       width: 28, height: 28, borderRadius: 14,
-      backgroundColor: focused ? PRIMARY_DIM : '#1a2123',
+      backgroundColor: focused ? actionDimBg : T.border,
       borderWidth: focused ? 1.5 : 1,
-      borderColor: focused ? PRIMARY : BORDER,
+      borderColor: focused ? T.action : T.border,
       alignItems: 'center', justifyContent: 'center',
     }}>
       <Text style={{
-        color: focused ? PRIMARY : NEUTRAL,
+        color: focused ? T.action : T.textSecondary,
         fontSize: 13,
         fontFamily: 'SpaceGrotesk_700Bold',
       }}>
@@ -39,6 +34,7 @@ export default function StudentLayout() {
   const rootNavigationState = useRootNavigationState();
   const isNavigationReady = Boolean(rootNavigationState?.key);
   const { user } = useAuth();
+  const { T, activeTheme } = useTheme();
   const [pendingCount, setPendingCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {
@@ -51,8 +47,8 @@ export default function StudentLayout() {
 
   if (!isNavigationReady) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: BG }}>
-        <ActivityIndicator size="large" color={PRIMARY} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface }}>
+        <ActivityIndicator size="large" color={T.action} />
       </View>
     );
   }
@@ -61,15 +57,15 @@ export default function StudentLayout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: CARD,
+          backgroundColor: T.surfaceElevated,
           borderTopWidth: 1,
-          borderTopColor: BORDER,
+          borderTopColor: T.border,
           height: 60,
           paddingBottom: 8,
           paddingTop: 6,
         },
-        tabBarActiveTintColor: PRIMARY,
-        tabBarInactiveTintColor: NEUTRAL,
+        tabBarActiveTintColor: T.action,
+        tabBarInactiveTintColor: T.textSecondary,
         tabBarLabelStyle: {
           fontSize: 10,
           fontFamily: 'SpaceGrotesk_700Bold',
@@ -77,9 +73,9 @@ export default function StudentLayout() {
         },
         // Header para pantallas anidadas (plan, rutina, etc.)
         headerShown: true,
-        headerStyle: { backgroundColor: BG },
-        headerTintColor: PRIMARY,
-        headerTitleStyle: { fontFamily: 'SpaceGrotesk_600SemiBold', color: TEXT_HI, fontSize: 15 },
+        headerStyle: { backgroundColor: T.surface },
+        headerTintColor: T.action,
+        headerTitleStyle: { fontFamily: 'SpaceGrotesk_600SemiBold', color: T.textPrimary, fontSize: 15 },
         headerShadowVisible: false,
         headerBackTitle: '',
       }}
@@ -118,7 +114,7 @@ export default function StudentLayout() {
           title: 'Perfil',
           headerShown: false,
           tabBarBadge: pendingCount,
-          tabBarBadgeStyle: { backgroundColor: '#FEB127', color: '#7a5500', fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold' },
+          tabBarBadgeStyle: { backgroundColor: T.attention, color: activeTheme === 'dark' ? '#7a5500' : '#fff', fontSize: 10, fontFamily: 'SpaceGrotesk_700Bold' },
           tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} />,
         }}
       />

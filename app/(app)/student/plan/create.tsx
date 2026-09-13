@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,20 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPlan, getUserPlans, updatePlan, DISCIPLINES, FREQUENCIES } from '@/lib/services/planService';
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:         '#090f12',
-  card:       '#141c1f',
-  cardDeep:   '#1a2123',
-  border:     '#3c494e',
-  primary:    '#00D1FF',
-  primaryDim: '#00566a',
-  tertiary:   '#FEB127',
-  neutral:    '#71787B',
-  textHi:     '#dde3e7',
-  textLo:     '#859399',
-};
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeTokens } from '@/constants/theme';
 
 const TOTAL_STEPS = 3;
 
@@ -74,6 +62,10 @@ export default function CreatePlanScreen() {
     visible: false, discipline: '', existingName: '', existingId: '',
   });
 
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
+
   const handleGoBack = () => {
     if (step > 1) setStep(step - 1);
     else router.navigate('/student');
@@ -96,7 +88,8 @@ export default function CreatePlanScreen() {
 
     if (user?.id) {
       const { plans } = await getUserPlans(user.id);
-      const existing = plans.find(p => p.discipline === d);
+      // Solo planes propios: los asignados por un entrenador no se pueden desactivar
+      const existing = plans.find(p => p.discipline === d && !p.trainer_id);
 
       if (existing) {
         setConflict({ visible: true, discipline: d, existingName: existing.name, existingId: existing.id });
@@ -153,7 +146,7 @@ export default function CreatePlanScreen() {
         title: '',
         headerLeft: () => (
           <TouchableOpacity onPress={handleGoBack} style={{ marginLeft: 4, padding: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={C.primary} />
+            <Ionicons name="chevron-back" size={24} color={T.action} />
           </TouchableOpacity>
         ),
       }} />
@@ -163,7 +156,7 @@ export default function CreatePlanScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <LinearGradient
-          colors={['transparent', C.primary, 'transparent']}
+          colors={['transparent', T.action, 'transparent']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={s.topLine}
         />
@@ -178,8 +171,8 @@ export default function CreatePlanScreen() {
               <View key={n} style={s.stepItem}>
                 <View style={[s.stepDot, active && s.stepDotActive, done && s.stepDotDone]}>
                   {done
-                    ? <Ionicons name="checkmark" size={13} color={C.bg} />
-                    : <Text style={[s.stepNum, (active || done) && { color: C.bg }]}>{n}</Text>
+                    ? <Ionicons name="checkmark" size={13} color={T.surface} />
+                    : <Text style={[s.stepNum, (active || done) && { color: T.surface }]}>{n}</Text>
                   }
                 </View>
                 {n < TOTAL_STEPS && (
@@ -220,7 +213,7 @@ export default function CreatePlanScreen() {
             >
               {canProceed() && !isSubmitting ? (
                 <LinearGradient
-                  colors={[C.primaryDim, '#003d4d']}
+                  colors={[actionDimBg, '#003d4d']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={s.ctaGrad}
                 >
@@ -230,14 +223,14 @@ export default function CreatePlanScreen() {
                   <Ionicons
                     name={step === TOTAL_STEPS ? 'checkmark-circle-outline' : 'arrow-forward'}
                     size={18}
-                    color={C.primary}
+                    color={T.action}
                   />
                 </LinearGradient>
               ) : (
                 <View style={[s.ctaGrad, s.ctaGradDisabled]}>
                   {isSubmitting
-                    ? <ActivityIndicator color={C.primary} />
-                    : <Text style={[s.ctaText, { color: C.neutral }]}>
+                    ? <ActivityIndicator color={T.action} />
+                    : <Text style={[s.ctaText, { color: T.textSecondary }]}>
                         {step === TOTAL_STEPS ? 'CREAR PLAN' : 'CONTINUAR'}
                       </Text>
                   }
@@ -253,12 +246,12 @@ export default function CreatePlanScreen() {
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
             <LinearGradient
-              colors={['transparent', C.tertiary, 'transparent']}
+              colors={['transparent', T.attention, 'transparent']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={s.modalTopLine}
             />
             <View style={s.modalIconWrap}>
-              <Ionicons name="warning-outline" size={28} color={C.tertiary} />
+              <Ionicons name="warning-outline" size={28} color={T.attention} />
             </View>
             <Text style={s.modalTitle}>Plan activo en {conflict.discipline}</Text>
             <Text style={s.modalDesc}>
@@ -266,7 +259,7 @@ export default function CreatePlanScreen() {
             </Text>
 
             <TouchableOpacity onPress={handleConflictModify} activeOpacity={0.85} style={s.modalBtnPrimary}>
-              <Ionicons name="create-outline" size={18} color={C.primary} />
+              <Ionicons name="create-outline" size={18} color={T.action} />
               <Text style={s.modalBtnPrimaryText}>MODIFICAR EL EXISTENTE</Text>
             </TouchableOpacity>
 
@@ -288,6 +281,9 @@ export default function CreatePlanScreen() {
 // ─── Step 1: Nombre ───────────────────────────────────────────────────────────
 
 function Step1({ name, setName }: { name: string; setName: (v: string) => void }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   return (
     <View>
       <Text style={s.stepTitle}>¿Cómo se llama{'\n'}tu plan?</Text>
@@ -298,7 +294,7 @@ function Step1({ name, setName }: { name: string; setName: (v: string) => void }
           value={name}
           onChangeText={setName}
           placeholder="Ej: Rutina de fuerza..."
-          placeholderTextColor={C.neutral}
+          placeholderTextColor={T.textSecondary}
           style={s.input}
           autoFocus
           maxLength={50}
@@ -313,6 +309,9 @@ function Step1({ name, setName }: { name: string; setName: (v: string) => void }
 // ─── Step 2: Disciplina ───────────────────────────────────────────────────────
 
 function Step2({ discipline, onSelect }: { discipline: string | null; onSelect: (d: string) => void }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   return (
     <View>
       <Text style={s.stepTitle}>¿Qué disciplina{'\n'}vas a entrenar?</Text>
@@ -331,7 +330,7 @@ function Step2({ discipline, onSelect }: { discipline: string | null; onSelect: 
               <Ionicons
                 name={(DISCIPLINE_ICONS[d] ?? 'apps-outline') as any}
                 size={18}
-                color={active ? C.bg : C.neutral}
+                color={active ? T.surface : T.textSecondary}
                 style={{ marginBottom: 5 }}
               />
               <Text style={[s.disciplineText, active && s.disciplineTextActive]}>{d}</Text>
@@ -350,6 +349,9 @@ function Step3({
 }: {
   name: string; discipline: string; selectedDays: number[]; onToggleDay: (day: number) => void;
 }) {
+  const { T, activeTheme } = useTheme();
+  const actionDimBg = activeTheme === 'dark' ? '#00566a' : '#e0f7fa';
+  const s = useMemo(() => createStyles(T, actionDimBg), [T, actionDimBg]);
   const count = selectedDays.length;
   const freqLabel = count > 0
     ? FREQUENCIES.find(f => f.value === count)?.label ?? `${count} días por semana`
@@ -390,7 +392,7 @@ function Step3({
 
         {freqLabel ? (
           <View style={s.freqResult}>
-            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+            <Ionicons name="checkmark-circle" size={16} color={T.action} />
             <Text style={s.freqResultText}>{freqLabel}</Text>
           </View>
         ) : (
@@ -403,80 +405,82 @@ function Step3({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
-  scroll:  { padding: 24, paddingBottom: 16 },
+function createStyles(T: ThemeTokens, actionDimBg: string) {
+  return StyleSheet.create({
+    safe:    { flex: 1, backgroundColor: T.surface },
+    topLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.4, zIndex: 10 },
+    scroll:  { padding: 24, paddingBottom: 16 },
 
-  // ── Steps indicator (centrado con tamaños fijos) ──
-  stepsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  stepItem:       { flexDirection: 'row', alignItems: 'center' },
-  stepDot:        { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
-  stepDotActive:  { borderColor: C.primary, backgroundColor: C.primary },
-  stepDotDone:    { borderColor: C.primary, backgroundColor: C.primary },
-  stepNum:        { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
-  stepLine:       { width: 48, height: 1.5, backgroundColor: C.border, marginHorizontal: 6 },
-  stepLineDone:   { backgroundColor: C.primary },
+    // ── Steps indicator (centrado con tamaños fijos) ──
+    stepsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+    },
+    stepItem:       { flexDirection: 'row', alignItems: 'center' },
+    stepDot:        { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surfaceElevated },
+    stepDotActive:  { borderColor: T.action, backgroundColor: T.action },
+    stepDotDone:    { borderColor: T.action, backgroundColor: T.action },
+    stepNum:        { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_700Bold' },
+    stepLine:       { width: 48, height: 1.5, backgroundColor: T.border, marginHorizontal: 6 },
+    stepLineDone:   { backgroundColor: T.action },
 
-  // ── Step content ──
-  stepTitle: { color: C.textHi, fontSize: 28, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 34, marginBottom: 8 },
-  stepSub:   { color: C.textLo, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 28 },
+    // ── Step content ──
+    stepTitle: { color: T.textPrimary, fontSize: 28, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 34, marginBottom: 8 },
+    stepSub:   { color: T.textSecondary, fontSize: 14, fontFamily: 'SpaceGrotesk_400Regular', marginBottom: 28 },
 
-  // ── Step 1 ──
-  inputWrap:  { backgroundColor: C.card, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, overflow: 'hidden' },
-  input:      { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 20, paddingVertical: 18 },
-  charCount:  { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'right', paddingHorizontal: 16, paddingBottom: 10 },
+    // ── Step 1 ──
+    inputWrap:  { backgroundColor: T.surfaceElevated, borderRadius: 14, borderWidth: 1.5, borderColor: T.border, overflow: 'hidden' },
+    input:      { color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_600SemiBold', paddingHorizontal: 20, paddingVertical: 18 },
+    charCount:  { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'right', paddingHorizontal: 16, paddingBottom: 10 },
 
-  // ── Step 2 ──
-  disciplineGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  disciplineChip:      { width: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border },
-  disciplineChipActive:{ backgroundColor: C.primary, borderColor: C.primary },
-  disciplineText:      { color: C.neutral, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center' },
-  disciplineTextActive:{ color: C.bg },
+    // ── Step 2 ──
+    disciplineGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    disciplineChip:      { width: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8, backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: T.border },
+    disciplineChipActive:{ backgroundColor: T.action, borderColor: T.action },
+    disciplineText:      { color: T.textSecondary, fontSize: 11, fontFamily: 'SpaceGrotesk_600SemiBold', textAlign: 'center' },
+    disciplineTextActive:{ color: T.surface },
 
-  // ── Step 3 ──
-  summaryCard:       { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.primaryDim, padding: 16, marginBottom: 24 },
-  summaryLabel:      { color: C.neutral, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 4 },
-  summaryName:       { color: C.textHi, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
-  summaryDiscipline: { color: C.primary, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginTop: 2 },
+    // ── Step 3 ──
+    summaryCard:       { backgroundColor: T.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: actionDimBg, padding: 16, marginBottom: 24 },
+    summaryLabel:      { color: T.textSecondary, fontSize: 9, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 2, marginBottom: 4 },
+    summaryName:       { color: T.textPrimary, fontSize: 18, fontFamily: 'SpaceGrotesk_700Bold' },
+    summaryDiscipline: { color: T.action, fontSize: 13, fontFamily: 'SpaceGrotesk_600SemiBold', marginTop: 2 },
 
-  daySelector: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center' },
-  dayDotsRow:  { flexDirection: 'row', gap: 8, marginBottom: 20 },
+    daySelector: { backgroundColor: T.surfaceElevated, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 20, alignItems: 'center' },
+    dayDotsRow:  { flexDirection: 'row', gap: 8, marginBottom: 20 },
 
-  dayDot:       { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardDeep },
-  dayDotActive: { backgroundColor: C.primary, borderColor: C.primary },
+    dayDot:       { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: T.border, alignItems: 'center', justifyContent: 'center', backgroundColor: T.border },
+    dayDotActive: { backgroundColor: T.action, borderColor: T.action },
 
-  dayLabel:       { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
-  dayLabelActive: { color: C.bg },
+    dayLabel:       { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold' },
+    dayLabelActive: { color: T.surface },
 
-  freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  freqResultText: { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
-  freqHint:       { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
+    freqResult:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    freqResultText: { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold' },
+    freqHint:       { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular' },
 
-  // ── Conflict Modal ──
-  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalCard:          { width: '100%', backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24 },
-  modalTopLine:       { height: 2, opacity: 0.7, marginBottom: 24 },
-  modalIconWrap:      { width: 52, height: 52, borderRadius: 26, backgroundColor: '#2a1f00', borderWidth: 1, borderColor: C.tertiary, alignItems: 'center', justifyContent: 'center', marginBottom: 16, alignSelf: 'center' },
-  modalTitle:         { color: C.textHi, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 10 },
-  modalDesc:          { color: C.neutral, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  modalHighlight:     { color: C.textHi, fontFamily: 'SpaceGrotesk_600SemiBold' },
-  modalBtnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primaryDim, borderRadius: 10, paddingVertical: 14, marginBottom: 10 },
-  modalBtnPrimaryText:{ color: C.primary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  modalBtnDanger:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2a0f0f', borderRadius: 10, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: '#ff6b6b40' },
-  modalBtnDangerText: { color: '#ff6b6b', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
-  modalBtnCancel:     { alignItems: 'center', paddingVertical: 12 },
-  modalBtnCancelText: { color: C.neutral, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    // ── Conflict Modal ──
+    modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    modalCard:          { width: '100%', backgroundColor: T.surfaceElevated, borderRadius: 18, borderWidth: 1, borderColor: T.border, overflow: 'hidden', paddingHorizontal: 24, paddingBottom: 24 },
+    modalTopLine:       { height: 2, opacity: 0.7, marginBottom: 24 },
+    modalIconWrap:      { width: 52, height: 52, borderRadius: 26, backgroundColor: '#2a1f00', borderWidth: 1, borderColor: T.attention, alignItems: 'center', justifyContent: 'center', marginBottom: 16, alignSelf: 'center' },
+    modalTitle:         { color: T.textPrimary, fontSize: 17, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center', marginBottom: 10 },
+    modalDesc:          { color: T.textSecondary, fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    modalHighlight:     { color: T.textPrimary, fontFamily: 'SpaceGrotesk_600SemiBold' },
+    modalBtnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: actionDimBg, borderRadius: 10, paddingVertical: 14, marginBottom: 10 },
+    modalBtnPrimaryText:{ color: T.action, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    modalBtnDanger:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2a0f0f', borderRadius: 10, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: '#ff6b6b40' },
+    modalBtnDangerText: { color: '#ff6b6b', fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
+    modalBtnCancel:     { alignItems: 'center', paddingVertical: 12 },
+    modalBtnCancelText: { color: T.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1 },
 
-  // ── Footer ──
-  footer:         { padding: 20, paddingBottom: 32 },
-  ctaBtn:         { borderRadius: 14, overflow: 'hidden' },
-  ctaGrad:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
-  ctaGradDisabled:{ backgroundColor: C.cardDeep },
-  ctaText:        { color: C.primary, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
-});
+    // ── Footer ──
+    footer:         { padding: 20, paddingBottom: 32 },
+    ctaBtn:         { borderRadius: 14, overflow: 'hidden' },
+    ctaGrad:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
+    ctaGradDisabled:{ backgroundColor: T.border },
+    ctaText:        { color: T.action, fontSize: 14, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1.5 },
+  });
+}
